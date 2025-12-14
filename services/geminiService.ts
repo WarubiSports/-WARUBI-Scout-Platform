@@ -40,6 +40,122 @@ const cleanJson = (text: string) => {
   return clean;
 };
 
+// --- PROMPT TEMPLATES ---
+
+const buildStrategyPrompt = (context: string) => `
+You are a **senior head scout and mentor at WARUBI**.
+
+A new scout has joined the platform.
+
+---
+
+## Scout Profile
+Here is what the scout has told us about themselves:
+${context}
+
+This can include:
+- Their role (college coach, club coach, scout, analyst, agent)
+- People they know (college coaches, club coaches, scouts)
+- Tools they use (Hudl, Veo, recruiting software, tournament lists)
+- Past experience and access points
+
+---
+
+## Your Job
+Help the scout find players **quickly** by using what they already have.
+
+1. Spot **Hidden Gold Mines** in their existing network or tools.
+2. Give **3 very specific actions** they can do right now.
+3. Keep everything:
+   - Simple
+   - High-impact
+   - Easy to execute today
+
+Most good ideas come from:
+- Lead lists they already have
+- Trusted colleagues they already know
+- Players who already need help with recruiting
+
+---
+
+## How to Think (Use When Relevant)
+
+- **If they are a college coach OR know college coaches**
+  - Export the “Not Interested” or “Rejected” players from recruiting software.
+  - Suggest replying to rejected recruit emails with the WARUBI free player evaluation tool.
+
+- **Almost all coaches and scouts**
+  - Check old tournament lists, camp lists, or recruiting software lists.
+  - These players usually need help and are strong leads.
+
+- **If they are a club coach**
+  - Contact the top 2-3 players cut from ECNL, GA, NL, or academy tryouts.
+
+- **If they use Hudl or Veo**
+  - Watch last week’s opponent footage.
+  - Identify the best opponent player and reach out to their coach.
+
+- **For almost everyone**
+  - Remind them they can run a showcase.
+  - Keep it simple: pick a date, pick a location, confirm details with WARUBI HQ.
+  - WARUBI supports the setup and marketing.
+
+---
+
+## Important Reminders
+- WARUBI can help players at **almost any level**.
+- What matters most:
+  - The player is motivated
+  - The player wants to improve
+  - The player wants better academy, college, or pro chances
+- When reaching out to new players:
+  - Lead with value first
+  - Use the **free player evaluation tools**
+  - Help the player and family get real recruiting advice before selling anything
+
+---
+
+## Rules
+- No generic advice.
+  - No “network more”
+  - No “post on social media”
+- Every task must:
+  - Use a **specific source** (list, tool, footage, contacts)
+  - Be doable in **under 30 minutes**
+  - Be clear and practical
+
+---
+
+## Output Format
+Return **strict JSON only** in this format:
+
+\`\`\`json
+{
+  "scoutPersona": "Two-word professional title",
+  "welcomeMessage": "One short sentence explaining why this scout has leverage",
+  "tasks": [
+    {
+      "title": "Short action name",
+      "instruction": "Clear and simple step-by-step instruction",
+      "whyItWorks": "One sentence explaining why this finds players"
+    },
+    {
+      "title": "Short action name",
+      "instruction": "Clear and simple step-by-step instruction",
+      "whyItWorks": "One sentence explaining why this finds players"
+    },
+    {
+      "title": "Short action name",
+      "instruction": "Clear and simple step-by-step instruction",
+      "whyItWorks": "One sentence explaining why this finds players"
+    }
+  ]
+}
+\`\`\`
+`;
+
+// --- SERVICE FUNCTIONS ---
+
 // 0. Parse Player Details (Auto-Fill Form)
 export const parsePlayerDetails = async (text: string): Promise<any> => {
     const ai = getAiClient();
@@ -61,6 +177,7 @@ export const parsePlayerDetails = async (text: string): Promise<any> => {
         - dob (YYYY-MM-DD format if possible, otherwise string)
         - gradYear (Year only)
         - club (Club team name)
+        - teamLevel (e.g. ECNL, Academy, Varsity, Regional)
         - region (City/State)
         - heightFt (Number)
         - heightIn (Number)
@@ -87,6 +204,7 @@ export const parsePlayerDetails = async (text: string): Promise<any> => {
                         dob: { type: Type.STRING },
                         gradYear: { type: Type.STRING },
                         club: { type: Type.STRING },
+                        teamLevel: { type: Type.STRING },
                         region: { type: Type.STRING },
                         heightFt: { type: Type.STRING },
                         heightIn: { type: Type.STRING },
@@ -303,28 +421,7 @@ export const generateOnboardingData = async (
         `;
     }
 
-    const prompt = `
-        You are a master head scout and mentor for WARUBI. A new scout has joined.
-        
-        Based on their profile:
-        ${context}
-        
-        Your Goal:
-        Identify "Hidden Gold Mines" in their existing network they might be overlooking.
-        Give them 3 HIGHLY SPECIFIC, actionable "Power Moves" to find players immediately.
-        
-        Examples of logic:
-        - If they are a College Coach, suggest: "Export your 'Not Interested' list from your recruiting software. Those players are perfect leads for Warubi."
-        - If they are a Club Coach, suggest: "Email the 3 best players cut from your ECNL/GA team tryouts."
-        - If they use Veo/Hudl, suggest: "Watch last week's opponent footage and ID their best player."
-        
-        Generate:
-        1. 'scoutPersona': A cool 2-word title for them based on their answers (e.g., "The Connector", "The Tactician", "The Insider").
-        2. 'welcomeMessage': A short, punchy 1-sentence welcome that acknowledges their specific leverage.
-        3. 'tasks': 3 specific, non-generic tasks based on the logic above.
-
-        Return JSON.
-    `;
+    const prompt = buildStrategyPrompt(context);
     
     try {
         const response = await ai.models.generateContent({
@@ -337,15 +434,42 @@ export const generateOnboardingData = async (
                     properties: {
                         scoutPersona: { type: Type.STRING },
                         welcomeMessage: { type: Type.STRING },
-                        tasks: { type: Type.ARRAY, items: { type: Type.STRING } }
+                        tasks: { 
+                            type: Type.ARRAY, 
+                            items: { 
+                                type: Type.OBJECT,
+                                properties: {
+                                    title: { type: Type.STRING },
+                                    instruction: { type: Type.STRING },
+                                    whyItWorks: { type: Type.STRING }
+                                }
+                            } 
+                        }
                     }
                 }
             }
         });
         const text = response.text || "{}";
         const cleanedText = cleanJson(text);
-        return JSON.parse(cleanedText);
+        const parsed = JSON.parse(cleanedText);
+
+        // Map structured tasks to strings for the UI (keeping backward compatibility with UI)
+        let stringTasks: string[] = [];
+        if (Array.isArray(parsed.tasks)) {
+             stringTasks = parsed.tasks.map((t: any) => {
+                 if (typeof t === 'string') return t;
+                 // Combining Title and Instruction for the string array
+                 return `${t.title}: ${t.instruction}`;
+             });
+        }
+
+        return {
+            scoutPersona: parsed.scoutPersona || "The Scout",
+            welcomeMessage: parsed.welcomeMessage || "Welcome to the team.",
+            tasks: stringTasks
+        };
     } catch (e) {
+        console.error("Strategy Gen Error", e);
         return {
             scoutPersona: "The Scout",
             welcomeMessage: "Welcome to the team! Let's find some talent.",
@@ -358,9 +482,20 @@ export const generateOnboardingData = async (
 export const askScoutAI = async (question: string): Promise<string> => {
     const ai = getAiClient();
     const prompt = `
-      You are a helpful expert mentor for soccer scouts at WARUBI. 
-      Answer the question below.
-      If the question provides a specific Persona/Role context, assume that persona and answer accordingly.
+      You are a specialized expert mentor for soccer scouts at WARUBI.
+      
+      YOUR EXPERTISE:
+      - 4 Flagship Pathways: College Pathway, Development in Europe (ITP), Exposure Events, Coaching Education.
+      - Tools: ROI Calculator, Transfer Valuator, Free Assessments.
+
+      ROLE:
+      Be concise, direct, professional, and encouraging.
+      
+      RULES:
+      1. Keep answers SHORT (max 150 words usually).
+      2. Use bullet points for lists to make them easy to read.
+      3. Always guide the scout to use the specific Warubi Tools (ROI Calculator, Assessment Link) when relevant.
+      4. If asked about prices or specifics, refer to the "Pathways" tab.
       
       Question/Context: ${question}
     `;

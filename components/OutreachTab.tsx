@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Player, UserProfile, OutreachLog, PlayerStatus } from '../types';
-import { Search, Mail, Sparkles, Copy, CheckCircle, MessageCircle, Send, Link, History, Clock, Upload, Loader2, FlaskConical, AlertCircle, X, Trash2 } from 'lucide-react';
+import { Search, Mail, Sparkles, Copy, CheckCircle, MessageCircle, Send, Link, History, Clock, Upload, Loader2, FlaskConical, AlertCircle, X, Trash2, Smartphone, MousePointer, ExternalLink, Zap, EyeOff, HelpCircle, ArrowRight } from 'lucide-react';
 import { generateOutreachMessage, extractPlayersFromBulkData } from '../services/geminiService';
 
 interface OutreachTabProps {
@@ -9,6 +9,7 @@ interface OutreachTabProps {
   initialPlayerId?: string | null;
   onMessageSent: (id: string, log: Omit<OutreachLog, 'id'>) => void;
   onAddPlayers: (players: Player[]) => void;
+  onPlayerAction?: (id: string, action: 'viewed' | 'submitted') => void;
 }
 
 const TEMPLATES = [
@@ -19,7 +20,7 @@ const TEMPLATES = [
   { id: 'rejection', title: 'Professional Decline', desc: 'Respectful "not right now"' },
 ];
 
-const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerId, onMessageSent, onAddPlayers }) => {
+const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerId, onMessageSent, onAddPlayers, onPlayerAction }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(initialPlayerId || null);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
@@ -27,6 +28,7 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [includeAssessment, setIncludeAssessment] = useState(false);
+  const [showShadowGuide, setShowShadowGuide] = useState(true); // Default open to explain feature
 
   // Bulk Import State
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -47,6 +49,8 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const prospectCount = players.filter(p => p.status === PlayerStatus.PROSPECT).length;
+
   const selectedPlayer = players.find(p => p.id === selectedPlayerId);
 
   const handleGenerate = async () => {
@@ -56,12 +60,14 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
     setCopied(false);
 
     const templateName = TEMPLATES.find(t => t.id === selectedTemplate)?.title || 'Message';
-    const trackingLink = includeAssessment 
-        ? `https://app.warubi-sports.com/?ref=${user.scoutId || 'demo'}`
+    
+    // Smart Link Generation
+    const smartLink = includeAssessment 
+        ? `https://warubi.com/eval/${selectedPlayer.id}?ref=${user.scoutId || 'demo'}&s=${Date.now()}`
         : undefined;
 
     try {
-      const msg = await generateOutreachMessage(user.name, selectedPlayer, templateName, trackingLink);
+      const msg = await generateOutreachMessage(user.name, selectedPlayer, templateName, smartLink);
       setGeneratedMessage(msg);
     } catch (error) {
       setGeneratedMessage("Error generating message. Please try again.");
@@ -195,7 +201,8 @@ Alex, Morgan, CDM, 18, Ball winner, high work rate`
           name: p.name || "Unknown Player",
           age: p.age || 17,
           position: p.position || "Unknown",
-          status: PlayerStatus.LEAD,
+          // SHADOW PIPELINE: Default to PROSPECT so they are hidden from main board
+          status: PlayerStatus.PROSPECT,
           submittedAt: new Date().toISOString(),
           outreachLogs: [],
           evaluation: {
@@ -225,6 +232,40 @@ Alex, Morgan, CDM, 18, Ball winner, high work rate`
       if (newList.length === 0) setBulkStep('input');
   };
 
+  // --- Simulation Helpers ---
+  const simulateAction = (action: 'viewed' | 'submitted') => {
+      if (!selectedPlayer || !onPlayerAction) return;
+      onPlayerAction(selectedPlayer.id, action);
+  };
+
+  const ShadowPipelineExplainer = () => (
+    <div className="bg-gradient-to-r from-scout-900 to-scout-800 p-4 rounded-xl border border-scout-700 mb-4 animate-fade-in relative shadow-lg">
+        <button onClick={() => setShowShadowGuide(false)} className="absolute top-2 right-2 text-gray-500 hover:text-white"><X size={14}/></button>
+        <h4 className="text-xs font-bold text-white mb-3 flex items-center gap-2 uppercase tracking-wider">
+            <EyeOff size={14} className="text-scout-highlight"/> The Shadow Pipeline
+        </h4>
+        <div className="flex items-center justify-between text-xs gap-1 relative">
+            {/* Connecting line */}
+            <div className="absolute top-1/2 left-0 w-full h-0.5 bg-scout-700 -z-10"></div>
+
+            <div className="flex-1 flex flex-col items-center gap-1 z-10">
+                <div className="w-6 h-6 rounded-full bg-scout-800 border border-scout-600 flex items-center justify-center text-gray-400 font-bold">1</div>
+                <div className="text-[9px] text-gray-400 font-medium bg-scout-900 px-1 rounded">Import Hidden</div>
+            </div>
+            <div className="flex-1 flex flex-col items-center gap-1 z-10">
+                <div className="w-6 h-6 rounded-full bg-scout-800 border border-scout-accent flex items-center justify-center text-scout-accent font-bold">2</div>
+                <div className="text-[9px] text-gray-200 font-medium bg-scout-900 px-1 rounded text-center">Send Smart Link</div>
+            </div>
+            <div className="flex-1 flex flex-col items-center gap-1 z-10">
+                <div className="w-6 h-6 rounded-full bg-green-900 border border-green-500 flex items-center justify-center text-green-400 font-bold"><CheckCircle size={12}/></div>
+                <div className="text-[9px] text-green-400 font-medium bg-scout-900 px-1 rounded text-center">Auto-Promote</div>
+            </div>
+        </div>
+        <p className="text-[10px] text-gray-500 mt-3 text-center italic">
+            "Keep your main board clean. Prospects only appear when they act."
+        </p>
+    </div>
+  );
 
   return (
     <div className="flex h-[calc(100vh-140px)] gap-6 animate-fade-in relative">
@@ -241,7 +282,10 @@ Alex, Morgan, CDM, 18, Ball winner, high work rate`
                 <Upload size={10} /> Import Leads
             </button>
           </div>
-          <div className="relative">
+          
+          {showShadowGuide && <ShadowPipelineExplainer />}
+
+          <div className="relative mb-2">
             <Search className="absolute left-3 top-2.5 text-gray-500" size={16} />
             <input 
               type="text" 
@@ -250,6 +294,18 @@ Alex, Morgan, CDM, 18, Ball winner, high work rate`
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
+          </div>
+          
+          {/* Shadow Pipeline Counter */}
+          <div 
+            onClick={() => setShowShadowGuide(!showShadowGuide)}
+            className="flex items-center justify-between bg-scout-900/50 p-2 rounded border border-scout-700/50 text-[10px] text-gray-400 cursor-pointer hover:bg-scout-900 hover:border-scout-accent/50 transition-colors group"
+          >
+             <div className="flex items-center gap-2">
+                 <EyeOff size={12} className={prospectCount > 0 ? "text-scout-highlight" : "text-gray-600"}/>
+                 <span><strong>{prospectCount} Prospects</strong> in Shadow Pool</span>
+             </div>
+             <HelpCircle size={12} className="text-gray-600 group-hover:text-white" />
           </div>
         </div>
         
@@ -272,11 +328,12 @@ Alex, Morgan, CDM, 18, Ball winner, high work rate`
                             <p className="text-xs text-gray-500">{player.position} • {player.age} yo</p>
                         </div>
                         <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border border-scout-700 ${
+                            player.status === PlayerStatus.PROSPECT ? 'bg-gray-800 text-gray-500 border-gray-700' :
                             player.status === 'Placed' ? 'bg-scout-accent text-white border-scout-accent' : 
                             player.status === 'Offered' ? 'bg-scout-highlight/20 text-scout-highlight border-scout-highlight' :
                             'bg-scout-900 text-gray-400'
                         }`}>
-                            {player.status}
+                            {player.status === PlayerStatus.PROSPECT ? 'Shadow' : player.status}
                         </span>
                     </div>
 
@@ -294,7 +351,7 @@ Alex, Morgan, CDM, 18, Ball winner, high work rate`
       </div>
 
       {/* RIGHT: Template & Generation */}
-      <div className="w-2/3 flex flex-col gap-6">
+      <div className="w-2/3 flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-2">
         
         {/* Template Selector */}
         <div className="bg-scout-800 p-6 rounded-xl border border-scout-700">
@@ -325,7 +382,7 @@ Alex, Morgan, CDM, 18, Ball winner, high work rate`
         </div>
 
         {/* Message Draft Area */}
-        <div className="flex-1 bg-scout-800 p-6 rounded-xl border border-scout-700 flex flex-col min-h-0">
+        <div className="flex-1 bg-scout-800 p-6 rounded-xl border border-scout-700 flex flex-col min-h-[400px]">
           <div className="flex justify-between items-center mb-2">
             <h3 className="font-bold text-white">Message Draft</h3>
             <span className="text-xs text-gray-500 italic">
@@ -351,7 +408,7 @@ Alex, Morgan, CDM, 18, Ball winner, high work rate`
           </div>
 
           <div className="flex flex-col gap-3">
-             <label className="flex items-center gap-2 p-3 bg-scout-900 rounded-lg border border-scout-700 cursor-pointer hover:border-scout-500 transition-colors">
+             <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${includeAssessment ? 'bg-scout-accent/10 border-scout-accent' : 'bg-scout-900 border-scout-700 hover:border-scout-500'}`}>
                 <input 
                     type="checkbox" 
                     checked={includeAssessment}
@@ -359,10 +416,10 @@ Alex, Morgan, CDM, 18, Ball winner, high work rate`
                     className="w-5 h-5 rounded border-gray-500 text-scout-accent focus:ring-scout-accent"
                 />
                 <div className="flex-1">
-                    <span className="text-sm font-bold text-white flex items-center gap-2">
-                        <Link size={14} className="text-scout-accent"/> Include Free Assessment Link
+                    <span className={`text-sm font-bold flex items-center gap-2 ${includeAssessment ? 'text-scout-accent' : 'text-white'}`}>
+                        <Link size={14} /> Include "Smart Link" Assessment
                     </span>
-                    <p className="text-xs text-gray-400">Players who complete it are automatically added to your leads (Tracked).</p>
+                    <p className="text-xs text-gray-400">Players who click this are automatically tracked & promoted from the Shadow Pipeline.</p>
                 </div>
              </label>
 
@@ -401,6 +458,35 @@ Alex, Morgan, CDM, 18, Ball winner, high work rate`
              </div>
           </div>
         </div>
+
+        {/* --- SIMULATION PANEL (DEMO FEATURE) --- */}
+        {selectedPlayer && includeAssessment && (
+             <div className="bg-gradient-to-r from-gray-900 to-gray-800 p-4 rounded-xl border border-gray-700 relative overflow-hidden">
+                <div className="flex justify-between items-center mb-3">
+                    <h4 className="text-xs font-bold text-gray-400 uppercase flex items-center gap-2">
+                        <FlaskConical size={14} className="text-orange-500" /> Dev Tools: Smart Link Simulator
+                    </h4>
+                    <span className="text-[10px] bg-gray-700 text-gray-300 px-2 py-0.5 rounded">Testing Mode</span>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <button 
+                        onClick={() => simulateAction('viewed')}
+                        className="bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 hover:border-scout-accent p-3 rounded-lg flex items-center gap-2 text-xs font-bold transition-all"
+                    >
+                        <MousePointer size={16} className="text-blue-400"/> Simulate Link Click
+                    </button>
+                     <button 
+                        onClick={() => simulateAction('submitted')}
+                        className="bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-600 hover:border-scout-accent p-3 rounded-lg flex items-center gap-2 text-xs font-bold transition-all"
+                    >
+                        <Zap size={16} className="text-yellow-400"/> Simulate Form Submit
+                    </button>
+                </div>
+                <p className="text-[10px] text-gray-500 mt-2">
+                    In production, these events fire automatically when <strong>{selectedPlayer.name}</strong> interacts with the link you sent.
+                </p>
+            </div>
+        )}
         
         {/* Previous Communications History */}
         {selectedPlayer && (
@@ -487,8 +573,8 @@ Alex, Morgan, CDM, 18, Ball winner, high work rate`
                             </div>
 
                              <div className="bg-scout-900/50 p-3 rounded border border-scout-700 flex items-start gap-2 text-xs text-gray-400">
-                                <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                                <p>To maintain outreach quality and prevent spam, bulk imports are strictly limited to 25 players per day.</p>
+                                <EyeOff size={16} className="shrink-0 mt-0.5 text-scout-highlight" />
+                                <p>To maintain a clean dashboard, bulk leads are added to your <strong>Shadow Pool</strong> (hidden status) until they reply.</p>
                             </div>
 
                              <button 
@@ -543,6 +629,10 @@ Alex, Morgan, CDM, 18, Ball winner, high work rate`
                             </div>
 
                             <div className="pt-2">
+                                <div className="bg-scout-800/50 p-3 rounded mb-3 text-xs text-gray-400 border border-scout-700 flex items-center gap-2">
+                                    <EyeOff size={14} />
+                                    Players will be added to the <strong>Shadow Pool (Prospects)</strong> and hidden from your main board until they respond.
+                                </div>
                                 <button 
                                     onClick={confirmBulkPlayers}
                                     className="w-full bg-white hover:bg-gray-100 text-scout-900 font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2"

@@ -1,491 +1,861 @@
-import React, { useState, useEffect } from 'react';
-import { ITP_REFERENCE_PLAYERS } from '../constants';
+import React, { useState } from 'react';
+import { ITP_REFERENCE_PLAYERS, WARUBI_PATHWAYS, WARUBI_TOOLS } from '../constants';
 import { askScoutAI } from '../services/geminiService';
-import { MessageSquare, Send, BookOpen, Loader2, Map, Users, BarChart3, ChevronRight, ShieldAlert, CheckCircle2, Search, PlayCircle, Lightbulb, Zap, GraduationCap } from 'lucide-react';
-import { UserProfile } from '../types';
+import { 
+    MessageSquare, Send, BookOpen, Loader2, Map, Users, BarChart3, ChevronRight, 
+    ShieldAlert, CheckCircle2, Search, PlayCircle, Lightbulb, Zap, GraduationCap, 
+    Sparkles, User, Globe, Calendar, ArrowRight, Calculator, Copy, CheckCircle, 
+    Link, DollarSign, TrendingUp, HelpCircle, X, Award, Ruler, Activity, Scale, 
+    Anchor, HeartHandshake, AlertTriangle, ShieldCheck, ExternalLink, Lock,
+    RefreshCw, Info
+} from 'lucide-react';
+import { UserProfile, PathwayDef, Player } from '../types';
 
 interface KnowledgeTabProps {
     user?: UserProfile;
 }
 
 const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
-    const [activeSection, setActiveSection] = useState<'playbook' | 'standards' | 'scripts'>('playbook');
+    // Navigation State
+    const [view, setView] = useState<'HOME' | 'PATHWAY_DETAIL' | 'TOOL' | 'REF_DETAIL' | 'MODEL'>('HOME');
+    const [selectedPathway, setSelectedPathway] = useState<PathwayDef | null>(null);
+    const [selectedToolId, setSelectedToolId] = useState<string | null>(null);
+    const [selectedRefPlayer, setSelectedRefPlayer] = useState<Player | null>(null);
+
+    // AI Chat State
     const [aiQuestion, setAiQuestion] = useState('');
-    const [aiAnswer, setAiAnswer] = useState<string | null>(null);
+    const [aiChatHistory, setAiChatHistory] = useState<{role: 'user' | 'ai', text: string}[]>([]);
     const [aiLoading, setAiLoading] = useState(false);
-    const [chatHistory, setChatHistory] = useState<{role: 'user' | 'ai', text: string}[]>([]);
 
-    // --- PERSONALIZED TRIGGERS ---
-    const getTriggers = () => {
-        const role = user?.role || 'General';
-        
-        // 1. Interview Flow (Identify Potential)
-        const interviewTrigger = {
-            id: 'interview',
-            icon: <Users size={18} className="text-blue-400" />,
-            title: "Unlock My Network",
-            subtitle: "Interview me to find hidden leads.",
-            prompt: `Act as a senior head scout interviewing me. Your goal is to help me realize I already know players who fit Warubi. Ask me 3 short, probing questions about my daily environment (${role}) to uncover hidden talent I might be overlooking. Do not give advice yet, just ask the questions.`
-        };
-
-        // 2. Learning Flow (Program Knowledge)
-        const learningTrigger = {
-            id: 'learn',
-            icon: <GraduationCap size={18} className="text-yellow-400" />,
-            title: "Master the Programs",
-            subtitle: "Teach me the ITP requirements.",
-            prompt: "Act as a teacher. explain the 'International Talent Program' (ITP) to me in 3 simple bullet points. Then, give me a one-question quiz to see if I understood the difference between a 'Tier 1' and 'Tier 3' player."
-        };
-
-        // 3. Practical Flow (Find Fast) - Dynamic based on Role
-        let practicalTrigger;
-        if (role.includes('College')) {
-            practicalTrigger = {
-                id: 'action',
-                icon: <Zap size={18} className="text-green-400" />,
-                title: "The 'Pass List' Strategy",
-                subtitle: "Turn rejected recruits into leads.",
-                prompt: "I am a College Coach. Give me a specific strategy on how to use my list of players I 'Passed' on (who weren't quite good enough for my roster) and convert them into Warubi leads. Draft a text message I can send to them."
-            };
-        } else if (role.includes('Club')) {
-            practicalTrigger = {
-                id: 'action',
-                icon: <Zap size={18} className="text-green-400" />,
-                title: "Training Ground Check",
-                subtitle: "Spotting talent at practice.",
-                prompt: "I am a Club Coach. Give me a checklist of 3 specific things to look for at my training session tonight that indicate a player might be ready for the Warubi International Pathway (e.g., mentality, physical traits)."
-            };
-        } else {
-            practicalTrigger = {
-                id: 'action',
-                icon: <Zap size={18} className="text-green-400" />,
-                title: "Instant Scout Action",
-                subtitle: "How to find a player today.",
-                prompt: "Give me 3 unconventional ways to find a soccer player lead in the next 24 hours without leaving my house. Focus on digital tools and leveraging contacts."
-            };
+    // Tool State (ROI Calculator)
+    const [roiData, setRoiData] = useState({
+        mode: 'custom' as 'custom' | 'averages',
+        pathA: {
+            tuition: 45000,
+            scholarship: 15000,
+            years: 4
+        },
+        pathB: {
+            itpCost: 44000,
+            itpScholarship: 0,
+            postTuition: 45000,
+            postScholarship: 25000, // Assumption: Better player = better offer
+            postYears: 3 // Assumption: Credits earned
         }
-
-        return [interviewTrigger, learningTrigger, practicalTrigger];
-    };
-
-    const triggers = getTriggers();
-
-    const handleTriggerClick = async (triggerPrompt: string) => {
-        setAiLoading(true);
-        // Add user intent silently or visibly? Let's add it visibly for context
-        const userMsg = { role: 'user' as const, text: "Let's start this session." };
-        setChatHistory([userMsg]);
-        
-        try {
-            const res = await askScoutAI(triggerPrompt);
-            setChatHistory(prev => [...prev, { role: 'ai', text: res }]);
-            setAiAnswer(res); // Keep current state for backward compat if needed
-        } catch (e) {
-            setAiAnswer("Network error. Try again.");
-        } finally {
-            setAiLoading(false);
-        }
-    };
-
-    // --- PLAYBOOK STATE ---
-    const [activeStage, setActiveStage] = useState(0);
-    const STAGES = [
-        {
-            id: 'identify',
-            title: '1. Identification',
-            goal: 'Find hidden talent',
-            icon: <Search size={20} />,
-            tactics: [
-                'Attend local "B-level" tournaments (hidden gems are often there).',
-                'Ask high school coaches: "Who is your hardest worker?"',
-                'Look for specific traits: Speed, height, or exceptional technique.',
-            ],
-            redFlags: [
-                'Player argues with referees.',
-                'Parents are coaching from the sidelines.',
-                'Player walks when the ball is not near them.'
-            ]
-        },
-        {
-            id: 'engage',
-            title: '2. Engagement',
-            goal: 'Build trust & interest',
-            icon: <MessageSquare size={20} />,
-            tactics: [
-                'Approach the PARENT first if the player is under 18.',
-                'Focus on the player\'s potential, not just the program cost.',
-                'Use the "First Contact" script to keep it professional.'
-            ],
-            redFlags: [
-                'Player is unresponsive to messages.',
-                'Family seems only interested in "full rides" immediately.'
-            ]
-        },
-        {
-            id: 'evaluate',
-            title: '3. Evaluation',
-            goal: 'Validate the talent',
-            icon: <BarChart3 size={20} />,
-            tactics: [
-                'Compare them to the "Reference Profiles" (see Standards tab).',
-                'Request full match footage, not just highlights.',
-                'Check their academic standing (GPA is crucial for college).'
-            ],
-            redFlags: [
-                'GPA below 2.5.',
-                'Edited highlight reel hides mistakes.',
-                'Struggles against higher-level opposition.'
-            ]
-        },
-        {
-            id: 'close',
-            title: '4. The Offer',
-            goal: 'Commitment',
-            icon: <CheckCircle2 size={20} />,
-            tactics: [
-                'Frame the offer as an exclusive opportunity.',
-                'Set a clear deadline for their decision.',
-                'Walk them through the scholarship timeline.'
-            ],
-            redFlags: [
-                'Hesitation due to "waiting for other offers".',
-                'Lack of enthusiasm about the pathway.'
-            ]
-        }
-    ];
-
-    // --- STANDARDS STATE ---
-    const [selectedRefPlayer, setSelectedRefPlayer] = useState(ITP_REFERENCE_PLAYERS[0]);
-    const [comparisonResult, setComparisonResult] = useState<string | null>(null);
-
-    const runComparison = () => {
-        // Mock simple logic for educational purposes
-        setComparisonResult(
-            `Analysis: ${selectedRefPlayer.name} sets the standard for a ${selectedRefPlayer.evaluation?.scholarshipTier} player. ` +
-            `To match this, your prospect needs to demonstrate similar ${selectedRefPlayer.evaluation?.strengths[0]} and ${selectedRefPlayer.evaluation?.strengths[1]}. ` +
-            `If your prospect is technically weaker, they must be physically superior to compete.`
-        );
-    };
-
-    // --- SCRIPTS STATE ---
-    const [activeScript, setActiveScript] = useState<string | null>(null);
-    const SCRIPTS = [
-        {
-            id: 'price',
-            title: 'Objection: "It is too expensive"',
-            content: "I understand finances are a big factor. However, we aren't just selling a trip; we are investing in a career pathway. One college scholarship offer can be worth $200,000+. This program is the bridge to that return on investment. Let's look at the payment plans."
-        },
-        {
-            id: 'mls',
-            title: 'Objection: "We are waiting for MLS"',
-            content: "That's a great goal. But did you know 95% of MLS draftees come from College Soccer now? The college route doesn't close the pro door; it keeps it open while getting a degree. Warubi creates the options so you aren't left with nothing if MLS doesn't call."
-        },
-        {
-            id: 'time',
-            title: 'Objection: "Not ready yet"',
-            content: "Totally fair. But scouting cycles happen 1-2 years in advance. If we wait until you feel 'ready', the roster spots for your grad year might be gone. Let's do a free assessment now just to see where you stand."
-        }
-    ];
+    });
+    const [toolCopied, setToolCopied] = useState(false);
 
     // --- AI HANDLER ---
-    const handleAskAI = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!aiQuestion.trim()) return;
+    const handleAskAI = async (e: React.FormEvent, overrideQuestion?: string) => {
+        if (e) e.preventDefault();
+        const q = overrideQuestion || aiQuestion;
+        if (!q.trim()) return;
         
-        const newMsg = { role: 'user' as const, text: aiQuestion };
-        setChatHistory(prev => [...prev, newMsg]);
+        const newMsg = { role: 'user' as const, text: q };
+        setAiChatHistory(prev => [...prev, newMsg]);
         setAiQuestion('');
         setAiLoading(true);
 
         try {
-            // Append context if history exists
-            const context = chatHistory.map(m => `${m.role}: ${m.text}`).join('\n');
-            const res = await askScoutAI(aiQuestion + (context ? `\n\nContext:\n${context}` : ''));
+            // Context injection based on view
+            let contextContext = "";
+            if (view === 'REF_DETAIL' && selectedRefPlayer) {
+                contextContext = `User is viewing Reference Player: ${selectedRefPlayer.name} (${selectedRefPlayer.evaluation?.scholarshipTier}). Strengths: ${selectedRefPlayer.evaluation?.strengths.join(', ')}.`;
+            } else if (view === 'PATHWAY_DETAIL' && selectedPathway) {
+                contextContext = `User is viewing Pathway: ${selectedPathway.title}.`;
+            } else if (view === 'MODEL') {
+                contextContext = `User is viewing "The Warubi Model" manifesto. Key points: No pay-to-play, scouts own relationships, Europe+USA synergy.`;
+            } else if (view === 'TOOL' && selectedToolId === 'roi_calc') {
+                contextContext = `User is using ROI Calculator. Path A Cost: ${(roiData.pathA.tuition - roiData.pathA.scholarship) * roiData.pathA.years}. Path B Cost: ${(roiData.pathB.itpCost - roiData.pathB.itpScholarship) + ((roiData.pathB.postTuition - roiData.pathB.postScholarship) * roiData.pathB.postYears)}.`;
+            }
             
-            setChatHistory(prev => [...prev, { role: 'ai', text: res }]);
-            setAiAnswer(res);
+            const historyText = aiChatHistory.map(m => `${m.role}: ${m.text}`).join('\n');
+            const fullPrompt = `${q}\n\n[Current UI Context: ${contextContext}]\n\nChat History:\n${historyText}`;
+            
+            const res = await askScoutAI(fullPrompt);
+            setAiChatHistory(prev => [...prev, { role: 'ai', text: res }]);
         } catch (e) {
-            setAiAnswer("Network error. Try again.");
+            setAiChatHistory(prev => [...prev, { role: 'ai', text: 'Network error. Try again.' }]);
         } finally {
             setAiLoading(false);
         }
     };
 
+    // --- HELPER COMPONENTS ---
+
+    // 1. PATHWAY CARD
+    const PathwayCard = ({ pathway }: { pathway: PathwayDef }) => {
+        const Icon = getIcon(pathway.icon);
+        return (
+            <div 
+                onClick={() => { setSelectedPathway(pathway); setView('PATHWAY_DETAIL'); }}
+                className={`bg-scout-800 rounded-xl p-6 border transition-all cursor-pointer group hover:shadow-xl relative overflow-hidden flex flex-col h-full ${pathway.color}`}
+            >
+                <div className="flex items-center gap-3 mb-3">
+                    <div className="p-3 bg-scout-900 rounded-lg group-hover:scale-110 transition-transform">
+                        <Icon size={24} />
+                    </div>
+                    <h3 className="text-lg font-bold text-white leading-tight">{pathway.title}</h3>
+                </div>
+                <p className="text-gray-400 text-sm mb-4 flex-1">{pathway.shortDesc}</p>
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-white opacity-70 group-hover:opacity-100 transition-opacity">
+                    View Strategy <ArrowRight size={12} />
+                </div>
+            </div>
+        );
+    };
+
+    // 2. TOOL CARD
+    const ToolCard = ({ tool }: { tool: any }) => (
+        <div className="bg-scout-900/50 border border-scout-700 rounded-lg p-4 hover:border-scout-accent transition-colors flex flex-col justify-between">
+            <div className="mb-3">
+                <div className="flex justify-between items-start mb-1">
+                    <h4 className="font-bold text-white text-sm">{tool.title}</h4>
+                    {tool.type === 'CALCULATOR' ? <Calculator size={14} className="text-scout-highlight"/> : <Link size={14} className="text-blue-400"/>}
+                </div>
+                <p className="text-xs text-gray-400">{tool.desc}</p>
+            </div>
+            <button 
+                onClick={() => { setSelectedToolId(tool.id); setView('TOOL'); }}
+                className="w-full py-2 bg-scout-800 hover:bg-scout-700 text-white text-xs font-bold rounded border border-scout-600 transition-colors"
+            >
+                {tool.actionLabel}
+            </button>
+        </div>
+    );
+
+    // 3. THE WARUBI MODEL VIEW
+    const WarubiModelView = () => (
+        <div className="animate-fade-in space-y-12 pb-12 max-w-5xl mx-auto">
+            <button onClick={() => setView('HOME')} className="text-gray-400 hover:text-white flex items-center gap-1 text-sm">
+                <X size={16} /> Back to Hub
+            </button>
+
+            {/* --- CORE IDEA --- */}
+            <section className="text-center space-y-6">
+                <div className="inline-flex items-center justify-center p-4 bg-scout-accent/10 rounded-full text-scout-accent border border-scout-accent/20 mb-2">
+                    <Anchor size={40} />
+                </div>
+                <h2 className="text-4xl font-black text-white">The Warubi Model</h2>
+                <div className="max-w-2xl mx-auto space-y-4">
+                    <p className="text-xl text-gray-200 font-medium">
+                        We combine two systems that normally get separated: <br/>
+                        <span className="text-scout-accent">European high-level football</span> and <span className="text-blue-400">American football plus education</span>.
+                    </p>
+                    <div className="bg-scout-800 p-4 rounded-lg border-l-4 border-scout-highlight text-left text-gray-300 text-sm">
+                        <strong>Why this matters:</strong> Forcing players or scouts into one all-or-nothing path destroys talent, trust, and careers. We build options, not dead ends.
+                    </div>
+                </div>
+            </section>
+
+            {/* --- PROBLEMS vs FIX --- */}
+            <section className="grid md:grid-cols-2 gap-8">
+                {/* Problems for Players */}
+                <div className="bg-scout-800/50 border border-red-500/30 rounded-xl p-6 relative overflow-hidden">
+                    <div className="flex items-center gap-3 mb-4 text-red-400">
+                        <ShieldAlert size={24} />
+                        <h3 className="text-xl font-bold text-white">Problems for Players</h3>
+                    </div>
+                    <ul className="space-y-3 mb-6">
+                        {[
+                            "Pay-to-play disguised as opportunity",
+                            "Fees charged before results exist",
+                            "International academies built to make money, not careers",
+                            "Europe-only pro thinking that cuts late developers",
+                            "No education backup if pro football fails",
+                            "No tracking of what happens after players drop out"
+                        ].map((item, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-gray-300">
+                                <X size={14} className="text-red-500 mt-1 shrink-0" />
+                                <span>{item}</span>
+                            </li>
+                        ))}
+                    </ul>
+                    <div className="bg-red-500/10 p-3 rounded border border-red-500/20 text-xs text-red-200">
+                        <strong>Result:</strong> Good players disappear. Families lose trust. Talent is wasted.
+                    </div>
+                </div>
+
+                {/* Problems for Scouts */}
+                <div className="bg-scout-800/50 border border-orange-500/30 rounded-xl p-6 relative overflow-hidden">
+                    <div className="flex items-center gap-3 mb-4 text-orange-400">
+                        <AlertTriangle size={24} />
+                        <h3 className="text-xl font-bold text-white">Problems for Scouts</h3>
+                    </div>
+                    <ul className="space-y-3 mb-6">
+                        {[
+                            "You do not own your relationships",
+                            "Your income is capped no matter how good you are",
+                            "Your work is not tracked properly",
+                            "You have responsibility but no control",
+                            "You are replaceable"
+                        ].map((item, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-gray-300">
+                                <X size={14} className="text-orange-500 mt-1 shrink-0" />
+                                <span>{item}</span>
+                            </li>
+                        ))}
+                    </ul>
+                    <div className="bg-orange-500/10 p-3 rounded border border-orange-500/20 text-xs text-orange-200">
+                        <strong>Result:</strong> Scouts limit their own future inside bad systems.
+                    </div>
+                </div>
+            </section>
+
+            {/* --- THE WARUBI GUARANTEE --- */}
+            <section className="bg-gradient-to-r from-scout-800 to-scout-900 border border-scout-accent/50 rounded-xl p-8 text-center shadow-lg shadow-scout-accent/10">
+                <div className="flex justify-center mb-4">
+                    <ShieldCheck size={48} className="text-scout-accent" />
+                </div>
+                <h3 className="text-2xl font-black text-white mb-4 uppercase tracking-wide">WARUBI is not pay-to-play</h3>
+                <div className="grid md:grid-cols-3 gap-6 text-sm text-gray-300 max-w-4xl mx-auto">
+                    <div className="flex flex-col items-center gap-2">
+                        <CheckCircle size={20} className="text-scout-accent" />
+                        <p>Players are selected and placed based on performance only.</p>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                        <CheckCircle size={20} className="text-scout-accent" />
+                        <p>A fee is charged only after successful placement.</p>
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                        <CheckCircle size={20} className="text-scout-accent" />
+                        <p>No player can pay to gain selection, visibility, or access.</p>
+                    </div>
+                </div>
+            </section>
+
+            {/* --- DEVELOPMENT COSTS CLARIFICATION --- */}
+            <section className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-6 flex flex-col md:flex-row gap-6 items-start">
+                <div className="bg-blue-500/20 p-4 rounded-full text-blue-400 shrink-0">
+                    <HelpCircle size={32} />
+                </div>
+                <div>
+                    <h3 className="text-lg font-bold text-white mb-2">Why some programs still cost money</h3>
+                    <p className="text-sm text-gray-300 mb-4">
+                        Some programs (like ITP) cost money because they include real, tangible costs. 
+                        These are <strong>development costs</strong>, not placement fees.
+                    </p>
+                    <ul className="grid grid-cols-2 gap-2 text-xs text-gray-400 mb-4">
+                        <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div> Housing and daily support</li>
+                        <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div> Coaching staff and facilities</li>
+                        <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div> Competitive environments</li>
+                        <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div> Documented development & tracking</li>
+                    </ul>
+                    <a href="https://warubi-sports.com/fc-cologne-soccer-academy-faq" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-xs font-bold text-blue-400 hover:text-white transition-colors">
+                        Read ITP FAQ <ExternalLink size={12} />
+                    </a>
+                </div>
+            </section>
+
+            {/* --- SYNERGY: EUROPE & USA --- */}
+            <section className="space-y-6">
+                <h3 className="text-2xl font-bold text-white text-center">Europe and USA - Used Together</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                    <div className="bg-scout-800 p-6 rounded-xl border-l-4 border-scout-accent">
+                        <h4 className="font-bold text-white mb-3 flex items-center gap-2"><Globe size={18}/> From Europe, we use:</h4>
+                        <ul className="space-y-2 text-sm text-gray-300">
+                            <li>• Daily football environments</li>
+                            <li>• Clear performance standards</li>
+                            <li>• Accountability</li>
+                            <li>• Real competition</li>
+                        </ul>
+                    </div>
+                    <div className="bg-scout-800 p-6 rounded-xl border-l-4 border-blue-500">
+                        <h4 className="font-bold text-white mb-3 flex items-center gap-2"><GraduationCap size={18}/> From the USA, we use:</h4>
+                        <ul className="space-y-2 text-sm text-gray-300">
+                            <li>• Football plus education</li>
+                            <li>• Multiple entry and exit points</li>
+                            <li>• Long-term development</li>
+                            <li>• A real backup if pro level is missed</li>
+                        </ul>
+                    </div>
+                </div>
+                <div className="text-center text-sm text-gray-400 italic max-w-2xl mx-auto">
+                    "Players are not forced to choose too early. They can push for pro football, combine it with education, or change direction without being punished. This keeps players in the system longer."
+                </div>
+            </section>
+
+            {/* --- HOW WARUBI WORKS (Mechanism) --- */}
+            <section>
+                <h3 className="text-2xl font-bold text-white mb-6 text-center">How Warubi Works (Simple Terms)</h3>
+                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {[
+                        { title: "Scouts are owners", desc: "You own relationships. Warubi provides tools, rules, and protection.", icon: <User size={20}/> },
+                        { title: "Results first", desc: "No upfront placement fees. No results, no payment.", icon: <Award size={20}/> },
+                        { title: "No pay-to-play", desc: "Players are represented, not sold without a clear pathway.", icon: <ShieldCheck size={20}/> },
+                        { title: "Performance rewards", desc: "Clear commissions. Long-term builders earn more access.", icon: <TrendingUp size={20}/> },
+                        { title: "Proof > Talk", desc: "Real clubs, licenses, teams, and programs create real evaluation.", icon: <CheckCircle2 size={20}/> },
+                        { title: "No one-sided deals", desc: "If it only benefits one side, it does not happen. Must be win/win.", icon: <Scale size={20}/> },
+                        { title: "Reputation unlocks access", desc: "Good work leads to better players and partners automatically.", icon: <Lock size={20}/> },
+                        { title: "System + Local", desc: "Warubi builds the system, scouts run locally.", icon: <Map size={20}/> },
+                    ].map((item, i) => (
+                        <div key={i} className="bg-scout-900 border border-scout-700 p-4 rounded-lg hover:border-scout-600 transition-colors">
+                            <div className="text-scout-accent mb-2">{item.icon}</div>
+                            <h4 className="font-bold text-white text-sm mb-1">{item.title}</h4>
+                            <p className="text-xs text-gray-400 leading-relaxed">{item.desc}</p>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {/* --- SCOUT MANIFESTO & CTA --- */}
+            <section className="bg-scout-800 rounded-xl p-8 border border-scout-700 text-center space-y-8">
+                <div>
+                    <h3 className="text-xl font-bold text-white mb-4">What This Means For Scouts</h3>
+                    <div className="flex flex-wrap justify-center gap-3">
+                        {['No false promises', 'Protect your reputation', 'Build real ownership', 'Reward for results', 'Career compounds'].map((tag, i) => (
+                            <span key={i} className="px-3 py-1 bg-scout-700 rounded-full text-xs text-gray-200 border border-scout-600">
+                                {tag}
+                            </span>
+                        ))}
+                    </div>
+                    <p className="mt-4 text-scout-accent font-bold tracking-widest uppercase text-sm">This is a career platform.</p>
+                </div>
+
+                <div className="border-t border-scout-700 pt-8">
+                    <h3 className="text-lg font-bold text-white mb-2">Help Us Build The Future</h3>
+                    <p className="text-sm text-gray-400 mb-6 max-w-lg mx-auto">
+                        We want to continue to improve our service and promote the beautiful game. 
+                        If you see an undiscovered opportunity, a missing safeguard, or a better structure—tell us.
+                    </p>
+                    <button 
+                        onClick={() => window.open('mailto:feedback@warubi-sports.com?subject=Improvement Idea')}
+                        className="bg-white hover:bg-gray-100 text-scout-900 font-bold py-3 px-8 rounded-lg inline-flex items-center gap-2 shadow-lg transition-all"
+                    >
+                        <HeartHandshake size={18} /> Submit Improvement Idea
+                    </button>
+                    <p className="text-xs text-gray-500 mt-4">If it strengthens trust and opportunities for the network, it will be built.</p>
+                </div>
+            </section>
+        </div>
+    );
+
+    // 4. ROI CALCULATOR (Interactive Tool)
+    const ROICalculator = () => {
+        const setMode = (mode: 'custom' | 'averages') => {
+            if (mode === 'averages') {
+                setRoiData({
+                    mode: 'averages',
+                    pathA: { tuition: 40000, scholarship: 10000, years: 4 },
+                    pathB: { itpCost: 44000, itpScholarship: 0, postTuition: 40000, postScholarship: 20000, postYears: 3 }
+                });
+            } else {
+                setRoiData(prev => ({ ...prev, mode: 'custom' }));
+            }
+        };
+
+        const updateData = (path: 'pathA' | 'pathB', field: string, value: number) => {
+            setRoiData(prev => ({
+                ...prev,
+                mode: 'custom',
+                [path]: { ...prev[path], [field]: value }
+            }));
+        };
+
+        const costA = (roiData.pathA.tuition - roiData.pathA.scholarship) * roiData.pathA.years;
+        const costB = (roiData.pathB.itpCost - roiData.pathB.itpScholarship) + 
+                      ((roiData.pathB.postTuition - roiData.pathB.postScholarship) * roiData.pathB.postYears);
+        
+        const difference = costA - costB;
+
+        return (
+            <div className="max-w-4xl mx-auto bg-scout-800 rounded-xl border border-scout-700 p-6 animate-fade-in shadow-2xl">
+                <div className="flex justify-between items-start border-b border-scout-700 pb-4 mb-6">
+                    <div>
+                        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                            <Calculator className="text-scout-highlight" /> Cost & ROI Calculator
+                        </h2>
+                        <p className="text-gray-400 text-sm mt-1">Compare: <span className="text-red-400 font-medium">Path A (Direct to College)</span> vs. <span className="text-green-400 font-medium">Path B (ITP Development Year)</span></p>
+                    </div>
+                    <button onClick={() => setView('HOME')} className="text-gray-400 hover:text-white p-2 hover:bg-scout-700 rounded"><X size={24}/></button>
+                </div>
+
+                {/* Controls */}
+                <div className="flex justify-center mb-8">
+                    <div className="bg-scout-900 p-1 rounded-lg border border-scout-700 flex">
+                        <button 
+                            onClick={() => setMode('custom')}
+                            className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${roiData.mode === 'custom' ? 'bg-scout-700 text-white shadow-sm' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            Enter My Numbers
+                        </button>
+                        <button 
+                            onClick={() => setMode('averages')}
+                            className={`px-4 py-2 rounded-md text-sm font-bold transition-all flex items-center gap-2 ${roiData.mode === 'averages' ? 'bg-scout-accent text-scout-900 shadow-sm' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            <Sparkles size={14} /> Use Warubi Averages
+                        </button>
+                    </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-8 relative">
+                    {/* Path A Column */}
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-2 mb-4 text-red-400 border-b border-red-500/20 pb-2">
+                            <Users size={20} />
+                            <h3 className="font-bold text-lg">Path A: Direct to US College</h3>
+                        </div>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Annual Cost (Tuition + Living)</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                                    <input 
+                                        type="number" 
+                                        value={roiData.pathA.tuition}
+                                        onChange={e => updateData('pathA', 'tuition', Number(e.target.value))}
+                                        className="w-full bg-scout-900 border border-scout-600 rounded p-2 pl-7 text-white focus:border-red-400 outline-none"
+                                    />
+                                </div>
+                                <div className="flex gap-2 mt-1 text-[10px] text-gray-500">
+                                    <span>Avg: NCAA ($40k)</span> • <span>NAIA ($30k)</span> • <span>JUCO ($20k)</span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Annual Scholarship Offer</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                                    <input 
+                                        type="number" 
+                                        value={roiData.pathA.scholarship}
+                                        onChange={e => updateData('pathA', 'scholarship', Number(e.target.value))}
+                                        className="w-full bg-scout-900 border border-scout-600 rounded p-2 pl-7 text-white focus:border-red-400 outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Years to Graduate</label>
+                                <input 
+                                    type="number" 
+                                    value={roiData.pathA.years}
+                                    onChange={e => updateData('pathA', 'years', Number(e.target.value))}
+                                    className="w-full bg-scout-900 border border-scout-600 rounded p-2 text-white focus:border-red-400 outline-none"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl mt-6 text-center">
+                            <p className="text-xs font-bold text-red-300 uppercase mb-1">Total 4-Year Cost</p>
+                            <p className="text-3xl font-black text-white">${costA.toLocaleString()}</p>
+                        </div>
+                    </div>
+
+                    {/* VS Badge */}
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-scout-800 border border-scout-600 rounded-full w-10 h-10 flex items-center justify-center font-bold text-gray-500 z-10 shadow-lg">VS</div>
+
+                    {/* Path B Column */}
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-2 mb-4 text-green-400 border-b border-green-500/20 pb-2">
+                            <Globe size={20} />
+                            <h3 className="font-bold text-lg">Path B: ITP Gap Year + College</h3>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="bg-scout-900/50 p-3 rounded border border-scout-700">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">ITP Cost</label>
+                                        <input 
+                                            type="number" 
+                                            value={roiData.pathB.itpCost}
+                                            onChange={e => updateData('pathB', 'itpCost', Number(e.target.value))}
+                                            className="w-full bg-scout-800 border border-scout-600 rounded px-2 py-1 text-sm text-white focus:border-green-400 outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">ITP Scholarship</label>
+                                        <input 
+                                            type="number" 
+                                            value={roiData.pathB.itpScholarship}
+                                            onChange={e => updateData('pathB', 'itpScholarship', Number(e.target.value))}
+                                            className="w-full bg-scout-800 border border-scout-600 rounded px-2 py-1 text-sm text-white focus:border-green-400 outline-none"
+                                        />
+                                    </div>
+                                </div>
+                                <p className="text-[10px] text-gray-500 mt-2 flex items-center gap-1">
+                                    <Info size={10}/> Includes housing, food, coaching, matches.
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Post-ITP Annual Cost</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                                    <input 
+                                        type="number" 
+                                        value={roiData.pathB.postTuition}
+                                        onChange={e => updateData('pathB', 'postTuition', Number(e.target.value))}
+                                        className="w-full bg-scout-900 border border-scout-600 rounded p-2 pl-7 text-white focus:border-green-400 outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Post-ITP Scholarship</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-2.5 text-gray-500">$</span>
+                                    <input 
+                                        type="number" 
+                                        value={roiData.pathB.postScholarship}
+                                        onChange={e => updateData('pathB', 'postScholarship', Number(e.target.value))}
+                                        className="w-full bg-scout-900 border border-scout-600 rounded p-2 pl-7 text-white focus:border-green-400 outline-none"
+                                    />
+                                </div>
+                                <p className="text-[10px] text-green-400/70 mt-1">
+                                    *Better development often leads to higher offers.
+                                </p>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Years Remaining</label>
+                                <input 
+                                    type="number" 
+                                    value={roiData.pathB.postYears}
+                                    onChange={e => updateData('pathB', 'postYears', Number(e.target.value))}
+                                    className="w-full bg-scout-900 border border-scout-600 rounded p-2 text-white focus:border-green-400 outline-none"
+                                />
+                                <p className="text-[10px] text-gray-500 mt-1">Reduced via credits earned during ITP.</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-green-500/10 border border-green-500/30 p-4 rounded-xl mt-6 text-center">
+                            <p className="text-xs font-bold text-green-300 uppercase mb-1">Total Path B Cost</p>
+                            <p className="text-3xl font-black text-white">${costB.toLocaleString()}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-scout-700">
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div className="text-sm text-gray-400 max-w-sm">
+                            <p><strong>Disclaimer:</strong> This calculator compares financial scenarios only. It does not guarantee scholarship offers or placement outcomes.</p>
+                        </div>
+                        
+                        <div className={`px-6 py-4 rounded-xl border-2 flex items-center gap-4 ${difference > 0 ? 'bg-green-900/20 border-green-500 text-green-400' : 'bg-scout-900 border-gray-600 text-gray-400'}`}>
+                            <span className="text-sm font-bold uppercase">Difference</span>
+                            <span className="text-3xl font-black">
+                                {difference > 0 ? '+' : ''}${difference.toLocaleString()}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    {difference > 0 && (
+                        <p className="text-center text-green-400 font-medium mt-4 animate-pulse">
+                            "You save money while gaining a year of European development."
+                        </p>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    // 4. LINK GENERATOR (Simple Tool View)
+    const LinkGenerator = ({ toolId }: { toolId: string }) => {
+        const tool = WARUBI_TOOLS.find(t => t.id === toolId);
+        if (!tool) return null;
+
+        const dummyLink = `https://warubi-sports.com/tools/${toolId}?ref=${user?.scoutId || 'demo'}`;
+
+        return (
+             <div className="max-w-lg mx-auto bg-scout-800 rounded-xl border border-scout-700 p-8 text-center animate-fade-in">
+                 <div className="w-16 h-16 bg-scout-900 rounded-full flex items-center justify-center mx-auto mb-4 border border-scout-700">
+                     <Link size={32} className="text-blue-400"/>
+                 </div>
+                 <h2 className="text-xl font-bold text-white mb-2">{tool.title}</h2>
+                 <p className="text-gray-400 text-sm mb-6">{tool.desc}</p>
+                 
+                 <div className="bg-scout-900 p-3 rounded border border-scout-700 flex items-center gap-2 mb-6">
+                     <span className="text-xs text-gray-500 font-mono truncate flex-1">{dummyLink}</span>
+                 </div>
+
+                 <div className="flex gap-3">
+                     <button onClick={() => setView('HOME')} className="flex-1 py-3 border border-scout-600 rounded text-gray-300 hover:text-white">Back</button>
+                     <button 
+                        onClick={() => {
+                            navigator.clipboard.writeText(dummyLink);
+                            setToolCopied(true);
+                            setTimeout(() => setToolCopied(false), 2000);
+                        }}
+                        className="flex-[2] bg-scout-accent hover:bg-emerald-600 text-white font-bold py-3 rounded flex items-center justify-center gap-2"
+                     >
+                        {toolCopied ? <CheckCircle size={18}/> : <Copy size={18}/>} Copy Lead Link
+                     </button>
+                 </div>
+                 <p className="text-[10px] text-gray-500 mt-4">
+                     <Zap size={10} className="inline mr-1 text-scout-highlight"/>
+                     When a player uses this link, they are automatically added to your dashboard as a Lead.
+                 </p>
+             </div>
+        );
+    }
+
+    // --- MAIN RENDER ---
+    const IconMap: any = { Globe, GraduationCap, Calendar, BookOpen };
+    const getIcon = (name: string) => IconMap[name] || Globe;
+
     return (
-        <div className="flex flex-col h-[calc(100vh-140px)] gap-6 animate-fade-in">
+        <div className="flex h-[calc(100vh-140px)] gap-6 animate-fade-in relative">
             
-            {/* Top Navigation */}
-            <div className="flex gap-4 border-b border-scout-700 pb-4">
-                <button 
-                    onClick={() => setActiveSection('playbook')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all ${activeSection === 'playbook' ? 'bg-scout-accent text-white' : 'text-gray-400 hover:bg-scout-800'}`}
-                >
-                    <Map size={18} /> The Playbook
-                </button>
-                <button 
-                    onClick={() => setActiveSection('standards')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all ${activeSection === 'standards' ? 'bg-scout-accent text-white' : 'text-gray-400 hover:bg-scout-800'}`}
-                >
-                    <BarChart3 size={18} /> Standards Tool
-                </button>
-                <button 
-                    onClick={() => setActiveSection('scripts')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition-all ${activeSection === 'scripts' ? 'bg-scout-accent text-white' : 'text-gray-400 hover:bg-scout-800'}`}
-                >
-                    <BookOpen size={18} /> Script Vault
-                </button>
-            </div>
-
-            <div className="flex gap-6 h-full overflow-hidden">
+            {/* LEFT SIDE: Main Content Area */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-10">
                 
-                {/* LEFT: Main Content Area */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
-                    
-                    {/* SECTION: PLAYBOOK */}
-                    {activeSection === 'playbook' && (
-                        <div className="space-y-6">
-                            <div className="bg-scout-800 p-6 rounded-xl border border-scout-700">
-                                <h2 className="text-2xl font-bold text-white mb-2">The Recruiting Roadmap</h2>
-                                <p className="text-gray-400 mb-6">Master these 4 stages to become a top producer.</p>
-                                
-                                {/* Timeline Stepper */}
-                                <div className="flex justify-between relative mb-8">
-                                    <div className="absolute top-1/2 left-0 w-full h-1 bg-scout-700 -z-10 transform -translate-y-1/2"></div>
-                                    {STAGES.map((stage, idx) => (
-                                        <button 
-                                            key={stage.id}
-                                            onClick={() => setActiveStage(idx)}
-                                            className={`flex flex-col items-center gap-2 group ${activeStage === idx ? 'scale-110' : 'opacity-70 hover:opacity-100'}`}
-                                        >
-                                            <div className={`w-12 h-12 rounded-full flex items-center justify-center border-4 transition-colors ${activeStage === idx ? 'bg-scout-accent border-scout-900 text-white' : 'bg-scout-900 border-scout-700 text-gray-500'}`}>
-                                                {stage.icon}
-                                            </div>
-                                            <span className={`text-xs font-bold uppercase ${activeStage === idx ? 'text-scout-accent' : 'text-gray-500'}`}>{stage.title}</span>
-                                        </button>
-                                    ))}
+                {view === 'HOME' && (
+                    <div className="space-y-8 animate-fade-in">
+                        {/* Header */}
+                        <div>
+                            <h2 className="text-2xl font-bold text-white">Warubi Knowledge Center</h2>
+                            <p className="text-gray-400">Master the 4 pathways and use free tools to generate leads.</p>
+                        </div>
+
+                         {/* HERO CARD: THE WARUBI MODEL */}
+                         <div 
+                            onClick={() => setView('MODEL')}
+                            className="bg-gradient-to-r from-scout-800 to-scout-900 border border-scout-600 rounded-xl p-6 relative overflow-hidden cursor-pointer group hover:border-scout-accent transition-all shadow-xl"
+                        >
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-scout-accent/10 rounded-full blur-3xl group-hover:bg-scout-accent/20 transition-colors"></div>
+                            <div className="flex items-center gap-6">
+                                <div className="hidden md:flex w-16 h-16 bg-scout-900 rounded-full border border-scout-700 items-center justify-center text-scout-accent shadow-lg group-hover:scale-110 transition-transform">
+                                    <Anchor size={32} />
                                 </div>
-
-                                {/* Stage Details */}
-                                <div className="bg-scout-900/50 rounded-xl p-6 border border-scout-700 animate-fade-in">
-                                    <div className="flex justify-between items-start mb-4">
-                                        <div>
-                                            <h3 className="text-xl font-bold text-white">{STAGES[activeStage].title}</h3>
-                                            <p className="text-scout-highlight text-sm font-medium">Goal: {STAGES[activeStage].goal}</p>
-                                        </div>
-                                        <span className="text-4xl opacity-10 font-black">{activeStage + 1}</span>
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                         <span className="text-[10px] font-bold uppercase tracking-wider bg-scout-accent text-scout-900 px-2 py-0.5 rounded">Core DNA</span>
                                     </div>
-
-                                    <div className="grid md:grid-cols-2 gap-6">
-                                        <div>
-                                            <h4 className="text-sm font-bold text-green-400 mb-3 flex items-center gap-2"><CheckCircle2 size={16}/> Winning Tactics</h4>
-                                            <ul className="space-y-2">
-                                                {STAGES[activeStage].tactics.map((t, i) => (
-                                                    <li key={i} className="text-sm text-gray-300 flex items-start gap-2">
-                                                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full mt-1.5 shrink-0"></span>
-                                                        {t}
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                        <div>
-                                            <h4 className="text-sm font-bold text-red-400 mb-3 flex items-center gap-2"><ShieldAlert size={16}/> Red Flags</h4>
-                                            <ul className="space-y-2">
-                                                {STAGES[activeStage].redFlags.map((t, i) => (
-                                                    <li key={i} className="text-sm text-gray-300 flex items-start gap-2">
-                                                        <span className="w-1.5 h-1.5 bg-red-500 rounded-full mt-1.5 shrink-0"></span>
-                                                        {t}
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    </div>
+                                    <h3 className="text-2xl font-black text-white mb-2">The Warubi Model</h3>
+                                    <p className="text-gray-300 text-sm max-w-xl">
+                                        We fix the broken industry by combining European football with American education. Learn why we are not pay-to-play and how you own your network.
+                                    </p>
+                                </div>
+                                <div className="bg-scout-900 p-3 rounded-full border border-scout-700 group-hover:bg-scout-accent group-hover:text-scout-900 transition-colors">
+                                    <ArrowRight size={20} />
                                 </div>
                             </div>
                         </div>
-                    )}
 
-                    {/* SECTION: STANDARDS TOOL */}
-                    {activeSection === 'standards' && (
-                        <div className="space-y-6">
-                            <div className="bg-scout-800 p-6 rounded-xl border border-scout-700">
-                                <h2 className="text-2xl font-bold text-white mb-2">Talent Comparator</h2>
-                                <p className="text-gray-400 mb-6">Select a reference player to understand the "Gold Standard" for each tier.</p>
-
-                                <div className="grid md:grid-cols-2 gap-8">
-                                    {/* Reference Card */}
-                                    <div className="space-y-4">
-                                        <label className="text-xs font-bold text-gray-500 uppercase">Select Reference Benchmark</label>
-                                        <div className="grid gap-3">
-                                            {ITP_REFERENCE_PLAYERS.map(p => (
-                                                <button 
-                                                    key={p.id}
-                                                    onClick={() => { setSelectedRefPlayer(p); setComparisonResult(null); }}
-                                                    className={`text-left p-3 rounded-lg border transition-all ${selectedRefPlayer.id === p.id ? 'bg-scout-700 border-scout-accent ring-1 ring-scout-accent' : 'bg-scout-900 border-scout-700 hover:bg-scout-800'}`}
-                                                >
-                                                    <div className="flex justify-between">
-                                                        <span className="font-bold text-white">{p.name}</span>
-                                                        <span className="text-xs bg-scout-accent text-scout-900 px-1.5 rounded font-bold">{p.evaluation?.score}</span>
-                                                    </div>
-                                                    <div className="text-xs text-gray-400 mt-1">
-                                                        {p.evaluation?.scholarshipTier} • {p.position}
-                                                    </div>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {/* Comparison Output */}
-                                    <div className="bg-scout-900 rounded-xl p-6 border border-scout-700 flex flex-col justify-center">
-                                        <div className="text-center mb-6">
-                                            <div className="w-16 h-16 bg-scout-800 rounded-full flex items-center justify-center mx-auto mb-2 text-gray-400 border border-scout-700">
-                                                <Users size={32} />
-                                            </div>
-                                            <h3 className="font-bold text-white">Gap Analysis</h3>
-                                            <p className="text-xs text-gray-500">Your Prospect vs. {selectedRefPlayer.name}</p>
-                                        </div>
-
-                                        {!comparisonResult ? (
-                                            <button 
-                                                onClick={runComparison}
-                                                className="w-full bg-scout-accent hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
-                                            >
-                                                <PlayCircle size={18} /> Analyze Gap
-                                            </button>
-                                        ) : (
-                                            <div className="animate-fade-in">
-                                                <div className="p-4 bg-scout-800 rounded-lg border-l-4 border-scout-accent text-sm text-gray-300 italic leading-relaxed">
-                                                    "{comparisonResult}"
-                                                </div>
-                                                <button 
-                                                    onClick={() => setComparisonResult(null)}
-                                                    className="w-full mt-4 text-xs text-gray-500 hover:text-white"
-                                                >
-                                                    Reset Analysis
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
+                        {/* SECTION 1: PATHWAYS */}
+                        <div>
+                            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                <Map size={16} /> Flagship Pathways
+                            </h3>
+                            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {WARUBI_PATHWAYS.map(p => <PathwayCard key={p.id} pathway={p} />)}
                             </div>
                         </div>
-                    )}
 
-                    {/* SECTION: SCRIPT VAULT */}
-                    {activeSection === 'scripts' && (
-                        <div className="space-y-6">
-                             <div className="bg-scout-800 p-6 rounded-xl border border-scout-700">
-                                <h2 className="text-2xl font-bold text-white mb-2">The Script Vault</h2>
-                                <p className="text-gray-400 mb-6">Proven answers to the toughest questions parents and coaches ask.</p>
-
-                                <div className="space-y-3">
-                                    {SCRIPTS.map(script => (
-                                        <div key={script.id} className="border border-scout-700 rounded-lg overflow-hidden bg-scout-900">
-                                            <button 
-                                                onClick={() => setActiveScript(activeScript === script.id ? null : script.id)}
-                                                className="w-full flex items-center justify-between p-4 text-left hover:bg-scout-800 transition-colors"
-                                            >
-                                                <span className="font-bold text-gray-200">{script.title}</span>
-                                                <ChevronRight size={18} className={`text-gray-500 transition-transform ${activeScript === script.id ? 'rotate-90' : ''}`} />
-                                            </button>
-                                            
-                                            {activeScript === script.id && (
-                                                <div className="p-4 pt-0 bg-scout-800/50 animate-fade-in">
-                                                    <div className="p-3 bg-scout-900 rounded border border-scout-700 text-sm text-gray-300 leading-relaxed font-mono">
-                                                        "{script.content}"
-                                                    </div>
-                                                    <div className="flex justify-end mt-2">
-                                                        <button 
-                                                            onClick={() => navigator.clipboard.writeText(script.content)}
-                                                            className="text-xs text-scout-accent hover:text-white flex items-center gap-1"
-                                                        >
-                                                            Copy to Clipboard
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
+                         {/* SECTION 2: TOOLBOX */}
+                        <div>
+                            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                <Zap size={16} className="text-scout-highlight" /> Lead Gen Toolbox
+                            </h3>
+                            <div className="grid md:grid-cols-3 gap-4">
+                                {WARUBI_TOOLS.map(t => <ToolCard key={t.id} tool={t} />)}
                             </div>
                         </div>
-                    )}
 
-                </div>
-
-                {/* RIGHT: AI Assistant (Always Visible) */}
-                <div className="w-1/3 min-w-[320px] flex flex-col bg-scout-800 border border-scout-700 rounded-xl overflow-hidden">
-                    <div className="p-4 border-b border-scout-700 bg-scout-800/80 backdrop-blur">
-                        <h3 className="font-bold text-white flex items-center gap-2">
-                            <MessageSquare size={18} className="text-scout-highlight" /> 
-                            Ask ScoutAI
-                        </h3>
-                        <p className="text-xs text-gray-400 mt-1">Your 24/7 expert mentor.</p>
-                    </div>
-                    
-                    <div className="flex-1 p-4 overflow-y-auto bg-scout-900/30 custom-scrollbar flex flex-col gap-4">
-                        {chatHistory.length > 0 ? (
-                            chatHistory.map((msg, i) => (
-                                <div key={i} className={`p-3 rounded-lg border text-sm animate-fade-in ${msg.role === 'ai' ? 'bg-scout-700/50 border-scout-600 text-gray-200' : 'bg-scout-800/80 border-scout-700 text-gray-300 ml-8'}`}>
-                                    <span className={`text-[10px] font-bold block mb-1 ${msg.role === 'ai' ? 'text-scout-highlight' : 'text-gray-500'}`}>
-                                        {msg.role === 'ai' ? 'ScoutAI' : 'You'}
-                                    </span>
-                                    {msg.text}
-                                </div>
-                            ))
-                        ) : (
-                            <div className="h-full flex flex-col justify-center items-center text-gray-600 text-center">
-                                <Lightbulb size={32} className="opacity-50 mb-3 text-scout-highlight" />
-                                <p className="text-sm font-medium text-gray-400 mb-6">Start a focused session:</p>
-                                
-                                <div className="w-full space-y-3">
-                                    {triggers.map(trigger => (
-                                        <button 
-                                            key={trigger.id}
-                                            onClick={() => handleTriggerClick(trigger.prompt)}
-                                            className="w-full p-3 rounded-lg bg-scout-800 border border-scout-700 hover:border-scout-accent hover:bg-scout-700 transition-all text-left group"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2 rounded bg-scout-900 group-hover:bg-scout-800">
-                                                    {trigger.icon}
-                                                </div>
-                                                <div>
-                                                    <div className="text-xs font-bold text-white">{trigger.title}</div>
-                                                    <div className="text-[10px] text-gray-500">{trigger.subtitle}</div>
-                                                </div>
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                        {aiLoading && (
-                             <div className="p-3 rounded-lg bg-scout-700/50 border border-scout-600 text-gray-200 w-fit">
-                                <Loader2 size={16} className="animate-spin text-scout-accent" />
+                         {/* SECTION 3: QUICK CALIBRATION */}
+                        <div className="bg-scout-800 rounded-xl p-6 border border-scout-700">
+                             <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                                <BarChart3 size={20} className="text-blue-400"/> Quick Calibration
+                             </h3>
+                             <p className="text-sm text-gray-400 mb-4">Unsure where a player fits? Click a standard below to see the requirements.</p>
+                             <div className="flex gap-4 overflow-x-auto pb-2">
+                                 {ITP_REFERENCE_PLAYERS.map(p => (
+                                     <button 
+                                        key={p.id} 
+                                        onClick={() => { setSelectedRefPlayer(p); setView('REF_DETAIL'); }}
+                                        className="min-w-[200px] bg-scout-900 hover:bg-scout-700 transition-colors rounded-lg p-3 border border-scout-700 flex items-center gap-3 text-left group"
+                                     >
+                                         <div className="w-10 h-10 rounded-full bg-scout-800 flex items-center justify-center font-bold text-white border border-scout-600 group-hover:border-scout-accent">{p.name.charAt(0)}</div>
+                                         <div>
+                                             <div className="text-sm font-bold text-white group-hover:text-scout-accent">{p.name}</div>
+                                             <div className="text-[10px] text-gray-400">{p.evaluation?.scholarshipTier}</div>
+                                         </div>
+                                     </button>
+                                 ))}
                              </div>
-                        )}
+                        </div>
                     </div>
+                )}
 
-                    <div className="p-4 bg-scout-800 border-t border-scout-700">
-                        <form onSubmit={handleAskAI} className="relative">
-                            <input
-                                type="text"
-                                placeholder="Type a message..."
-                                className="w-full bg-scout-900 text-white text-sm rounded-lg pl-4 pr-10 py-3 focus:outline-none focus:ring-1 focus:ring-scout-accent border border-scout-700"
-                                value={aiQuestion}
-                                onChange={(e) => setAiQuestion(e.target.value)}
-                            />
+                {view === 'PATHWAY_DETAIL' && selectedPathway && (
+                    <div className="animate-fade-in space-y-6">
+                         <button onClick={() => setView('HOME')} className="text-gray-400 hover:text-white flex items-center gap-1 text-sm mb-2">
+                            <X size={16} /> Back to Hub
+                        </button>
+
+                        {/* Hero Banner */}
+                        <div className={`p-8 rounded-xl border ${selectedPathway.color} relative overflow-hidden`}>
+                             <h2 className="text-3xl font-bold text-white mb-2">{selectedPathway.title}</h2>
+                             <p className="text-white/80 max-w-xl text-lg">{selectedPathway.shortDesc}</p>
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-6">
+                            {/* Profile Fit */}
+                            <div className="bg-scout-800 rounded-xl p-6 border border-scout-700">
+                                <h3 className="font-bold text-white mb-4 flex items-center gap-2"><CheckCircle2 size={18} className="text-green-400"/> Ideal Profile</h3>
+                                <ul className="space-y-2">
+                                    {selectedPathway.idealProfile.map((item, i) => (
+                                        <li key={i} className="flex items-start gap-2 text-sm text-gray-300">
+                                            <span className="w-1.5 h-1.5 bg-green-500 rounded-full mt-1.5 shrink-0"></span>
+                                            {item}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+
+                             {/* Red Flags */}
+                             <div className="bg-scout-800 rounded-xl p-6 border border-scout-700">
+                                <h3 className="font-bold text-white mb-4 flex items-center gap-2"><ShieldAlert size={18} className="text-red-400"/> Red Flags</h3>
+                                <ul className="space-y-2">
+                                    {selectedPathway.redFlags.map((item, i) => (
+                                        <li key={i} className="flex items-start gap-2 text-sm text-gray-300">
+                                            <span className="w-1.5 h-1.5 bg-red-500 rounded-full mt-1.5 shrink-0"></span>
+                                            {item}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+
+                         {/* Pitch Script */}
+                         <div className="bg-scout-900 rounded-xl p-6 border border-scout-700">
+                            <h3 className="font-bold text-white mb-3 flex items-center gap-2"><MessageSquare size={18} className="text-blue-400"/> The "Elevator Pitch"</h3>
+                            <div className="bg-scout-800 p-4 rounded-lg border-l-4 border-scout-accent italic text-gray-300">
+                                {selectedPathway.scriptSnippet}
+                            </div>
                             <button 
-                                type="submit" 
-                                disabled={aiLoading || !aiQuestion}
-                                className="absolute right-2 top-2 p-1.5 text-scout-accent hover:text-white disabled:opacity-50 transition-colors"
+                                onClick={() => navigator.clipboard.writeText(selectedPathway.scriptSnippet)}
+                                className="mt-3 text-xs text-scout-accent hover:text-white flex items-center gap-1"
                             >
-                                {aiLoading ? <Loader2 size={18} className="animate-spin"/> : <Send size={18} />}
+                                <Copy size={12} /> Copy Script
                             </button>
-                        </form>
+                        </div>
                     </div>
-                </div>
+                )}
+
+                {/* --- REFERENCE DETAIL VIEW --- */}
+                {view === 'REF_DETAIL' && selectedRefPlayer && (
+                    <div className="animate-fade-in space-y-6">
+                         <button onClick={() => setView('HOME')} className="text-gray-400 hover:text-white flex items-center gap-1 text-sm mb-2">
+                            <X size={16} /> Back to Hub
+                        </button>
+
+                        <div className="bg-gradient-to-br from-scout-800 to-scout-900 border border-scout-600 rounded-xl p-8 relative overflow-hidden shadow-2xl">
+                             <div className="absolute top-0 right-0 w-64 h-64 bg-scout-accent/10 rounded-full blur-3xl -z-10"></div>
+                             
+                             <div className="flex justify-between items-start mb-6">
+                                <div className="flex items-center gap-4">
+                                     <div className="w-20 h-20 rounded-full bg-scout-800 border-4 border-scout-700 flex items-center justify-center text-3xl font-bold text-white shadow-lg">
+                                         {selectedRefPlayer.name.charAt(0)}
+                                     </div>
+                                     <div>
+                                         <span className="text-scout-accent font-bold text-sm uppercase tracking-wider mb-1 block">Reference Standard</span>
+                                         <h2 className="text-3xl font-black text-white leading-tight">{selectedRefPlayer.name}</h2>
+                                         <p className="text-gray-400">{selectedRefPlayer.position} • {selectedRefPlayer.age} Years Old</p>
+                                     </div>
+                                </div>
+                                <div className="text-right">
+                                    <div className="text-4xl font-black text-white mb-1">{selectedRefPlayer.evaluation?.score}</div>
+                                    <div className="bg-scout-accent text-scout-900 px-2 py-0.5 rounded text-xs font-bold uppercase inline-block">
+                                        {selectedRefPlayer.evaluation?.scholarshipTier}
+                                    </div>
+                                </div>
+                             </div>
+
+                             <div className="grid md:grid-cols-2 gap-8">
+                                 <div>
+                                     <h3 className="font-bold text-white mb-3 flex items-center gap-2">
+                                         <Award size={18} className="text-scout-highlight"/> The Standard
+                                     </h3>
+                                     <p className="text-gray-300 text-sm leading-relaxed mb-4">
+                                         {selectedRefPlayer.evaluation?.summary}
+                                     </p>
+                                     <div className="bg-scout-900/50 p-4 rounded-lg border border-scout-700/50">
+                                         <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Projected Level</h4>
+                                         <p className="text-white font-medium">{selectedRefPlayer.evaluation?.collegeLevel}</p>
+                                     </div>
+                                 </div>
+                                 
+                                 <div>
+                                      <h3 className="font-bold text-white mb-3 flex items-center gap-2">
+                                         <Activity size={18} className="text-green-400"/> Key Attributes
+                                     </h3>
+                                     <ul className="space-y-2">
+                                         {(selectedRefPlayer.evaluation?.strengths || []).map((s, i) => (
+                                             <li key={i} className="flex items-center gap-2 text-sm text-gray-300">
+                                                 <CheckCircle size={14} className="text-green-500" /> {s}
+                                             </li>
+                                         ))}
+                                     </ul>
+
+                                     <button 
+                                        onClick={(e) => handleAskAI(e, `Compare my player to ${selectedRefPlayer.name}. What specific traits make them a ${selectedRefPlayer.evaluation?.scholarshipTier}?`)}
+                                        className="mt-6 w-full bg-scout-700 hover:bg-scout-600 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all border border-scout-600"
+                                     >
+                                         <Ruler size={18} /> Ask AI: Measure My Player
+                                     </button>
+                                 </div>
+                             </div>
+                        </div>
+                    </div>
+                )}
+
+                {view === 'MODEL' && <WarubiModelView />}
+
+                {view === 'TOOL' && selectedToolId && (
+                     selectedToolId === 'roi_calc' ? <ROICalculator /> : <LinkGenerator toolId={selectedToolId} />
+                )}
 
             </div>
+
+            {/* RIGHT SIDE: SCOUT AI (Always Visible) */}
+            <div className="w-1/3 min-w-[300px] flex flex-col bg-scout-800 border border-scout-700 rounded-xl overflow-hidden shadow-xl h-[calc(100vh-140px)] sticky top-0">
+                 <div className="p-4 border-b border-scout-700 bg-scout-800">
+                    <h3 className="font-bold text-white flex items-center gap-2">
+                        <Sparkles size={16} className="text-scout-accent" /> Ask ScoutAI
+                    </h3>
+                    <p className="text-xs text-gray-400">Expert on Pathways & Pricing.</p>
+                </div>
+                
+                <div className="flex-1 p-4 overflow-y-auto bg-scout-900/30 custom-scrollbar space-y-4">
+                     {aiChatHistory.length === 0 && (
+                         <div className="text-center py-8 text-gray-500">
+                             <Lightbulb size={24} className="mx-auto mb-2 opacity-50"/>
+                             <p className="text-sm">Try asking:</p>
+                             <button onClick={(e) => handleAskAI(e, "How do I explain the cost of ITP to a parent?")} className="block w-full text-xs bg-scout-800 hover:bg-scout-700 p-2 rounded mt-2 border border-scout-700">"How do I explain ITP cost?"</button>
+                             <button onClick={(e) => handleAskAI(e, "What GPA is needed for D1 College?")} className="block w-full text-xs bg-scout-800 hover:bg-scout-700 p-2 rounded mt-2 border border-scout-700">"What GPA for D1?"</button>
+                         </div>
+                     )}
+                     
+                     {aiChatHistory.map((msg, i) => (
+                         <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                             <div className={`max-w-[85%] p-3 rounded-xl text-sm ${msg.role === 'user' ? 'bg-scout-700 text-white rounded-tr-none' : 'bg-scout-800 text-gray-200 border border-scout-700 rounded-tl-none'}`}>
+                                 {msg.text}
+                             </div>
+                         </div>
+                     ))}
+                     {aiLoading && <Loader2 className="animate-spin text-scout-accent mx-auto" size={20} />}
+                </div>
+
+                <div className="p-3 bg-scout-800 border-t border-scout-700">
+                    <form onSubmit={handleAskAI} className="relative">
+                        <input
+                            type="text"
+                            placeholder="Ask about pathways..."
+                            className="w-full bg-scout-900 text-white text-sm rounded-lg pl-3 pr-10 py-2.5 focus:outline-none focus:ring-1 focus:ring-scout-accent border border-scout-600"
+                            value={aiQuestion}
+                            onChange={(e) => setAiQuestion(e.target.value)}
+                        />
+                        <button type="submit" disabled={aiLoading || !aiQuestion} className="absolute right-2 top-2 p-1 text-scout-accent hover:text-white">
+                            <Send size={16} />
+                        </button>
+                    </form>
+                </div>
+            </div>
+
         </div>
     );
 };

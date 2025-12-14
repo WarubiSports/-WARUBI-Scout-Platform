@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { X, ChevronRight, ChevronLeft, Target, Users, PlusCircle, MessageSquare, Calendar, CheckCircle2 } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Target, Users, PlusCircle, MessageSquare, Calendar, CheckCircle2, EyeOff } from 'lucide-react';
 
 interface TutorialOverlayProps {
   onClose: () => void;
@@ -62,14 +61,21 @@ const TutorialOverlay: React.FC<TutorialOverlayProps> = ({ onClose }) => {
       )
     },
     {
-      title: "AI Outreach Center",
+      title: "AI Outreach & The Shadow Pipeline",
       icon: <MessageSquare size={48} className="text-purple-400" />,
       content: (
-        <p className="text-gray-300 text-center">
-          Communication is key. In the <strong>AI Outreach</strong> tab, you can generate professional messages for any situation (Invites, Follow-ups, Rejections).
-          <br /><br />
-          You can also <strong>Import Leads</strong> in bulk (up to 25/day) here to quickly build your initial contact list.
-        </p>
+        <div className="text-center space-y-4">
+          <p className="text-gray-300">
+            Use AI to generate professional messages for invites, follow-ups, and rejections.
+          </p>
+          <div className="bg-gradient-to-r from-scout-900 to-scout-800 p-3 rounded border border-scout-700 text-sm text-gray-300 flex items-start gap-3 text-left">
+             <EyeOff size={24} className="text-scout-highlight shrink-0 mt-1" />
+             <div>
+                 <strong className="block text-white mb-1">The Shadow Pipeline</strong>
+                 Imported leads stay hidden as "Prospects" until they engage. Send them a message with a "Smart Link"—when they reply, they automatically move to your main board.
+             </div>
+          </div>
+        </div>
       )
     },
     {

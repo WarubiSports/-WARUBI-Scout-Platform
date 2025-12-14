@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Upload, CheckCircle, Loader2, FlaskConical, User, Calendar, Activity, GraduationCap, ClipboardPaste, Sparkles, Mail, Phone } from 'lucide-react';
+import { X, Upload, CheckCircle, Loader2, FlaskConical, User, Calendar, Activity, GraduationCap, ClipboardPaste, Sparkles, Mail, Phone, Save, AlertCircle } from 'lucide-react';
 import { evaluatePlayer, parsePlayerDetails } from '../services/geminiService';
 import { Player, PlayerStatus, PlayerEvaluation } from '../types';
 
@@ -9,6 +9,7 @@ interface PlayerSubmissionProps {
 }
 
 const POSITIONS = ["GK", "CB", "LB", "RB", "CDM", "CM", "CAM", "LW", "RW", "ST"];
+const TEAM_LEVELS = ["Professional Academy", "Elite National (MLS Next/ECNL/GA)", "Regional (NPL/RL)", "High School Varsity", "District/Local", "Recreational"];
 const RATINGS = ["Elite", "Top 10%", "Above Average", "Average", "Below Average"];
 
 const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlayer }) => {
@@ -30,9 +31,10 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
     foot: 'Right',
     position: 'CM',
     secondaryPosition: '',
+    club: '',
+    teamLevel: 'Elite National (MLS Next/ECNL/GA)',
     gpa: '',
     testScore: '',
-    club: '',
     email: '',
     phone: '',
     parentEmail: '',
@@ -91,9 +93,10 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
       foot: 'Right',
       position: 'RB',
       secondaryPosition: 'RWB',
+      club: 'East Coast Elite Academy',
+      teamLevel: 'Elite National (MLS Next/ECNL/GA)',
       gpa: '3.6',
       testScore: '1250 SAT',
-      club: 'East Coast Elite Academy',
       email: 'marco.rossi@example.com',
       phone: '555-0123',
       parentEmail: 'mario.rossi@example.com',
@@ -125,6 +128,7 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                   dob: parsed.dob || prev.dob,
                   gradYear: parsed.gradYear || prev.gradYear,
                   club: parsed.club || prev.club,
+                  teamLevel: parsed.teamLevel || prev.teamLevel,
                   region: parsed.region || prev.region,
                   heightFt: parsed.heightFt || prev.heightFt,
                   heightIn: parsed.heightIn || prev.heightIn,
@@ -141,11 +145,51 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
       }
   };
 
-  // Single Player Submit
+  // Helper to calc age
+  const calculateAge = (dobString: string) => {
+      if (!dobString) return 17; // Default fallback
+      const birthDate = new Date(dobString);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+      }
+      return age;
+  };
+
+  // Quick Save (Skip AI)
+  const handleQuickSave = () => {
+      // Validate minimum fields for Quick Save
+      if (!formData.firstName && !formData.lastName) {
+          alert("Please provide at least a First Name or Last Name to save.");
+          return;
+      }
+
+      const newPlayer: Player = {
+        id: Date.now().toString(),
+        name: `${formData.firstName} ${formData.lastName}`.trim() || "Unknown Player",
+        age: calculateAge(formData.dob),
+        position: formData.position || "Unknown",
+        status: PlayerStatus.LEAD, // Default to Lead
+        email: formData.email,
+        phone: formData.phone,
+        parentEmail: formData.parentEmail,
+        interestedProgram: formData.club ? `${formData.club} (${formData.teamLevel})` : formData.teamLevel, // Store context
+        submittedAt: new Date().toISOString(),
+        outreachLogs: [],
+        evaluation: null // Explicitly null to indicate pending evaluation
+    };
+
+    onAddPlayer(newPlayer);
+    onClose();
+  };
+
+  // Single Player AI Submit
   const handleSubmit = async () => {
     // Validate minimum fields
     if (!image && (!formData.firstName || !formData.lastName)) {
-        alert("Please provide at least a name or upload an image.");
+        alert("Please provide at least a name or upload an image to run AI analysis.");
         return;
     }
 
@@ -167,6 +211,7 @@ Gender: ${formData.gender}
 DOB: ${formData.dob} (Grad Year: ${formData.gradYear})
 Location: ${formData.region}, ${formData.nationality}
 Club: ${formData.club}
+Team Level: ${formData.teamLevel}
 Contact: ${formData.email}, ${formData.phone}, Parent: ${formData.parentEmail}
 Physical: ${formData.heightFt}'${formData.heightIn}", ${formData.foot}-footed
 Position: ${formData.position} (Secondary: ${formData.secondaryPosition})
@@ -201,22 +246,10 @@ Scout Ratings (vs Teammates):
   const confirmPlayer = () => {
     if (!evalResult) return;
     
-    // Calculate age from DOB if available
-    let age = 17;
-    if (formData.dob) {
-        const birthDate = new Date(formData.dob);
-        const today = new Date();
-        age = today.getFullYear() - birthDate.getFullYear();
-        const m = today.getMonth() - birthDate.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-            age--;
-        }
-    }
-
     const newPlayer: Player = {
         id: Date.now().toString(),
         name: `${formData.firstName} ${formData.lastName}`.trim() || "New Recruit",
-        age: age,
+        age: calculateAge(formData.dob),
         position: formData.position || "Unknown",
         status: PlayerStatus.LEAD,
         email: formData.email,
@@ -254,7 +287,9 @@ Scout Ratings (vs Teammates):
                             <div className="flex justify-between items-end mb-2">
                                 <div>
                                     <h3 className="text-2xl font-bold text-white">Player Profile Builder</h3>
-                                    <p className="text-gray-400">Fill out standardized data for accurate AI evaluation.</p>
+                                    <p className="text-gray-400 text-sm mt-1">
+                                        <span className="text-scout-accent font-bold">Tip:</span> Only <span className="text-white font-bold">Name</span> is required. Capture now, refine later.
+                                    </p>
                                 </div>
                                 <button 
                                     onClick={fillDemoData}
@@ -275,7 +310,7 @@ Scout Ratings (vs Teammates):
                                         type="text"
                                         value={pasteInput}
                                         onChange={(e) => setPasteInput(e.target.value)}
-                                        placeholder="Paste info here: 'John Smith, 555-1234, ST for FC Dallas...'"
+                                        placeholder="Paste info here (Partial info OK)..."
                                         className="flex-1 bg-scout-900 border border-scout-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-scout-accent placeholder-gray-600"
                                     />
                                     <button 
@@ -296,8 +331,8 @@ Scout Ratings (vs Teammates):
                                         <Upload size={20} />
                                     </div>
                                     <div>
-                                        <h4 className="text-sm font-bold text-white">Have a bio image?</h4>
-                                        <p className="text-xs text-gray-500">Upload a screenshot to auto-fill or just evaluate the image.</p>
+                                        <h4 className="text-sm font-bold text-white">Have a bio image? (Optional)</h4>
+                                        <p className="text-xs text-gray-500">Upload a screenshot to auto-fill details.</p>
                                     </div>
                                 </div>
                                 <input type="file" id="submissionFile" className="hidden" accept="image/*" onChange={handleFileChange} />
@@ -309,15 +344,18 @@ Scout Ratings (vs Teammates):
                             <div className="grid md:grid-cols-2 gap-6">
                                 {/* SECTION 1: BIO & PHYSICAL & CONTACT */}
                                 <div className="bg-scout-800 rounded-xl border border-scout-700 p-5">
-                                    <div className="flex items-center gap-2 mb-4 text-scout-accent">
-                                        <User size={18} />
-                                        <h4 className="font-bold text-white">Bio & Details</h4>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center gap-2 text-scout-accent">
+                                            <User size={18} />
+                                            <h4 className="font-bold text-white">Bio & Details</h4>
+                                        </div>
+                                        <span className="text-[10px] text-gray-500 font-medium">NAME REQUIRED <span className="text-red-500">*</span></span>
                                     </div>
                                     
                                     <div className="space-y-3">
                                         <div className="grid grid-cols-2 gap-3">
                                             <div>
-                                                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">First Name</label>
+                                                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">First Name <span className="text-red-500">*</span></label>
                                                 <input 
                                                     type="text" 
                                                     className="w-full bg-scout-900 border border-scout-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-scout-accent"
@@ -326,7 +364,7 @@ Scout Ratings (vs Teammates):
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Last Name</label>
+                                                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Last Name <span className="text-red-500">*</span></label>
                                                 <input 
                                                     type="text" 
                                                     className="w-full bg-scout-900 border border-scout-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-scout-accent"
@@ -379,7 +417,8 @@ Scout Ratings (vs Teammates):
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-2 gap-3">
+                                        {/* New 3-Column Grid for Position / Club / Level */}
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                             <div>
                                                 <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Position</label>
                                                 <select 
@@ -397,7 +436,18 @@ Scout Ratings (vs Teammates):
                                                     className="w-full bg-scout-900 border border-scout-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-scout-accent"
                                                     value={formData.club}
                                                     onChange={e => handleInputChange('club', e.target.value)}
+                                                    placeholder="e.g. Dallas Texans"
                                                 />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Team Level</label>
+                                                <select 
+                                                    className="w-full bg-scout-900 border border-scout-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-scout-accent"
+                                                    value={formData.teamLevel}
+                                                    onChange={e => handleInputChange('teamLevel', e.target.value)}
+                                                >
+                                                    {TEAM_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+                                                </select>
                                             </div>
                                         </div>
 
@@ -436,9 +486,12 @@ Scout Ratings (vs Teammates):
                                 <div className="space-y-6">
                                         {/* SECTION 2: RATINGS */}
                                     <div className="bg-scout-800 rounded-xl border border-scout-700 p-5">
-                                        <div className="flex items-center gap-2 mb-4 text-scout-highlight">
-                                            <Activity size={18} />
-                                            <h4 className="font-bold text-white">Player Ratings (vs Peers)</h4>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-2 text-scout-highlight">
+                                                <Activity size={18} />
+                                                <h4 className="font-bold text-white">Player Ratings</h4>
+                                            </div>
+                                            <span className="text-[10px] text-gray-500 font-medium">(OPTIONAL)</span>
                                         </div>
                                         
                                         <div className="grid grid-cols-2 gap-3">
@@ -459,9 +512,12 @@ Scout Ratings (vs Teammates):
 
                                     {/* SECTION 3: ACADEMICS */}
                                     <div className="bg-scout-800 rounded-xl border border-scout-700 p-5">
-                                        <div className="flex items-center gap-2 mb-4 text-blue-400">
-                                            <GraduationCap size={18} />
-                                            <h4 className="font-bold text-white">Academic Standing</h4>
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-2 text-blue-400">
+                                                <GraduationCap size={18} />
+                                                <h4 className="font-bold text-white">Academic Standing</h4>
+                                            </div>
+                                            <span className="text-[10px] text-gray-500 font-medium">(OPTIONAL)</span>
                                         </div>
                                             <div className="grid grid-cols-2 gap-3">
                                             <div>
@@ -477,13 +533,21 @@ Scout Ratings (vs Teammates):
                                 </div>
                             </div>
 
-                            <button 
-                                onClick={handleSubmit}
-                                disabled={loading || (!image && !formData.firstName)}
-                                className="w-full bg-scout-accent hover:bg-emerald-600 disabled:opacity-50 text-white font-bold py-4 rounded-lg shadow-lg flex items-center justify-center gap-2 mt-4"
-                            >
-                                {loading ? <Loader2 className="animate-spin" /> : 'Run AI Analysis & Submit'}
-                            </button>
+                            <div className="flex gap-3 mt-6">
+                                <button 
+                                    onClick={handleQuickSave}
+                                    className="flex-1 bg-transparent hover:bg-scout-800 text-gray-300 font-bold py-4 rounded-lg border border-scout-600 transition-all flex items-center justify-center gap-2"
+                                >
+                                    <Save size={18} /> Quick Save (Skip AI)
+                                </button>
+                                <button 
+                                    onClick={handleSubmit}
+                                    disabled={loading || (!image && !formData.firstName)}
+                                    className="flex-[2] bg-scout-accent hover:bg-emerald-600 disabled:opacity-50 text-white font-bold py-4 rounded-lg shadow-lg flex items-center justify-center gap-2"
+                                >
+                                    {loading ? <Loader2 className="animate-spin" /> : 'Run AI Analysis & Submit'}
+                                </button>
+                            </div>
                         </div>
                     )}
 

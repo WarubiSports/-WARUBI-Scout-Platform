@@ -14,6 +14,7 @@ export enum DashboardTab {
 }
 
 export enum PlayerStatus {
+  PROSPECT = 'Prospect', // Hidden state for Shadow Pipeline
   LEAD = 'Lead',
   INTERESTED = 'Interested',
   FINAL_REVIEW = 'Final Review',
@@ -68,6 +69,10 @@ export interface Player {
   evaluation: PlayerEvaluation | null;
   outreachLogs: OutreachLog[];
   submittedAt: string;
+
+  // Smart Tracking Fields
+  lastActive?: string; // ISO Date string
+  activityStatus?: 'viewed' | 'submitted' | 'none';
 }
 
 export type EventStatus = 'Draft' | 'Pending Approval' | 'Approved' | 'Published' | 'Completed' | 'Rejected';
@@ -96,4 +101,24 @@ export interface KnowledgeItem {
   title: string;
   content: string;
   category: 'Process' | 'Template' | 'Q&A';
+}
+
+export interface PathwayDef {
+    id: string;
+    title: string;
+    shortDesc: string;
+    icon: any; // Lucide icon name or component
+    color: string;
+    idealProfile: string[];
+    redFlags: string[];
+    keySellingPoints: string[];
+    scriptSnippet: string;
+}
+
+export interface ToolDef {
+    id: string;
+    title: string;
+    desc: string;
+    actionLabel: string;
+    type: 'CALCULATOR' | 'ASSESSMENT' | 'COMPARE';
 }

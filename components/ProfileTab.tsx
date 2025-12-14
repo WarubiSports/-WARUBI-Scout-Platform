@@ -1,5 +1,5 @@
 import React from 'react';
-import { UserProfile, Player, ScoutingEvent } from '../types';
+import { UserProfile, Player, ScoutingEvent, PlayerStatus } from '../types';
 import { BadgeCheck, Share2, Award, MapPin, Users, Calendar, Briefcase, Star, QrCode } from 'lucide-react';
 
 interface ProfileTabProps {
@@ -9,7 +9,7 @@ interface ProfileTabProps {
 }
 
 const ProfileTab: React.FC<ProfileTabProps> = ({ user, players, events }) => {
-  const signedPlayers = players.filter(p => p.status === 'Signed').length;
+  const signedPlayers = players.filter(p => p.status === PlayerStatus.PLACED).length;
   const totalPlayers = players.length;
   const totalEvents = events.length;
 

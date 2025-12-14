@@ -9,7 +9,8 @@ import OutreachTab from './OutreachTab';
 import NewsTab from './NewsTab';
 import PlayerSubmission from './PlayerSubmission';
 import TutorialOverlay from './TutorialOverlay';
-import { LayoutDashboard, Users, CalendarDays, GraduationCap, CheckCircle, UserCircle, MessageSquare, LayoutGrid, List, ChevronDown, MessageCircle as MsgIcon, Search, Filter, ChevronLeft, ChevronRight, HelpCircle, PlusCircle, Sparkles, Newspaper, X, Zap, Info, Trophy, BookOpen } from 'lucide-react';
+import Confetti from './Confetti';
+import { LayoutDashboard, Users, CalendarDays, GraduationCap, CheckCircle, UserCircle, MessageSquare, LayoutGrid, List, ChevronDown, MessageCircle as MsgIcon, Search, Filter, ChevronLeft, ChevronRight, HelpCircle, PlusCircle, Sparkles, Newspaper, X, Zap, Info, Trophy, BookOpen, EyeOff, Award } from 'lucide-react';
 
 interface DashboardProps {
   user: UserProfile;
@@ -24,9 +25,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, players: initialPlayers, on
   const [showTutorial, setShowTutorial] = useState(true); // Default to showing tutorial on load
   const [showDailyKickoff, setShowDailyKickoff] = useState(true); // Default to show
   const [showTierGuide, setShowTierGuide] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false); // New Celebration State
+  const [placedPlayerName, setPlacedPlayerName] = useState('');
   const [players, setPlayers] = useState<Player[]>(initialPlayers);
   const [outreachTargetId, setOutreachTargetId] = useState<string | null>(null);
   
+  // Drag and Drop State
+  const [draggedPlayerId, setDraggedPlayerId] = useState<string | null>(null);
+
   // View & Filter State
   const [viewMode, setViewMode] = useState<'board' | 'list'>('board');
   const [searchQuery, setSearchQuery] = useState('');
@@ -34,6 +40,8 @@ const Dashboard: React.FC<DashboardProps> = ({ user, players: initialPlayers, on
   const [statusFilter, setStatusFilter] = useState<string>('All'); // Primarily for List View
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 25;
+
+  const prospectCount = players.filter(p => p.status === PlayerStatus.PROSPECT).length;
 
   const handleNewPlayer = (player: Player) => {
       setPlayers(prev => [player, ...prev]);
@@ -47,6 +55,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, players: initialPlayers, on
   };
 
   const handleStatusChange = (id: string, newStatus: PlayerStatus, extraData?: string) => {
+      // Check for Placement Celebration
+      if (newStatus === PlayerStatus.PLACED) {
+          const player = players.find(p => p.id === id);
+          if (player && player.status !== PlayerStatus.PLACED) {
+              setPlacedPlayerName(player.name);
+              setShowCelebration(true);
+          }
+      }
+
       setPlayers(prev => prev.map(p => {
           if (p.id !== id) return p;
           return {
@@ -74,6 +91,31 @@ const Dashboard: React.FC<DashboardProps> = ({ user, players: initialPlayers, on
       }));
   };
 
+  // --- SMART LINK TRACKING & SHADOW PIPELINE LOGIC ---
+  const handlePlayerAction = (playerId: string, action: 'viewed' | 'submitted') => {
+      setPlayers(prev => prev.map(p => {
+          if (p.id !== playerId) return p;
+          
+          const updates: Partial<Player> = {
+              lastActive: new Date().toISOString(),
+              activityStatus: action
+          };
+
+          // SHADOW PIPELINE LOGIC:
+          // If a hidden PROSPECT submits the form, they are promoted to INTERESTED automatically.
+          if (action === 'submitted') {
+               if (p.status === PlayerStatus.PROSPECT || p.status === PlayerStatus.LEAD) {
+                   updates.status = PlayerStatus.INTERESTED;
+                   updates.interestedProgram = "Assessment Received (Pending Review)"; 
+                   // Trigger a browser alert to simulate the notification
+                   setTimeout(() => alert(`🎉 SHADOW PIPELINE ACTIVATED: ${p.name} completed the assessment! Promoted from '${p.status}' to 'Interested'.`), 100);
+               }
+          }
+
+          return { ...p, ...updates };
+      }));
+  };
+
   const jumpToOutreach = (player: Player) => {
       setOutreachTargetId(player.id);
       setActiveTab(DashboardTab.OUTREACH);
@@ -83,8 +125,29 @@ const Dashboard: React.FC<DashboardProps> = ({ user, players: initialPlayers, on
       setEvents(prev => prev.map(e => e.id === updatedEvent.id ? updatedEvent : e));
   };
 
+  // --- Drag and Drop Handlers ---
+  const handleDragStart = (id: string) => {
+      setDraggedPlayerId(id);
+  };
+
+  const handleDragEnd = () => {
+      setDraggedPlayerId(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, status: PlayerStatus) => {
+      e.preventDefault();
+      if (draggedPlayerId) {
+          handleStatusChange(draggedPlayerId, status);
+          setDraggedPlayerId(null);
+      }
+  };
+
   // --- Filtering Logic ---
   const filteredPlayers = players.filter(p => {
+      // SHADOW PIPELINE: Hide Prospects from the main board/list
+      // They only appear in Outreach or if they get promoted
+      if (p.status === PlayerStatus.PROSPECT) return false;
+
       const matchesSearch = 
         p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
         p.position.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -112,17 +175,31 @@ const Dashboard: React.FC<DashboardProps> = ({ user, players: initialPlayers, on
       }
   };
 
-  const PipelineColumn = ({ title, status, count, children }: { title: string, status: string, count: number, children?: React.ReactNode }) => (
-    <div className="flex-1 min-w-[300px] flex flex-col h-full bg-scout-800/30 rounded-xl border border-scout-700/50">
-        <div className="p-4 border-b border-scout-700/50 flex justify-between items-center sticky top-0 bg-scout-900/90 backdrop-blur rounded-t-xl z-10">
-            <h3 className="font-bold text-white">{title}</h3>
-            <span className="text-xs bg-scout-800 text-gray-300 px-2 py-0.5 rounded-full border border-scout-700">{count}</span>
+  const PipelineColumn = ({ title, status, count, children }: { title: string, status: PlayerStatus, count: number, children?: React.ReactNode }) => {
+    const [isDragOver, setIsDragOver] = useState(false);
+
+    return (
+        <div 
+            className={`flex-1 min-w-[300px] flex flex-col h-full rounded-xl border transition-colors ${isDragOver ? 'bg-scout-800/80 border-scout-accent shadow-lg shadow-scout-accent/10' : 'bg-scout-800/30 border-scout-700/50'}`}
+            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+            onDragLeave={() => setIsDragOver(false)}
+            onDrop={(e) => { setIsDragOver(false); handleDrop(e, status); }}
+        >
+            <div className="p-4 border-b border-scout-700/50 flex justify-between items-center sticky top-0 bg-scout-900/90 backdrop-blur rounded-t-xl z-10">
+                <h3 className="font-bold text-white">{title}</h3>
+                <span className={`text-xs px-2 py-0.5 rounded-full border border-scout-700 ${isDragOver ? 'bg-scout-accent text-scout-900 font-bold' : 'bg-scout-800 text-gray-300'}`}>{count}</span>
+            </div>
+            <div className="p-4 space-y-4 overflow-y-auto custom-scrollbar flex-1">
+                {children}
+                {isDragOver && (
+                    <div className="border-2 border-dashed border-scout-accent/50 rounded-lg h-24 flex items-center justify-center bg-scout-accent/5 animate-pulse">
+                        <span className="text-scout-accent font-medium text-sm">Drop here</span>
+                    </div>
+                )}
+            </div>
         </div>
-        <div className="p-4 space-y-4 overflow-y-auto custom-scrollbar flex-1">
-            {children}
-        </div>
-    </div>
-  );
+    );
+  };
 
   const tierColor = (tier?: string) => {
     if (tier === 'Tier 1') return 'bg-scout-accent text-scout-900 border-scout-accent';
@@ -259,13 +336,44 @@ const Dashboard: React.FC<DashboardProps> = ({ user, players: initialPlayers, on
     </div>
   );
 
+  // --- Celebration Overlay ---
+  const CelebrationOverlay = () => (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center pointer-events-none">
+          <div className="bg-scout-900/90 backdrop-blur-md p-8 rounded-2xl border-2 border-scout-accent shadow-[0_0_50px_rgba(16,185,129,0.3)] text-center animate-fade-in pointer-events-auto max-w-sm">
+              <div className="w-20 h-20 bg-gradient-to-tr from-scout-accent to-emerald-300 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                  <Award size={40} className="text-scout-900" />
+              </div>
+              <h2 className="text-3xl font-black text-white mb-1 tracking-tight">PLAYER PLACED!</h2>
+              <p className="text-gray-300 text-lg mb-4">Great work securing a future for <br/><strong className="text-white">{placedPlayerName}</strong>.</p>
+              
+              <div className="bg-scout-800 p-3 rounded-lg border border-scout-700 text-sm text-gray-400 mb-6">
+                  <p>Commission Status: <span className="text-scout-accent font-bold">Unlocked</span></p>
+              </div>
+
+              <button 
+                onClick={() => setShowCelebration(false)}
+                className="bg-white hover:bg-gray-100 text-scout-900 font-bold px-6 py-3 rounded-xl shadow-lg transition-all"
+              >
+                  Keep Scouting
+              </button>
+          </div>
+      </div>
+  );
+
   return (
-    <div className="flex h-screen bg-scout-900 text-white overflow-hidden">
+    <div className="flex h-screen bg-scout-900 text-white overflow-hidden relative">
+        {/* Confetti & Celebration */}
+        {showCelebration && (
+            <>
+                <Confetti onComplete={() => setShowCelebration(false)} />
+                <CelebrationOverlay />
+            </>
+        )}
+
         {/* Sidebar */}
         <aside className="w-64 bg-scout-800 border-r border-scout-700 flex flex-col hidden md:flex">
             <div className="p-6 border-b border-scout-700">
                 <h1 className="text-xl font-black tracking-tighter text-white">WARUBI<span className="text-scout-accent">SCOUT</span></h1>
-                <p className="text-xs text-gray-400 mt-1">AI-Powered Platform</p>
             </div>
             
             <nav className="flex-1 p-4 space-y-2">
@@ -313,12 +421,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, players: initialPlayers, on
                 >
                     <UserCircle size={20} /> My Profile
                 </button>
-                <button 
-                    onClick={() => setShowTutorial(true)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded transition-colors text-gray-400 hover:text-scout-accent hover:bg-scout-700/50`}
-                >
-                    <HelpCircle size={20} /> App Tutorial
-                </button>
             </nav>
 
             <div className="p-4 bg-scout-900/50 m-4 rounded-lg border border-scout-700 shadow-lg">
@@ -337,17 +439,26 @@ const Dashboard: React.FC<DashboardProps> = ({ user, players: initialPlayers, on
             </div>
             
             <div className="p-4 border-t border-scout-700">
-                <div 
-                    className="flex items-center gap-3 cursor-pointer hover:bg-scout-700/50 p-2 rounded transition-colors"
-                    onClick={() => setActiveTab(DashboardTab.PROFILE)}
-                >
-                    <div className="w-8 h-8 rounded-full bg-scout-accent flex items-center justify-center font-bold text-scout-900">
-                        {user.name.charAt(0)}
+                <div className="flex items-center justify-between gap-2">
+                    <div 
+                        className="flex-1 flex items-center gap-3 cursor-pointer hover:bg-scout-700/50 p-2 rounded transition-colors overflow-hidden"
+                        onClick={() => setActiveTab(DashboardTab.PROFILE)}
+                    >
+                        <div className="w-8 h-8 rounded-full bg-scout-accent flex items-center justify-center font-bold text-scout-900 shrink-0">
+                            {user.name.charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-sm font-medium text-white truncate">{user.name}</p>
+                            <p className="text-xs text-gray-500 truncate">{user.role}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-sm font-medium text-white">{user.name}</p>
-                        <p className="text-xs text-gray-500">{user.role}</p>
-                    </div>
+                    <button 
+                        onClick={() => setShowTutorial(true)}
+                        className="p-2 text-gray-500 hover:text-white hover:bg-scout-700/50 rounded transition-colors shrink-0"
+                        title="App Tutorial"
+                    >
+                        <HelpCircle size={18} />
+                    </button>
                 </div>
             </div>
         </aside>
@@ -469,38 +580,84 @@ const Dashboard: React.FC<DashboardProps> = ({ user, players: initialPlayers, on
                     {viewMode === 'board' ? (
                         <div className="flex gap-4 overflow-x-auto pb-4 flex-1">
                             {/* We use filteredPlayers here so searches work on Board view too, but we ignore statusFilter so columns stay valid */}
-                            <PipelineColumn title="Leads" status={PlayerStatus.LEAD} count={filteredPlayers.filter(p => p.status === PlayerStatus.LEAD || p.status === 'New Lead').length}>
-                                {filteredPlayers.filter(p => p.status === PlayerStatus.LEAD || p.status === 'New Lead').map(p => (
-                                    <PlayerCard key={p.id} player={p} onStatusChange={handleStatusChange} onOutreach={jumpToOutreach} />
+                            <PipelineColumn title="Leads" status={PlayerStatus.LEAD} count={filteredPlayers.filter(p => p.status === PlayerStatus.LEAD).length}>
+                                {filteredPlayers.filter(p => p.status === PlayerStatus.LEAD).map(p => (
+                                    <PlayerCard 
+                                        key={p.id} 
+                                        player={p} 
+                                        onStatusChange={handleStatusChange} 
+                                        onOutreach={jumpToOutreach}
+                                        onDragStart={handleDragStart}
+                                        onDragEnd={handleDragEnd}
+                                    />
                                 ))}
-                                {filteredPlayers.filter(p => p.status === PlayerStatus.LEAD || p.status === 'New Lead').length === 0 && (
-                                    <div className="text-center py-10 text-gray-500 border-2 border-dashed border-scout-700 rounded-lg text-sm">
-                                        No players found
+                                {filteredPlayers.filter(p => p.status === PlayerStatus.LEAD).length === 0 && (
+                                    <div className="text-center py-10 text-gray-500 border-2 border-dashed border-scout-700 rounded-lg text-sm flex flex-col items-center justify-center">
+                                        <p className="mb-2">No active leads found.</p>
+                                        {prospectCount > 0 && (
+                                            <div className="bg-scout-900/50 p-3 rounded-lg border border-scout-700/50 inline-block max-w-xs mt-2">
+                                                <p className="text-xs text-gray-300 mb-2">
+                                                    <EyeOff size={12} className="inline mr-1 text-scout-highlight"/>
+                                                    You have <strong>{prospectCount} hidden prospects</strong> in your Shadow Pipeline.
+                                                </p>
+                                                <button onClick={() => setActiveTab(DashboardTab.OUTREACH)} className="text-xs bg-scout-accent text-scout-900 px-3 py-1.5 rounded font-bold hover:bg-white transition-colors">
+                                                    Go to Outreach to Activate
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </PipelineColumn>
 
                             <PipelineColumn title="Interested" status={PlayerStatus.INTERESTED} count={filteredPlayers.filter(p => p.status === PlayerStatus.INTERESTED).length}>
                                 {filteredPlayers.filter(p => p.status === PlayerStatus.INTERESTED).map(p => (
-                                    <PlayerCard key={p.id} player={p} onStatusChange={handleStatusChange} onOutreach={jumpToOutreach} />
+                                    <PlayerCard 
+                                        key={p.id} 
+                                        player={p} 
+                                        onStatusChange={handleStatusChange} 
+                                        onOutreach={jumpToOutreach} 
+                                        onDragStart={handleDragStart}
+                                        onDragEnd={handleDragEnd}
+                                    />
                                 ))}
                             </PipelineColumn>
 
                             <PipelineColumn title="Final Review" status={PlayerStatus.FINAL_REVIEW} count={filteredPlayers.filter(p => p.status === PlayerStatus.FINAL_REVIEW).length}>
                                 {filteredPlayers.filter(p => p.status === PlayerStatus.FINAL_REVIEW).map(p => (
-                                    <PlayerCard key={p.id} player={p} onStatusChange={handleStatusChange} onOutreach={jumpToOutreach} />
+                                    <PlayerCard 
+                                        key={p.id} 
+                                        player={p} 
+                                        onStatusChange={handleStatusChange} 
+                                        onOutreach={jumpToOutreach} 
+                                        onDragStart={handleDragStart}
+                                        onDragEnd={handleDragEnd}
+                                    />
                                 ))}
                             </PipelineColumn>
 
                             <PipelineColumn title="Offered" status={PlayerStatus.OFFERED} count={filteredPlayers.filter(p => p.status === PlayerStatus.OFFERED).length}>
                                 {filteredPlayers.filter(p => p.status === PlayerStatus.OFFERED).map(p => (
-                                    <PlayerCard key={p.id} player={p} onStatusChange={handleStatusChange} onOutreach={jumpToOutreach} />
+                                    <PlayerCard 
+                                        key={p.id} 
+                                        player={p} 
+                                        onStatusChange={handleStatusChange} 
+                                        onOutreach={jumpToOutreach} 
+                                        onDragStart={handleDragStart}
+                                        onDragEnd={handleDragEnd}
+                                    />
                                 ))}
                             </PipelineColumn>
 
                             <PipelineColumn title="Placed" status={PlayerStatus.PLACED} count={filteredPlayers.filter(p => p.status === PlayerStatus.PLACED).length}>
                                 {filteredPlayers.filter(p => p.status === PlayerStatus.PLACED).map(p => (
-                                    <PlayerCard key={p.id} player={p} onStatusChange={handleStatusChange} onOutreach={jumpToOutreach} />
+                                    <PlayerCard 
+                                        key={p.id} 
+                                        player={p} 
+                                        onStatusChange={handleStatusChange} 
+                                        onOutreach={jumpToOutreach} 
+                                        onDragStart={handleDragStart}
+                                        onDragEnd={handleDragEnd}
+                                    />
                                 ))}
                             </PipelineColumn>
                         </div>
@@ -633,6 +790,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, players: initialPlayers, on
                         initialPlayerId={outreachTargetId}
                         onMessageSent={handleMessageSent}
                         onAddPlayers={handleBulkAddPlayers}
+                        onPlayerAction={handlePlayerAction}
                     />
                 </div>
             )}
