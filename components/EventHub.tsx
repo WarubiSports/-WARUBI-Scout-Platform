@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ScoutingEvent, UserProfile, EventStatus } from '../types';
 import { generateEventPlan } from '../services/geminiService';
 import { 
   Calendar, MapPin, Sparkles, Plus, Copy, CheckCircle, 
   Share2, Users, FileText, CheckSquare, Loader2, ArrowRight,
-  ClipboardList, X, ExternalLink, ShieldCheck, Lock, AlertCircle, Eye,
-  HelpCircle, Clock, Check, Settings, QrCode
+  ClipboardList, X, ShieldCheck, Lock, Eye,
+  HelpCircle, Check, QrCode, ChevronRight, Navigation, History, CalendarPlus, Ticket
 } from 'lucide-react';
 
 interface EventHubProps {
@@ -55,13 +55,690 @@ const MOCK_OPPORTUNITIES: ScoutingEvent[] = [
     }
 ];
 
+// --- EXTRACTED COMPONENTS ---
+
+const StatusPill = ({ status }: { status: EventStatus }) => {
+    const styles: Record<string, string> = {
+        'Draft': 'bg-gray-700 text-gray-300 border-gray-600',
+        'Pending Approval': 'bg-yellow-500/20 text-yellow-500 border-yellow-500/50',
+        'Approved': 'bg-blue-500/20 text-blue-400 border-blue-500/50',
+        'Published': 'bg-green-500/20 text-green-400 border-green-500/50',
+        'Completed': 'bg-gray-800 text-gray-500 border-gray-700',
+        'Rejected': 'bg-red-500/20 text-red-400 border-red-500/50',
+    };
+    return (
+        <span className={`px-2 py-1 rounded text-[10px] uppercase font-bold tracking-wider border ${styles[status] || styles['Draft']}`}>
+            {status}
+        </span>
+    );
+};
+
+const AttendancePrepModal = ({ event, onCancel, onConfirm }: { event: ScoutingEvent, onCancel: () => void, onConfirm: () => void }) => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+        <div className="bg-scout-800 w-full max-w-md rounded-2xl border border-scout-700 shadow-2xl overflow-hidden flex flex-col">
+            <div className="p-6 bg-gradient-to-br from-scout-900 to-scout-800 border-b border-scout-700 text-center">
+                <div className="w-12 h-12 bg-scout-accent/20 rounded-full flex items-center justify-center text-scout-accent mb-4 border border-scout-accent/30 mx-auto">
+                    <CheckCircle size={24} />
+                </div>
+                <h3 className="text-xl font-bold text-white">Confirm Attendance</h3>
+                <p className="text-gray-400 text-sm mt-1">Make the most of {event.title}.</p>
+            </div>
+
+            <div className="p-6 space-y-4 bg-scout-800">
+                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Scout Action Checklist</h4>
+                <div className="flex gap-4 items-start group">
+                    <div className="mt-1 p-2 bg-scout-900 rounded-lg border border-scout-700 text-blue-400 group-hover:border-blue-500/50 transition-colors">
+                        <ClipboardList size={18} />
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-white text-sm">Get the Roster</h4>
+                        <p className="text-xs text-gray-400 leading-snug">Do you have the player list with jersey numbers and contact info?</p>
+                    </div>
+                </div>
+                <div className="flex gap-4 items-start group">
+                    <div className="mt-1 p-2 bg-scout-900 rounded-lg border border-scout-700 text-scout-highlight group-hover:border-scout-highlight/50 transition-colors">
+                        <QrCode size={18} />
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-white text-sm">Prepare Assessment Tool</h4>
+                        <p className="text-xs text-gray-400 leading-snug">Have your Warubi QR code ready for players to scan instantly.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div className="p-4 bg-scout-900 flex gap-3 border-t border-scout-700">
+                <button onClick={onCancel} className="flex-1 py-3 text-gray-400 hover:text-white text-sm font-medium transition-colors">Cancel</button>
+                <button onClick={onConfirm} className="flex-[2] bg-scout-accent hover:bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
+                    Got it, Add to Schedule
+                </button>
+            </div>
+        </div>
+    </div>
+);
+
+const HostGuideModal = ({ onClose }: { onClose: () => void }) => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+       <div className="bg-scout-800 w-full max-w-2xl rounded-2xl border border-scout-700 shadow-2xl flex flex-col overflow-hidden max-h-[90vh]">
+           <div className="p-4 border-b border-scout-700 flex justify-between items-center bg-scout-900">
+               <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                   <HelpCircle size={20} className="text-scout-accent"/> Host Guide & FAQ
+               </h2>
+               <button onClick={onClose} className="text-gray-400 hover:text-white">
+                   <X size={24} />
+               </button>
+           </div>
+           <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
+               <section>
+                   <h3 className="text-lg font-bold text-white mb-2">Why Host an Event?</h3>
+                   <p className="text-gray-400 text-sm">
+                       Events are the most effective way to identify new talent and build your reputation as a scout. 
+                       Hosted ID days allow you to see players in person, verify their data, and build relationships with families.
+                   </p>
+               </section>
+               <div className="p-4 border-t border-scout-700 bg-scout-900 flex justify-end">
+                   <button 
+                       onClick={onClose}
+                       className="bg-white hover:bg-gray-100 text-scout-900 font-bold py-2 px-6 rounded-lg transition-colors"
+                   >
+                       Got it
+                   </button>
+               </div>
+           </div>
+       </div>
+    </div>
+);
+
+const EventCard: React.FC<{ event: ScoutingEvent; onClick: (e: ScoutingEvent) => void }> = ({ event, onClick }) => {
+    const isHost = event.role === 'HOST' || event.isMine;
+
+    return (
+        <div 
+            onClick={() => onClick(event)}
+            className={`rounded-xl p-5 border transition-all shadow-lg cursor-pointer group relative overflow-hidden flex flex-col justify-between h-full
+            ${isHost 
+                ? 'bg-gradient-to-br from-scout-800 to-[#1a2c38] border-scout-accent/60 hover:border-scout-accent hover:shadow-scout-accent/20' 
+                : 'bg-scout-800 border-scout-700 hover:border-blue-500 hover:shadow-blue-500/10'}`}
+        >
+            <div>
+                <div className="flex justify-between items-start mb-4">
+                    <StatusPill status={event.status} />
+                    {isHost ? (
+                        <span className="text-[10px] font-bold bg-scout-accent/10 text-scout-accent px-2 py-1 rounded border border-scout-accent/20 uppercase tracking-wider">Host</span>
+                    ) : (
+                        <span className="text-[10px] font-bold bg-gray-700 text-gray-300 px-2 py-1 rounded border border-gray-600 uppercase tracking-wider">Going</span>
+                    )}
+                </div>
+                
+                <h3 className="text-xl font-bold text-white mb-1 line-clamp-2 leading-tight group-hover:text-scout-highlight transition-colors">{event.title}</h3>
+                <p className="text-xs text-gray-400 mb-4 flex items-center gap-1">
+                    <MapPin size={12}/> {event.location}
+                </p>
+            </div>
+
+            <div className="flex items-center justify-between text-sm pt-4 border-t border-white/5">
+                <span className="flex items-center gap-2 text-gray-300 font-medium">
+                    <Calendar size={14} className="text-gray-500" /> {new Date(event.date).toLocaleDateString()}
+                </span>
+                <div className="w-8 h-8 rounded-full bg-black/20 flex items-center justify-center group-hover:bg-scout-accent group-hover:text-scout-900 transition-colors">
+                    <ArrowRight size={14} />
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const CreateEventForm = ({ formData, setFormData, loading, handleCreate, onCancel }: any) => (
+    <div className="max-w-2xl mx-auto animate-fade-in">
+        <button onClick={onCancel} className="mb-6 text-gray-400 hover:text-white flex items-center gap-1 text-sm">
+            <ArrowRight size={16} className="rotate-180" /> Back to Calendar
+        </button>
+        
+        <div className="bg-scout-800 rounded-xl border border-scout-700 overflow-hidden shadow-2xl">
+            <div className="p-6 border-b border-scout-700 bg-scout-900/50">
+                <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                    <CalendarPlus size={24} className="text-scout-accent" /> Add New Event
+                </h2>
+                <p className="text-gray-400 text-sm mt-1">Host your own event or log one you are attending.</p>
+            </div>
+            
+            <div className="p-8 space-y-6">
+                {/* Mode Toggle */}
+                <div className="bg-scout-900 p-1 rounded-lg border border-scout-700 flex">
+                    <button 
+                        onClick={() => setFormData((prev:any) => ({ ...prev, isHosting: false }))}
+                        className={`flex-1 py-2 text-sm font-bold rounded transition-colors ${!formData.isHosting ? 'bg-scout-700 text-white shadow' : 'text-gray-400 hover:text-gray-200'}`}
+                    >
+                        I'm Attending
+                    </button>
+                    <button 
+                        onClick={() => setFormData((prev:any) => ({ ...prev, isHosting: true }))}
+                        className={`flex-1 py-2 text-sm font-bold rounded transition-colors ${formData.isHosting ? 'bg-scout-accent text-scout-900 shadow' : 'text-gray-400 hover:text-gray-200'}`}
+                    >
+                        I'm Hosting
+                    </button>
+                </div>
+
+                {formData.isHosting && (
+                    <div className="bg-scout-accent/10 border border-scout-accent/20 p-3 rounded-lg text-xs text-scout-accent flex items-start gap-2">
+                        <Sparkles size={16} className="shrink-0 mt-0.5" />
+                        <span>Host Mode active: AI will generate a marketing plan, agenda, and checklist for you.</span>
+                    </div>
+                )}
+
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Title</label>
+                    <input 
+                        value={formData.title}
+                        onChange={e => setFormData({...formData, title: e.target.value})}
+                        placeholder={formData.isHosting ? "e.g. Winter Talent ID Showcase" : "e.g. State Cup Final"}
+                        className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
+                    />
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Date</label>
+                        <input 
+                            type="date"
+                            value={formData.date}
+                            onChange={e => setFormData({...formData, date: e.target.value})}
+                            className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Location</label>
+                        <input 
+                            value={formData.location}
+                            onChange={e => setFormData({...formData, location: e.target.value})}
+                            placeholder="City, State or Field Name"
+                            className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
+                        />
+                    </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Type</label>
+                        <select 
+                            value={formData.type}
+                            onChange={e => setFormData({...formData, type: e.target.value})}
+                            className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
+                        >
+                            <option>ID Day</option>
+                            <option>Showcase</option>
+                            <option>Camp</option>
+                            <option>Tournament</option>
+                            <option>League Match</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{formData.isHosting ? 'Player Fee' : 'Scout Fee / Cost'}</label>
+                        <input 
+                            value={formData.fee}
+                            onChange={e => setFormData({...formData, fee: e.target.value})}
+                            placeholder="e.g. Free, $50, €20"
+                            className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
+                        />
+                    </div>
+                </div>
+
+                <div className="pt-4 border-t border-scout-700/50">
+                    <button 
+                        onClick={handleCreate}
+                        disabled={loading || !formData.title}
+                        className={`w-full font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${formData.isHosting ? 'bg-scout-accent hover:bg-emerald-600 text-scout-900' : 'bg-scout-700 hover:bg-scout-600 text-white'}`}
+                    >
+                        {loading ? <Loader2 className="animate-spin" /> : formData.isHosting ? <Sparkles size={18} /> : <Calendar size={18} />}
+                        {loading ? 'Processing...' : formData.isHosting ? 'Create Event & Generate Kit' : 'Add to Schedule'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+);
+
+const MobileEventList = ({ activeTab, setActiveTab, nextEvent, upcomingEvents, pastEvents, events, onEventClick, onInitiateAttendance, onCreateClick }: any) => (
+    <div className="flex flex-col h-full">
+        <div className="flex border-b border-scout-700 bg-scout-900 sticky top-0 z-10">
+            <button 
+                onClick={() => setActiveTab('schedule')}
+                className={`flex-1 py-3 text-sm font-bold text-center border-b-2 ${activeTab === 'schedule' ? 'text-scout-accent border-scout-accent' : 'text-gray-400 border-transparent'}`}
+            >
+                My Schedule
+            </button>
+            <button 
+                onClick={() => setActiveTab('discover')}
+                className={`flex-1 py-3 text-sm font-bold text-center border-b-2 ${activeTab === 'discover' ? 'text-scout-accent border-scout-accent' : 'text-gray-400 border-transparent'}`}
+            >
+                Discover
+            </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar pb-24">
+            {activeTab === 'schedule' ? (
+                <div className="space-y-4">
+                    {nextEvent ? (
+                        <div 
+                            onClick={() => onEventClick(nextEvent)}
+                            className="bg-gradient-to-br from-scout-800 to-scout-900 border border-scout-accent/50 rounded-xl p-5 shadow-lg relative overflow-hidden group active:scale-[0.98] transition-transform"
+                        >
+                            <div className="absolute top-0 right-0 p-3">
+                                <span className="text-[10px] font-bold bg-scout-accent text-scout-900 px-2 py-1 rounded uppercase tracking-wider">Next Up</span>
+                            </div>
+                            <div className="mb-4">
+                                <span className="text-xs text-scout-accent font-bold uppercase tracking-wider mb-1 block">
+                                    {new Date(nextEvent.date).toLocaleDateString(undefined, { weekday: 'long' })}
+                                </span>
+                                <h3 className="text-2xl font-black text-white leading-tight">{nextEvent.title}</h3>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-gray-300">
+                                <div className="flex items-center gap-1.5"><Calendar size={14}/> {new Date(nextEvent.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
+                                <div className="flex items-center gap-1.5"><MapPin size={14}/> {nextEvent.location}</div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 text-gray-500 bg-scout-800/30 rounded-xl border border-dashed border-scout-700">
+                            <Calendar size={32} className="mx-auto mb-2 opacity-50"/>
+                            <p className="text-sm">No upcoming events.</p>
+                        </div>
+                    )}
+
+                    {upcomingEvents.length > 1 && (
+                        <>
+                            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-6 mb-2">Future Events</h4>
+                            <div className="space-y-2">
+                                {upcomingEvents.slice(1).map((evt: ScoutingEvent) => (
+                                    <div 
+                                        key={evt.id}
+                                        onClick={() => onEventClick(evt)}
+                                        className="bg-scout-800 border border-scout-700 rounded-lg p-3 flex items-center gap-4 active:bg-scout-700 transition-colors"
+                                    >
+                                        <div className="bg-scout-900 border border-scout-700 rounded p-2 text-center min-w-[50px]">
+                                            <div className="text-[10px] text-gray-400 uppercase font-bold">{new Date(evt.date).toLocaleString('default', { month: 'short' })}</div>
+                                            <div className="text-lg font-bold text-white leading-none">{new Date(evt.date).getDate() + 1}</div>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="text-sm font-bold text-white truncate">{evt.title}</h4>
+                                            <p className="text-xs text-gray-400 truncate">{evt.location}</p>
+                                        </div>
+                                        <ChevronRight size={16} className="text-gray-600" />
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    )}
+
+                    {pastEvents.length > 0 && (
+                        <>
+                            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-8 mb-2 flex items-center gap-2">
+                                <History size={12} /> Past Events
+                            </h4>
+                            <div className="space-y-2 opacity-75">
+                                {pastEvents.map((evt: ScoutingEvent) => (
+                                    <div 
+                                        key={evt.id}
+                                        onClick={() => onEventClick(evt)}
+                                        className="bg-scout-900 border border-scout-800 rounded-lg p-3 flex items-center gap-4 active:bg-scout-800 transition-colors"
+                                    >
+                                        <div className="bg-scout-800 border border-scout-700 rounded p-2 text-center min-w-[50px] grayscale">
+                                            <div className="text-[10px] text-gray-500 uppercase font-bold">{new Date(evt.date).toLocaleString('default', { month: 'short' })}</div>
+                                            <div className="text-lg font-bold text-gray-400 leading-none">{new Date(evt.date).getDate() + 1}</div>
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <h4 className="text-sm font-bold text-gray-300 truncate">{evt.title}</h4>
+                                            <p className="text-xs text-gray-500 truncate">{evt.location}</p>
+                                        </div>
+                                        {evt.role === 'HOST' || evt.isMine ? (
+                                             <span className="text-[9px] border border-scout-700 text-gray-500 px-1.5 py-0.5 rounded">Hosted</span>
+                                        ) : (
+                                             <span className="text-[9px] border border-scout-700 text-gray-600 px-1.5 py-0.5 rounded">Attended</span>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
+            ) : (
+                <div className="space-y-4">
+                    {MOCK_OPPORTUNITIES.map(evt => {
+                        const isAdded = events.some((e: any) => e.id === evt.id || (e.title === evt.title && e.date === evt.date));
+                        return (
+                            <div key={evt.id} className="bg-scout-800 border border-scout-700 rounded-xl p-4 relative">
+                                <h4 className="text-sm font-bold text-white mb-1">{evt.title}</h4>
+                                <p className="text-xs text-gray-400 mb-3">{evt.location} • {evt.date}</p>
+                                {isAdded ? (
+                                    <div className="flex items-center gap-2 text-green-400 text-xs font-bold bg-green-900/20 px-2 py-1 rounded w-fit">
+                                        <CheckCircle size={12}/> Added
+                                    </div>
+                                ) : (
+                                    <button 
+                                        onClick={() => onInitiateAttendance(evt)}
+                                        className="w-full py-2 bg-scout-700 text-white text-xs font-bold rounded hover:bg-scout-600"
+                                    >
+                                        Add to Schedule
+                                    </button>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </div>
+        
+        <button 
+            onClick={onCreateClick}
+            className="absolute bottom-6 right-6 w-14 h-14 bg-scout-accent rounded-full flex items-center justify-center text-scout-900 shadow-xl border-4 border-scout-900 active:scale-90 transition-transform"
+        >
+            <CalendarPlus size={28} />
+        </button>
+    </div>
+);
+
+const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateAttendance, copyToClipboard, copied, onSubmitForApproval, onSimulateHQApproval, onPublishEvent }: any) => {
+    const isMine = event.role === 'HOST' || event.isMine;
+    const isAttending = isMine || events.some((e: any) => e.id === event.id || (e.title === event.title && e.date === event.date));
+    const [mobileTab, setMobileTab] = useState<'overview' | 'agenda' | 'tasks'>('overview');
+
+    const toggleChecklist = (index: number) => {
+        if (!event.checklist) return;
+        const newChecklist = [...event.checklist];
+        newChecklist[index].completed = !newChecklist[index].completed;
+        onUpdateEvent({ ...event, checklist: newChecklist });
+    };
+
+    if (!isMobile) {
+        return (
+          <div className="h-full flex flex-col animate-fade-in">
+              <div className="flex items-center gap-2 mb-4">
+                  <button onClick={onClose} className="text-gray-400 hover:text-white flex items-center gap-1 text-sm">
+                      <X size={16} /> Back to Overview
+                  </button>
+                  <span className="text-gray-600">/</span>
+                  <span className="text-gray-300 font-medium">{event.title}</span>
+              </div>
+
+              <div className="bg-scout-800 border border-scout-700 rounded-xl overflow-hidden flex flex-col md:flex-row shadow-2xl">
+                  <div className="md:w-1/3 p-6 border-b md:border-b-0 md:border-r border-scout-700 bg-scout-800/50 flex flex-col justify-between">
+                      <div>
+                          <div className="mb-6">
+                              <div className="flex justify-between items-start">
+                                  <StatusPill status={event.status} />
+                                  {!isMine && isAttending && (
+                                      <span className="text-[10px] font-bold bg-green-900/30 text-green-400 px-2 py-1 rounded border border-green-500/30 flex items-center gap-1">
+                                          <Check size={10}/> Attending
+                                      </span>
+                                  )}
+                              </div>
+                              <h2 className="text-2xl font-bold text-white mt-2 mb-1">{event.title}</h2>
+                              <div className="space-y-2 text-sm text-gray-400 mt-4">
+                                  <div className="flex items-center gap-2"><Calendar size={14}/> {event.date}</div>
+                                  <div className="flex items-center gap-2"><MapPin size={14}/> {event.location}</div>
+                                  <div className="flex items-center gap-2"><Sparkles size={14}/> {event.type} • {event.fee}</div>
+                              </div>
+                          </div>
+
+                          {isMine ? (
+                              <div className="space-y-4">
+                                  {event.status === 'Draft' && (
+                                      <div className="bg-scout-900/50 p-4 rounded-lg border border-scout-700">
+                                          <h4 className="text-white font-bold text-sm mb-2">Step 1: Planning</h4>
+                                          <p className="text-xs text-gray-400 mb-4">Review the AI generated plan. When ready, submit to Warubi HQ for approval.</p>
+                                          <button 
+                                              onClick={() => onSubmitForApproval(event)}
+                                              className="w-full bg-scout-700 hover:bg-scout-600 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all border border-scout-600"
+                                          >
+                                              <ShieldCheck size={18} /> Submit for Approval
+                                          </button>
+                                      </div>
+                                  )}
+                                  {event.status === 'Pending Approval' && (
+                                      <div className="bg-yellow-500/10 p-4 rounded-lg border border-yellow-500/30">
+                                          <h4 className="text-yellow-500 font-bold text-sm mb-2 flex items-center gap-2"><Loader2 size={14} className="animate-spin"/> Under Review</h4>
+                                          <p className="text-xs text-yellow-200/70 mb-4">HQ is reviewing your proposal.</p>
+                                          <button onClick={() => onSimulateHQApproval(event)} className="w-full bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 font-bold py-2 rounded text-xs border border-yellow-500/50 uppercase tracking-wider">(Demo: HQ Approve)</button>
+                                      </div>
+                                  )}
+                                  {event.status === 'Approved' && (
+                                      <div className="bg-blue-500/10 p-4 rounded-lg border border-blue-500/30">
+                                          <h4 className="text-blue-400 font-bold text-sm mb-2 flex items-center gap-2"><CheckCircle size={14}/> Approved!</h4>
+                                          <p className="text-xs text-blue-200/70 mb-4">Your event is approved. Publish it to go live.</p>
+                                          <button onClick={() => onPublishEvent(event)} className="w-full bg-scout-accent hover:bg-emerald-600 text-white font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all"><Share2 size={18} /> Publish Event</button>
+                                      </div>
+                                  )}
+                                  {event.status === 'Published' && (
+                                      <div className="bg-scout-900 p-4 rounded-lg border border-scout-700">
+                                          <label className="text-xs text-gray-500 font-bold uppercase mb-2 block">Registration Link</label>
+                                          <div className="flex gap-2">
+                                              <input readOnly value={`warubi.com/e/${event.id}`} className="bg-scout-800 text-scout-accent text-sm px-2 rounded border border-scout-600 w-full"/>
+                                              <button onClick={() => copyToClipboard(`https://warubi-sports.com/register?event=${event.id}`, 'link')} className="p-2 bg-scout-700 hover:bg-scout-600 rounded text-white">{copied === 'link' ? <CheckCircle size={16}/> : <Copy size={16}/>}</button>
+                                          </div>
+                                      </div>
+                                  )}
+                              </div>
+                          ) : (
+                              <div className="bg-scout-900/50 p-4 rounded-lg border border-scout-700">
+                                  {!isAttending ? (
+                                      <>
+                                          <p className="text-xs text-gray-400 mb-4">Interested in scouting at this event?</p>
+                                          <button onClick={() => initiateAttendance(event)} className="w-full bg-scout-700 hover:bg-scout-600 text-white font-bold py-2 rounded-lg transition-all border border-scout-600 text-sm">Mark Attendance</button>
+                                      </>
+                                  ) : (
+                                      <div className="text-center py-2">
+                                          <div className="inline-block p-2 bg-green-500/10 rounded-full text-green-400 mb-2"><CheckCircle size={24} /></div>
+                                          <p className="text-white font-bold text-sm">Attendance Logged</p>
+                                      </div>
+                                  )}
+                              </div>
+                          )}
+                      </div>
+
+                      {isMine && (
+                          <div className="grid grid-cols-2 gap-3 mt-6">
+                              <div className="bg-scout-900 p-3 rounded border border-scout-700 text-center">
+                                  <span className="block text-2xl font-bold text-white">{event.registeredCount}</span>
+                                  <span className="text-[10px] text-gray-500 uppercase">Registered</span>
+                              </div>
+                              <div className="bg-scout-900 p-3 rounded border border-scout-700 text-center flex flex-col items-center justify-center">
+                                  <Users size={20} className="text-gray-500 mb-1"/>
+                                  <span className="text-[10px] text-gray-500 uppercase">View List</span>
+                              </div>
+                          </div>
+                      )}
+                  </div>
+
+                  <div className="md:w-2/3 p-6 bg-scout-900 flex flex-col gap-6 overflow-y-auto max-h-[80vh] custom-scrollbar">
+                      {isMine || isAttending ? (
+                          <>
+                              <div className="flex items-center justify-between">
+                                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                      <ClipboardList className="text-scout-highlight" size={20} /> 
+                                      {event.role === 'HOST' ? 'Event Kit' : 'Scout Mission'}
+                                  </h3>
+                                  {(event.status === 'Draft' || event.status === 'Pending Approval') && <span className="text-xs text-scout-highlight animate-pulse">Draft Preview</span>}
+                              </div>
+
+                              {event.role === 'HOST' ? (
+                                  <div className="space-y-2">
+                                      <div className="flex justify-between items-end">
+                                          <label className="text-sm font-semibold text-gray-300 flex items-center gap-2"><FileText size={14}/> Marketing Blurb</label>
+                                          {event.status === 'Published' && <button onClick={() => copyToClipboard(event.marketingCopy || '', 'marketing')} className="text-xs text-scout-accent hover:text-white flex items-center gap-1">{copied === 'marketing' ? <CheckCircle size={12}/> : <Copy size={12}/>} Copy Text</button>}
+                                      </div>
+                                      <textarea readOnly value={event.marketingCopy} className="w-full h-32 bg-scout-800 border border-scout-700 rounded-lg p-3 text-sm text-gray-300 resize-none focus:outline-none"/>
+                                  </div>
+                              ) : (
+                                  <div className="bg-gradient-to-r from-scout-800 to-scout-900 border border-scout-700 rounded-lg p-4 mb-2">
+                                      <h4 className="text-xs font-bold text-gray-400 uppercase mb-3 flex items-center gap-2">
+                                          <ShieldCheck size={14} className="text-scout-accent"/> Core Objectives
+                                      </h4>
+                                      <div className="grid grid-cols-3 gap-3">
+                                          <div className="bg-scout-900/80 p-3 rounded-lg border border-scout-700 flex flex-col items-center text-center gap-2">
+                                              <ClipboardList size={20} className="text-blue-400"/>
+                                              <span className="text-[10px] font-bold text-gray-300 leading-tight">Get<br/>Roster</span>
+                                          </div>
+                                          <div className="bg-scout-900/80 p-3 rounded-lg border border-scout-700 flex flex-col items-center text-center gap-2">
+                                              <QrCode size={20} className="text-white"/>
+                                              <span className="text-[10px] font-bold text-gray-300 leading-tight">Show<br/>QR Code</span>
+                                          </div>
+                                          <div className="bg-scout-900/80 p-3 rounded-lg border border-scout-700 flex flex-col items-center text-center gap-2">
+                                              <Users size={20} className="text-scout-highlight"/>
+                                              <span className="text-[10px] font-bold text-gray-300 leading-tight">Ask<br/>Coaches</span>
+                                          </div>
+                                      </div>
+                                  </div>
+                              )}
+
+                              <div className="grid md:grid-cols-2 gap-6">
+                                  <div>
+                                      <label className="text-sm font-semibold text-gray-300 flex items-center gap-2 mb-3"><Calendar size={14}/> Agenda</label>
+                                      <ul className="space-y-2">
+                                          {(event.agenda || []).map((item: string, i: number) => (
+                                              <li key={i} className="flex items-start gap-2 text-sm text-gray-400">
+                                                  <span className="text-scout-accent font-mono text-xs mt-0.5">{item.split(' - ')[0]}</span>
+                                                  <span>{item.split(' - ')[1] || item}</span>
+                                              </li>
+                                          ))}
+                                      </ul>
+                                  </div>
+                                  <div>
+                                      <label className="text-sm font-semibold text-gray-300 flex items-center gap-2 mb-2"><CheckSquare size={14}/> Scout Checklist</label>
+                                      <ul className="space-y-2">
+                                          {(event.checklist || []).map((item: any, i: number) => (
+                                              <li key={i} onClick={() => toggleChecklist(i)} className="flex items-center gap-2 text-sm group cursor-pointer hover:bg-scout-800 p-1.5 rounded transition-colors">
+                                                  <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${item.completed ? 'bg-scout-accent border-scout-accent' : 'border-scout-600 group-hover:border-scout-accent'}`}>
+                                                      {item.completed && <Check size={12} className="text-scout-900" />}
+                                                  </div>
+                                                  <span className={item.completed ? 'text-gray-600 line-through' : 'text-gray-300 group-hover:text-white'}>{item.task}</span>
+                                              </li>
+                                          ))}
+                                      </ul>
+                                  </div>
+                              </div>
+                          </>
+                      ) : (
+                          <div className="flex flex-col items-center justify-center h-full text-center p-8 opacity-60">
+                              <Lock size={48} className="text-gray-600 mb-4" />
+                              <h3 className="text-xl font-bold text-gray-400">Host Access Only</h3>
+                              <p className="text-sm text-gray-500 max-w-sm mt-2">Marketing kits and admin tools are only available for the event host.</p>
+                          </div>
+                      )}
+                  </div>
+              </div>
+          </div>
+        );
+    }
+
+    return (
+        <div className="h-full flex flex-col bg-scout-900">
+            <div className="p-4 border-b border-scout-700 flex items-center gap-3">
+                <button onClick={onClose} className="text-gray-400 hover:text-white">
+                    <X size={24} />
+                </button>
+                <h2 className="text-lg font-bold text-white flex-1 truncate">{event.title}</h2>
+                <StatusPill status={event.status} />
+            </div>
+
+            <div className="flex border-b border-scout-700 bg-scout-800/50">
+                <button onClick={() => setMobileTab('overview')} className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider ${mobileTab === 'overview' ? 'text-scout-accent border-b-2 border-scout-accent' : 'text-gray-500'}`}>Overview</button>
+                <button onClick={() => setMobileTab('agenda')} className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider ${mobileTab === 'agenda' ? 'text-scout-accent border-b-2 border-scout-accent' : 'text-gray-500'}`}>Run Sheet</button>
+                <button onClick={() => setMobileTab('tasks')} className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider ${mobileTab === 'tasks' ? 'text-scout-accent border-b-2 border-scout-accent' : 'text-gray-500'}`}>Tasks</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar pb-24">
+                {mobileTab === 'overview' && (
+                    <div className="space-y-6">
+                        <div className="bg-scout-800 rounded-xl p-4 border border-scout-700">
+                            <div className="flex items-start gap-3 mb-4">
+                                <MapPin size={20} className="text-scout-accent mt-1" />
+                                <div>
+                                    <h3 className="font-bold text-white text-lg">{event.location}</h3>
+                                    <p className="text-gray-400 text-sm">{event.date}</p>
+                                </div>
+                            </div>
+                            <button className="w-full bg-scout-700 text-white font-bold py-2 rounded-lg text-sm flex items-center justify-center gap-2">
+                                <Navigation size={16} /> Open Maps
+                            </button>
+                        </div>
+
+                        {isMine && (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-scout-800 p-4 rounded-xl border border-scout-700 text-center">
+                                    <div className="text-3xl font-black text-white">{event.registeredCount}</div>
+                                    <div className="text-xs text-gray-500 uppercase font-bold">Confirmed</div>
+                                </div>
+                                <div className="bg-scout-800 p-4 rounded-xl border border-scout-700 text-center flex items-center justify-center">
+                                    <button className="text-scout-accent text-xs font-bold flex flex-col items-center gap-1">
+                                        <QrCode size={24} />
+                                        Show Code
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {mobileTab === 'agenda' && (
+                    <div className="relative pl-6 space-y-6">
+                        <div className="absolute left-[9px] top-2 bottom-2 w-0.5 bg-scout-700"></div>
+                        {(event.agenda || []).map((item: string, i: number) => (
+                            <div key={i} className="relative">
+                                <div className="absolute -left-6 top-1 w-2.5 h-2.5 rounded-full bg-scout-accent border-2 border-scout-900"></div>
+                                <p className="text-scout-accent font-mono text-xs font-bold mb-1">{item.split(' - ')[0]}</p>
+                                <p className="text-white text-sm bg-scout-800 p-3 rounded-lg border border-scout-700 shadow-sm">{item.split(' - ')[1] || item}</p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {mobileTab === 'tasks' && (
+                    <div className="space-y-2">
+                        {(event.checklist || []).map((item: any, i: number) => (
+                            <div 
+                                key={i} 
+                                onClick={() => toggleChecklist(i)}
+                                className={`flex items-center gap-4 p-4 rounded-xl border transition-all active:scale-[0.98] ${item.completed ? 'bg-scout-900 border-scout-700 opacity-60' : 'bg-scout-800 border-scout-600'}`}
+                            >
+                                <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${item.completed ? 'bg-scout-accent border-scout-accent' : 'border-gray-500'}`}>
+                                    {item.completed && <Check size={16} className="text-scout-900" />}
+                                </div>
+                                <span className={`text-sm font-medium ${item.completed ? 'text-gray-500 line-through' : 'text-white'}`}>{item.task}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            <div className="absolute bottom-0 w-full bg-scout-800 border-t border-scout-700 p-4 pb-safe flex gap-3">
+                {isMine && event.status === 'Published' && (
+                    <button onClick={() => copyToClipboard(`warubi.com/e/${event.id}`, 'link')} className="flex-1 bg-scout-700 text-white font-bold py-3 rounded-xl">
+                        Share Link
+                    </button>
+                )}
+                <button className="flex-1 bg-scout-accent text-scout-900 font-bold py-3 rounded-xl shadow-lg">
+                    Check In
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// --- MAIN COMPONENT ---
+
 const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateEvent }) => {
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
+  const [mobileTab, setMobileTab] = useState<'schedule' | 'discover'>('schedule');
   const [selectedEvent, setSelectedEvent] = useState<ScoutingEvent | null>(null);
   const [attendingEvent, setAttendingEvent] = useState<ScoutingEvent | null>(null);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState('');
   const [showGuide, setShowGuide] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -70,8 +747,14 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
     date: '',
     type: 'ID Day',
     fee: 'Free',
-    isHosting: true
+    isHosting: false 
   });
+
+  // Sort events by date
+  const sortedEvents = [...events].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const upcomingEvents = sortedEvents.filter(e => new Date(e.date) >= new Date(new Date().setHours(0,0,0,0)));
+  const pastEvents = sortedEvents.filter(e => new Date(e.date) < new Date(new Date().setHours(0,0,0,0))).reverse();
+  const nextEvent = upcomingEvents.length > 0 ? upcomingEvents[0] : null;
 
   const handleCreate = async () => {
     if (!formData.title || !formData.date || !formData.location) return;
@@ -80,9 +763,9 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
     const newId = Date.now().toString();
     const baseEvent: ScoutingEvent = {
         id: newId,
-        isMine: formData.isHosting,
+        isMine: formData.isHosting, 
         role: formData.isHosting ? 'HOST' : 'ATTENDEE',
-        status: formData.isHosting ? 'Draft' : 'Published', // Attended events are usually active/past
+        status: formData.isHosting ? 'Draft' : 'Published',
         title: formData.title,
         location: formData.location,
         date: formData.date,
@@ -95,20 +778,34 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
     };
 
     try {
-        // Only generate AI plan if Hosting
         if (formData.isHosting) {
             const plan = await generateEventPlan(formData.title, formData.location, formData.date, formData.type, formData.fee);
             const finalEvent = { ...baseEvent, ...plan };
             onAddEvent(finalEvent);
             setSelectedEvent(finalEvent);
         } else {
-            // Just add the attended event
-            onAddEvent(baseEvent);
-            setSelectedEvent(baseEvent);
+            // For attending, inject standard scout SOP checklist
+            const attendeeEvent: ScoutingEvent = {
+                ...baseEvent,
+                marketingCopy: `Personal scouting mission for ${formData.title}. Goal: Identify top talent and build relationships with coaches.`,
+                agenda: [
+                    "Arrival & Check-in",
+                    "Match Observation",
+                    "Coach Networking",
+                    "Post-Match Assessment"
+                ],
+                checklist: [
+                    { task: "Get the Roster (Jersey #s & Contacts)", completed: false },
+                    { task: "Prepare Warubi QR Code", completed: false },
+                    { task: "Talk to Coaches: Identify Top 3 players", completed: false }
+                ]
+            };
+            onAddEvent(attendeeEvent);
+            setSelectedEvent(attendeeEvent);
         }
         
         setView('detail');
-        setFormData({ title: '', location: '', date: '', type: 'ID Day', fee: 'Free', isHosting: true });
+        setFormData({ title: '', location: '', date: '', type: 'ID Day', fee: 'Free', isHosting: false });
     } catch (e) {
         onAddEvent(baseEvent);
         setSelectedEvent(baseEvent);
@@ -119,7 +816,6 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
   };
 
   const initiateAttendance = (eventToMark: ScoutingEvent) => {
-      // Improved Duplicate Check: Check by ID OR (Title + Date) to prevent re-adding global events
       const isAlreadyAdded = events.some(e => 
           e.id === eventToMark.id || 
           (e.title === eventToMark.title && e.date === eventToMark.date)
@@ -137,10 +833,10 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
 
       const newEvent: ScoutingEvent = {
           ...attendingEvent,
-          id: `${attendingEvent.id}-${Date.now()}`, // Ensure unique ID for personal list
+          id: `${attendingEvent.id}-${Date.now()}`, 
           isMine: false,
           role: 'ATTENDEE',
-          status: 'Published' // Ensure it's active in your list
+          status: 'Published'
       };
       
       onAddEvent(newEvent);
@@ -153,684 +849,156 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
       setTimeout(() => setCopied(''), 2000);
   };
 
-  // Workflow Actions
-  const submitForApproval = () => {
-      if (!selectedEvent) return;
-      const updated = { ...selectedEvent, status: 'Pending Approval' as EventStatus };
+  // Actions for Detail View
+  const submitForApproval = (event: ScoutingEvent) => {
+      const updated = { ...event, status: 'Pending Approval' as EventStatus };
       onUpdateEvent(updated);
-      setSelectedEvent(updated);
+      setSelectedEvent(updated); // Update local state to reflect change immediately
   };
 
-  const simulateHQApproval = () => {
-    if (!selectedEvent) return;
-    const updated = { ...selectedEvent, status: 'Approved' as EventStatus };
+  const simulateHQApproval = (event: ScoutingEvent) => {
+    const updated = { ...event, status: 'Approved' as EventStatus };
     onUpdateEvent(updated);
     setSelectedEvent(updated);
   };
 
-  const publishEvent = () => {
-      if (!selectedEvent) return;
-      const updated = { ...selectedEvent, status: 'Published' as EventStatus };
+  const publishEvent = (event: ScoutingEvent) => {
+      const updated = { ...event, status: 'Published' as EventStatus };
       onUpdateEvent(updated);
       setSelectedEvent(updated);
   };
 
-  const StatusPill = ({ status }: { status: EventStatus }) => {
-      const styles = {
-          'Draft': 'bg-gray-700 text-gray-300 border-gray-600',
-          'Pending Approval': 'bg-yellow-500/20 text-yellow-500 border-yellow-500/50',
-          'Approved': 'bg-blue-500/20 text-blue-400 border-blue-500/50',
-          'Published': 'bg-green-500/20 text-green-400 border-green-500/50',
-          'Completed': 'bg-gray-800 text-gray-500 border-gray-700',
-          'Rejected': 'bg-red-500/20 text-red-400 border-red-500/50',
-      };
-      return (
-          <span className={`px-2 py-1 rounded text-[10px] uppercase font-bold tracking-wider border ${styles[status] || styles['Draft']}`}>
-              {status}
-          </span>
-      );
-  };
-
-  // --- SUB-COMPONENTS ---
-
-  const AttendancePrepModal = () => (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-scout-800 w-full max-w-md rounded-2xl border border-scout-700 shadow-2xl overflow-hidden flex flex-col">
-              <div className="p-6 bg-gradient-to-br from-scout-900 to-scout-800 border-b border-scout-700 text-center">
-                  <div className="w-12 h-12 bg-scout-accent/20 rounded-full flex items-center justify-center text-scout-accent mb-4 border border-scout-accent/30 mx-auto">
-                      <CheckCircle size={24} />
-                  </div>
-                  <h3 className="text-xl font-bold text-white">Confirm Attendance</h3>
-                  <p className="text-gray-400 text-sm mt-1">Make the most of {attendingEvent?.title}.</p>
-              </div>
-
-              <div className="p-6 space-y-4 bg-scout-800">
-                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Scout Action Checklist</h4>
-                  
-                  <div className="flex gap-4 items-start group">
-                      <div className="mt-1 p-2 bg-scout-900 rounded-lg border border-scout-700 text-blue-400 group-hover:border-blue-500/50 transition-colors">
-                          <ClipboardList size={18} />
-                      </div>
-                      <div>
-                          <h4 className="font-bold text-white text-sm">Get the Roster</h4>
-                          <p className="text-xs text-gray-400 leading-snug">Do you have the player list with jersey numbers and contact info?</p>
-                      </div>
-                  </div>
-
-                  <div className="flex gap-4 items-start group">
-                      <div className="mt-1 p-2 bg-scout-900 rounded-lg border border-scout-700 text-scout-highlight group-hover:border-scout-highlight/50 transition-colors">
-                          <QrCode size={18} />
-                      </div>
-                      <div>
-                          <h4 className="font-bold text-white text-sm">Prepare Assessment Tool</h4>
-                          <p className="text-xs text-gray-400 leading-snug">Have your Warubi QR code ready for players to scan instantly.</p>
-                      </div>
-                  </div>
-
-                  <div className="flex gap-4 items-start group">
-                      <div className="mt-1 p-2 bg-scout-900 rounded-lg border border-scout-700 text-green-400 group-hover:border-green-500/50 transition-colors">
-                          <Users size={18} />
-                      </div>
-                      <div>
-                          <h4 className="font-bold text-white text-sm">Ask the Coach</h4>
-                          <p className="text-xs text-gray-400 leading-snug">Identify top 2-3 players of each team by asking the coach directly.</p>
-                      </div>
-                  </div>
-              </div>
-
-              <div className="p-4 bg-scout-900 flex gap-3 border-t border-scout-700">
-                  <button onClick={() => setAttendingEvent(null)} className="flex-1 py-3 text-gray-400 hover:text-white text-sm font-medium transition-colors">Cancel</button>
-                  <button onClick={confirmAttendance} className="flex-[2] bg-scout-accent hover:bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
-                      Got it, Add to Schedule
-                  </button>
-              </div>
-          </div>
-      </div>
-  );
-
-  const HostGuideModal = () => (
-     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-        <div className="bg-scout-800 w-full max-w-2xl rounded-2xl border border-scout-700 shadow-2xl flex flex-col overflow-hidden max-h-[90vh]">
-            <div className="p-4 border-b border-scout-700 flex justify-between items-center bg-scout-900">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                    <HelpCircle size={20} className="text-scout-accent"/> Host Guide & FAQ
-                </h2>
-                <button onClick={() => setShowGuide(false)} className="text-gray-400 hover:text-white">
-                    <X size={24} />
-                </button>
-            </div>
-            <div className="p-6 overflow-y-auto custom-scrollbar space-y-6">
-                <section>
-                    <h3 className="text-lg font-bold text-white mb-2">Why Host an Event?</h3>
-                    <p className="text-gray-400 text-sm">
-                        Events are the most effective way to identify new talent and build your reputation as a scout. 
-                        Hosted ID days allow you to see players in person, verify their data, and build relationships with families.
-                    </p>
-                </section>
-
-                <div className="grid md:grid-cols-2 gap-6">
-                    <section className="bg-scout-900 p-4 rounded-lg border border-scout-700">
-                        <h3 className="font-bold text-white mb-2 flex items-center gap-2"><CheckCircle size={16} className="text-green-500"/> Good Proposals</h3>
-                        <ul className="list-disc list-inside text-sm text-gray-400 space-y-1">
-                            <li>Confirmed venue availability</li>
-                            <li>Clear target age group</li>
-                            <li>Realistic participant estimates</li>
-                            <li>Detailed budget breakdown</li>
-                        </ul>
-                    </section>
-                     <section className="bg-scout-900 p-4 rounded-lg border border-scout-700">
-                        <h3 className="font-bold text-white mb-2 flex items-center gap-2"><Clock size={16} className="text-orange-500"/> Timeline Rules</h3>
-                        <ul className="list-disc list-inside text-sm text-gray-400 space-y-1">
-                            <li>Minimum <strong>4 weeks</strong> notice required</li>
-                            <li>Allow 1 week for HQ approval</li>
-                            <li>Marketing launch 3 weeks prior</li>
-                        </ul>
-                    </section>
-                </div>
-
-                <div className="p-4 border-t border-scout-700 bg-scout-900 flex justify-end">
-                    <button 
-                        onClick={() => setShowGuide(false)}
-                        className="bg-white hover:bg-gray-100 text-scout-900 font-bold py-2 px-6 rounded-lg transition-colors"
-                    >
-                        Got it
-                    </button>
-                </div>
-            </div>
-        </div>
-     </div>
-  );
-
-  const DetailView = ({ event }: { event: ScoutingEvent }) => {
-      const isMine = event.role === 'HOST' || event.isMine;
-      // Check if attending (either it is in my list OR I am the host)
-      const isAttending = isMine || events.some(e => e.id === event.id || (e.title === event.title && e.date === event.date));
-
-      const toggleChecklist = (index: number) => {
-          if (!event.checklist) return;
-          const newChecklist = [...event.checklist];
-          newChecklist[index].completed = !newChecklist[index].completed;
-          onUpdateEvent({ ...event, checklist: newChecklist });
-      };
-
-      return (
-        <div className="h-full flex flex-col animate-fade-in">
-            <div className="flex items-center gap-2 mb-4">
-                <button onClick={() => setView('list')} className="text-gray-400 hover:text-white flex items-center gap-1 text-sm">
-                    <X size={16} /> Back to Overview
-                </button>
-                <span className="text-gray-600">/</span>
-                <span className="text-gray-300 font-medium">{event.title}</span>
-            </div>
-
-            <div className="bg-scout-800 border border-scout-700 rounded-xl overflow-hidden flex flex-col md:flex-row shadow-2xl">
-                
-                {/* LEFT: Event Overview & Actions */}
-                <div className="md:w-1/3 p-6 border-b md:border-b-0 md:border-r border-scout-700 bg-scout-800/50 flex flex-col justify-between">
-                    <div>
-                        <div className="mb-6">
-                            <div className="flex justify-between items-start">
-                                <StatusPill status={event.status} />
-                                {!isMine && isAttending && (
-                                    <span className="text-[10px] font-bold bg-green-900/30 text-green-400 px-2 py-1 rounded border border-green-500/30 flex items-center gap-1">
-                                        <Check size={10}/> Attending
-                                    </span>
-                                )}
-                            </div>
-                            <h2 className="text-2xl font-bold text-white mt-2 mb-1">{event.title}</h2>
-                            <div className="space-y-2 text-sm text-gray-400 mt-4">
-                                <div className="flex items-center gap-2"><Calendar size={14}/> {event.date}</div>
-                                <div className="flex items-center gap-2"><MapPin size={14}/> {event.location}</div>
-                                <div className="flex items-center gap-2"><Sparkles size={14}/> {event.type} • {event.fee}</div>
-                            </div>
-                        </div>
-
-                        {/* WORKFLOW ACTIONS */}
-                        {isMine ? (
-                            <div className="space-y-4">
-                                {/* DRAFT -> SUBMIT */}
-                                {event.status === 'Draft' && (
-                                    <div className="bg-scout-900/50 p-4 rounded-lg border border-scout-700">
-                                        <h4 className="text-white font-bold text-sm mb-2">Step 1: Planning</h4>
-                                        <p className="text-xs text-gray-400 mb-4">Review the AI generated plan. When ready, submit to Warubi HQ for approval.</p>
-                                        <button 
-                                            onClick={submitForApproval}
-                                            className="w-full bg-scout-700 hover:bg-scout-600 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all border border-scout-600"
-                                        >
-                                            <ShieldCheck size={18} /> Submit for Approval
-                                        </button>
-                                    </div>
-                                )}
-
-                                {/* PENDING -> APPROVED (Simulated) */}
-                                {event.status === 'Pending Approval' && (
-                                    <div className="bg-yellow-500/10 p-4 rounded-lg border border-yellow-500/30">
-                                        <h4 className="text-yellow-500 font-bold text-sm mb-2 flex items-center gap-2"><Loader2 size={14} className="animate-spin"/> Under Review</h4>
-                                        <p className="text-xs text-yellow-200/70 mb-4">HQ is reviewing your proposal. You will be notified once approved.</p>
-                                        
-                                        {/* DEMO BUTTON */}
-                                        <button 
-                                            onClick={simulateHQApproval}
-                                            className="w-full bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 font-bold py-2 rounded text-xs transition-all border border-yellow-500/50 uppercase tracking-wider"
-                                        >
-                                            (Demo: HQ Approve)
-                                        </button>
-                                    </div>
-                                )}
-
-                                {/* APPROVED -> PUBLISHED */}
-                                {event.status === 'Approved' && (
-                                    <div className="bg-blue-500/10 p-4 rounded-lg border border-blue-500/30">
-                                        <h4 className="text-blue-400 font-bold text-sm mb-2 flex items-center gap-2"><CheckCircle size={14}/> Approved!</h4>
-                                        <p className="text-xs text-blue-200/70 mb-4">Your event is approved. Publish it to go live and accept registrations.</p>
-                                        <button 
-                                            onClick={publishEvent}
-                                            className="w-full bg-scout-accent hover:bg-emerald-600 text-white font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all"
-                                        >
-                                            <Share2 size={18} /> Publish Event
-                                        </button>
-                                    </div>
-                                )}
-
-                                {/* PUBLISHED */}
-                                {event.status === 'Published' && (
-                                    <div className="bg-scout-900 p-4 rounded-lg border border-scout-700">
-                                        <label className="text-xs text-gray-500 font-bold uppercase mb-2 block">Registration Link</label>
-                                        <div className="flex gap-2">
-                                            <input 
-                                                readOnly 
-                                                value={`warubi.com/e/${event.id}`} 
-                                                className="bg-scout-800 text-scout-accent text-sm px-2 rounded border border-scout-600 w-full"
-                                            />
-                                            <button 
-                                                onClick={() => copyToClipboard(`https://warubi-sports.com/register?event=${event.id}`, 'link')}
-                                                className="p-2 bg-scout-700 hover:bg-scout-600 rounded text-white"
-                                            >
-                                                {copied === 'link' ? <CheckCircle size={16}/> : <Copy size={16}/>}
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
-                            // View Only Actions for Global Events or Attended Events
-                            <div className="bg-scout-900/50 p-4 rounded-lg border border-scout-700">
-                                {!isAttending ? (
-                                    <>
-                                        <p className="text-xs text-gray-400 mb-4">Interested in scouting at this event?</p>
-                                        <button 
-                                            onClick={() => initiateAttendance(event)}
-                                            className="w-full bg-scout-700 hover:bg-scout-600 text-white font-bold py-2 rounded-lg transition-all border border-scout-600 text-sm"
-                                        >
-                                            Mark Attendance
-                                        </button>
-                                    </>
-                                ) : (
-                                    <div className="text-center py-2">
-                                        <div className="inline-block p-2 bg-green-500/10 rounded-full text-green-400 mb-2">
-                                            <CheckCircle size={24} />
-                                        </div>
-                                        <p className="text-white font-bold text-sm">Attendance Logged</p>
-                                        <p className="text-xs text-gray-500">This event is in your schedule.</p>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
-
-                    {isMine && (
-                        <div className="grid grid-cols-2 gap-3 mt-6">
-                            <div className="bg-scout-900 p-3 rounded border border-scout-700 text-center">
-                                    <span className="block text-2xl font-bold text-white">{event.registeredCount}</span>
-                                    <span className="text-[10px] text-gray-500 uppercase">Registered</span>
-                            </div>
-                            <div className="bg-scout-900 p-3 rounded border border-scout-700 text-center flex flex-col items-center justify-center">
-                                    <Users size={20} className="text-gray-500 mb-1"/>
-                                    <span className="text-[10px] text-gray-500 uppercase">View List</span>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* RIGHT: The Event Kit (Only visible for My Events, or public info for others) */}
-                <div className="md:w-2/3 p-6 bg-scout-900 flex flex-col gap-6 overflow-y-auto max-h-[80vh] custom-scrollbar">
-                    {isMine ? (
-                        <>
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                                    <ClipboardList className="text-scout-highlight" size={20} /> Event Kit
-                                </h3>
-                                {(event.status === 'Draft' || event.status === 'Pending Approval') && <span className="text-xs text-scout-highlight animate-pulse">Draft Preview</span>}
-                            </div>
-
-                            <div className="space-y-2">
-                                <div className="flex justify-between items-end">
-                                    <label className="text-sm font-semibold text-gray-300 flex items-center gap-2"><FileText size={14}/> Marketing Blurb</label>
-                                    {event.status === 'Published' && (
-                                        <button 
-                                            onClick={() => copyToClipboard(event.marketingCopy || '', 'marketing')}
-                                            className="text-xs text-scout-accent hover:text-white flex items-center gap-1"
-                                        >
-                                            {copied === 'marketing' ? <CheckCircle size={12}/> : <Copy size={12}/>} Copy Text
-                                        </button>
-                                    )}
-                                </div>
-                                <textarea 
-                                    readOnly 
-                                    value={event.marketingCopy} 
-                                    className="w-full h-32 bg-scout-800 border border-scout-700 rounded-lg p-3 text-sm text-gray-300 resize-none focus:outline-none"
-                                />
-                            </div>
-
-                            <div className="grid md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="text-sm font-semibold text-gray-300 flex items-center gap-2 mb-3"><Calendar size={14}/> Agenda</label>
-                                    <ul className="space-y-2">
-                                        {(event.agenda || []).map((item, i) => (
-                                            <li key={i} className="flex items-start gap-2 text-sm text-gray-400">
-                                                <span className="text-scout-accent font-mono text-xs mt-0.5">{item.split(' - ')[0]}</span>
-                                                <span>{item.split(' - ')[1] || item}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                                
-                                <div>
-                                    <label className="text-sm font-semibold text-gray-300 flex items-center gap-2 mb-2"><CheckSquare size={14}/> Scout Checklist</label>
-                                    <ul className="space-y-2">
-                                        {(event.checklist || []).map((item, i) => (
-                                            <li key={i} onClick={() => toggleChecklist(i)} className="flex items-center gap-2 text-sm group cursor-pointer hover:bg-scout-800 p-1.5 rounded transition-colors">
-                                                <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${item.completed ? 'bg-scout-accent border-scout-accent' : 'border-scout-600 group-hover:border-scout-accent'}`}>
-                                                    {item.completed && <Check size={12} className="text-scout-900" />}
-                                                </div>
-                                                <span className={item.completed ? 'text-gray-600 line-through' : 'text-gray-300 group-hover:text-white'}>{item.task}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            </div>
-                        </>
-                    ) : isAttending ? (
-                        <div className="space-y-6">
-                            <div className="bg-scout-800/50 p-4 rounded-lg border border-scout-700">
-                                <h3 className="text-lg font-bold text-white flex items-center gap-2 mb-2">
-                                    <CheckCircle className="text-green-400" size={20} /> Scout Mission
-                                </h3>
-                                <p className="text-sm text-gray-400">
-                                    You are registered for this event. Focus on these high-impact actions to maximize your scouting trip.
-                                </p>
-                            </div>
-
-                            <div className="space-y-4">
-                                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Action Checklist</h4>
-                                
-                                <div className="flex gap-4 items-start group bg-scout-800 p-4 rounded-xl border border-scout-700 hover:border-blue-500/50 transition-colors">
-                                    <div className="mt-1 p-2 bg-scout-900 rounded-lg border border-scout-700 text-blue-400">
-                                        <ClipboardList size={20} />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-white text-base">Get the Roster</h4>
-                                        <p className="text-sm text-gray-400 mt-1">Locate the tournament director tent or check the event app. Ensure you have jersey numbers.</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-4 items-start group bg-scout-800 p-4 rounded-xl border border-scout-700 hover:border-scout-highlight/50 transition-colors">
-                                    <div className="mt-1 p-2 bg-scout-900 rounded-lg border border-scout-700 text-scout-highlight">
-                                        <QrCode size={20} />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-white text-base">Prepare Assessment Tool</h4>
-                                        <p className="text-sm text-gray-400 mt-1">Have your digital evaluation form ready. Use the QR code to let players self-register if allowed.</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex gap-4 items-start group bg-scout-800 p-4 rounded-xl border border-scout-700 hover:border-green-500/50 transition-colors">
-                                    <div className="mt-1 p-2 bg-scout-900 rounded-lg border border-scout-700 text-green-400">
-                                        <Users size={20} />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-white text-base">Ask the Coach</h4>
-                                        <p className="text-sm text-gray-400 mt-1">"Who is your most consistent player?" Identify top 2-3 players of each team by asking the coach directly.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    ) : (
-                        // View for Global Events (Restricted)
-                        <div className="flex flex-col items-center justify-center h-full text-center p-8 opacity-60">
-                            <Lock size={48} className="text-gray-600 mb-4" />
-                            <h3 className="text-xl font-bold text-gray-400">Host Access Only</h3>
-                            <p className="text-sm text-gray-500 max-w-sm mt-2">Marketing kits and admin tools are only available for the event host.</p>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-      );
-  };
-
-  const EventCard: React.FC<{ event: ScoutingEvent }> = ({ event }) => {
-    const isHost = event.role === 'HOST' || event.isMine;
-
-    return (
-        <div 
-            onClick={() => { setSelectedEvent(event); setView('detail'); }} 
-            className={`rounded-xl p-5 border transition-all shadow-lg cursor-pointer group relative overflow-hidden flex flex-col justify-between
-            ${isHost 
-                ? 'bg-gradient-to-br from-scout-800 to-[#1a2c38] border-scout-accent/60 hover:border-scout-accent hover:shadow-scout-accent/20 h-full min-h-[220px]' 
-                : 'bg-scout-800 border-scout-700 hover:border-scout-500 hover:bg-scout-800/80 h-full min-h-[220px]'
-            }`}
-        >
-            {/* Host Indicator Line */}
-            {isHost && <div className="absolute top-0 left-0 w-full h-1.5 bg-scout-accent shadow-[0_0_15px_rgba(16,185,129,0.4)]"></div>}
-            
-            {/* Background Decoration */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-white/5 to-transparent rounded-bl-full -z-10 pointer-events-none"></div>
-            
-            <div>
-                <div className="flex justify-between items-start mb-4 relative z-10">
-                    <div className={`w-12 h-12 rounded-lg border flex flex-col items-center justify-center text-center shadow-lg ${isHost ? 'bg-scout-900 border-scout-accent/30' : 'bg-scout-900 border-scout-700'}`}>
-                        <span className={`text-[10px] font-bold uppercase ${isHost ? 'text-scout-accent' : 'text-red-500'}`}>
-                            {new Date(event.date).toLocaleString('default', { month: 'short' })}
-                        </span>
-                        <span className="text-lg font-bold text-white leading-none">{new Date(event.date).getDate() + 1}</span>
-                    </div>
-                    {isHost ? (
-                        <div className="flex flex-col items-end gap-1">
-                            <StatusPill status={event.status} />
-                            <span className="text-[9px] font-bold bg-scout-accent text-scout-900 px-2 py-0.5 rounded shadow-sm">HOSTING</span>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-end gap-1">
-                            <StatusPill status={event.status} />
-                            {/* <span className="text-[9px] font-bold bg-blue-900/30 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded">ATTENDING</span> */}
-                        </div>
-                    )}
-                </div>
-
-                <h3 className={`text-xl font-bold mb-1 leading-tight group-hover:text-scout-accent transition-colors ${isHost ? 'text-white' : 'text-gray-200'}`}>
-                    {event.title}
-                </h3>
-                <p className="text-sm text-gray-400 flex items-center gap-1 mb-4"><MapPin size={12}/> {event.location}</p>
-            </div>
-
-            <div className={`border-t pt-3 flex justify-between items-center text-xs ${isHost ? 'border-scout-600/50' : 'border-scout-700'}`}>
-                <span className="text-gray-400">{event.type}</span>
-                {isHost ? (
-                    <div className="flex items-center gap-2 text-scout-accent font-bold">
-                        <Settings size={14} /> Manage Event
-                    </div>
-                ) : (
-                    <span className="flex items-center gap-1 text-gray-500">
-                        {event.role === 'HOST' ? <Users size={12}/> : <Eye size={12} />}
-                        {event.role === 'HOST' ? `${event.registeredCount} Registered` : 'View Details'}
-                    </span>
-                )}
-            </div>
-        </div>
-    );
-  };
-
   return (
     <div className="h-full relative">
-        {showGuide && <HostGuideModal />}
-        {attendingEvent && <AttendancePrepModal />}
-
-        {view === 'list' && (
-            <div className="space-y-8 animate-fade-in pb-8">
-                {/* Header */}
-                <div className="flex justify-between items-center">
-                    <div>
-                        <h2 className="text-2xl font-bold text-white">Events Dashboard</h2>
-                        <p className="text-gray-400">Manage your ID days or find upcoming opportunities.</p>
-                    </div>
-                    <div className="flex gap-3">
-                        <button 
-                            onClick={() => setShowGuide(true)}
-                            className="text-gray-400 hover:text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors border border-transparent hover:border-scout-700 hover:bg-scout-800"
-                        >
-                            <HelpCircle size={18} /> How to Host
-                        </button>
-                        <button 
-                            onClick={() => setView('create')}
-                            className="bg-scout-accent hover:bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 shadow-lg"
-                        >
-                            <Plus size={18} /> Add Event
-                        </button>
-                    </div>
-                </div>
-
-                {/* My Events Section */}
-                <div className="space-y-4">
-                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                        <Users className="text-scout-highlight" size={20} /> My Schedule
-                    </h3>
-                    
-                    {events.length === 0 ? (
-                        <div className="text-center py-10 border-2 border-dashed border-scout-700 rounded-2xl bg-scout-800/30">
-                            <p className="text-gray-400 mb-4">Your schedule is empty.</p>
-                            <button onClick={() => setView('create')} className="text-scout-accent hover:underline font-bold text-sm">Host an ID Day or Add Event</button>
-                        </div>
-                    ) : (
-                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {/* Sort Hosted Events First */}
-                            {[...events].sort((a, b) => {
-                                const aHost = a.role === 'HOST' || a.isMine;
-                                const bHost = b.role === 'HOST' || b.isMine;
-                                if (aHost && !bHost) return -1;
-                                if (!aHost && bHost) return 1;
-                                return new Date(a.date).getTime() - new Date(b.date).getTime();
-                            }).map(evt => (
-                                <EventCard key={evt.id} event={evt} />
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* Global Opportunities Section */}
-                <div className="space-y-4 pt-4 border-t border-scout-700">
-                     <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                        <ExternalLink className="text-blue-400" size={20} /> Upcoming Opportunities
-                        <span className="text-xs font-normal text-gray-500 ml-2 bg-scout-800 px-2 py-1 rounded">Curated by Warubi HQ</span>
-                    </h3>
-                    
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-80 hover:opacity-100 transition-opacity">
-                         {MOCK_OPPORTUNITIES.map(evt => {
-                             // Check if already added
-                             const isAdded = events.some(e => 
-                                 e.id === evt.id || 
-                                 (e.title === evt.title && e.date === evt.date)
-                             );
-                             
-                             return (
-                                 <div key={evt.id} className="relative group">
-                                     {isAdded && (
-                                         <div className="absolute inset-0 z-20 bg-scout-900/80 backdrop-blur-[1px] flex items-center justify-center rounded-xl border border-green-500/30">
-                                             <div className="text-green-400 font-bold flex items-center gap-2 bg-scout-900 px-4 py-2 rounded-full border border-green-500/50 shadow-lg">
-                                                 <CheckCircle size={18} /> Added to Schedule
-                                             </div>
-                                         </div>
-                                     )}
-                                     <EventCard event={evt} />
-                                 </div>
-                             );
-                         })}
-                    </div>
-                </div>
-            </div>
+        {showGuide && <HostGuideModal onClose={() => setShowGuide(false)} />}
+        {attendingEvent && (
+            <AttendancePrepModal 
+                event={attendingEvent} 
+                onCancel={() => setAttendingEvent(null)} 
+                onConfirm={confirmAttendance} 
+            />
         )}
 
-        {view === 'create' && (
-             <div className="max-w-2xl mx-auto animate-fade-in">
-                 <button onClick={() => setView('list')} className="mb-6 text-gray-400 hover:text-white flex items-center gap-1 text-sm">
-                    <X size={16} /> Cancel
-                </button>
-
-                <div className="bg-scout-800 rounded-2xl border border-scout-700 p-8 shadow-2xl">
-                    <div className="text-center mb-8">
-                        <div className="w-16 h-16 bg-scout-accent/20 rounded-full flex items-center justify-center mx-auto mb-4 text-scout-accent border border-scout-accent/30">
-                            <Sparkles size={32} />
+        {isMobile ? (
+            view === 'create' ? (
+                <CreateEventForm 
+                    formData={formData}
+                    setFormData={setFormData}
+                    loading={loading}
+                    handleCreate={handleCreate}
+                    onCancel={() => setView('list')}
+                />
+            ) : view === 'detail' && selectedEvent ? (
+                <DetailView 
+                    event={selectedEvent}
+                    events={events}
+                    isMobile={true}
+                    onClose={() => setView('list')}
+                    onUpdateEvent={onUpdateEvent}
+                    initiateAttendance={initiateAttendance}
+                    copyToClipboard={copyToClipboard}
+                    copied={copied}
+                    onSubmitForApproval={submitForApproval}
+                    onSimulateHQApproval={simulateHQApproval}
+                    onPublishEvent={publishEvent}
+                />
+            ) : (
+                <MobileEventList 
+                    activeTab={mobileTab}
+                    setActiveTab={setMobileTab}
+                    nextEvent={nextEvent}
+                    upcomingEvents={upcomingEvents}
+                    pastEvents={pastEvents}
+                    events={events}
+                    onEventClick={(evt: ScoutingEvent) => { setSelectedEvent(evt); setView('detail'); }}
+                    onInitiateAttendance={initiateAttendance}
+                    onCreateClick={() => setView('create')}
+                />
+            )
+        ) : (
+            view === 'create' ? (
+                <CreateEventForm 
+                    formData={formData}
+                    setFormData={setFormData}
+                    loading={loading}
+                    handleCreate={handleCreate}
+                    onCancel={() => setView('list')}
+                />
+            ) : view === 'detail' && selectedEvent ? (
+                <DetailView 
+                    event={selectedEvent}
+                    events={events}
+                    isMobile={false}
+                    onClose={() => setView('list')}
+                    onUpdateEvent={onUpdateEvent}
+                    initiateAttendance={initiateAttendance}
+                    copyToClipboard={copyToClipboard}
+                    copied={copied}
+                    onSubmitForApproval={submitForApproval}
+                    onSimulateHQApproval={simulateHQApproval}
+                    onPublishEvent={publishEvent}
+                />
+            ) : (
+                <div className="h-full flex flex-col animate-fade-in">
+                    <div className="flex justify-between items-end mb-6">
+                        <div>
+                            <h2 className="text-3xl font-bold text-white">Scouting Calendar</h2>
+                            <p className="text-gray-400 mt-1">Manage your schedule and hosted events.</p>
                         </div>
-                        <h2 className="text-2xl font-bold text-white">Add Event</h2>
-                        <p className="text-gray-400 mt-2">Create a new ID day or log an external event you attended.</p>
+                        <div className="flex gap-3">
+                            <button 
+                                onClick={() => setShowGuide(true)}
+                                className="px-4 py-2 rounded-lg bg-scout-900 border border-scout-700 text-gray-300 hover:text-white flex items-center gap-2 text-sm font-medium transition-colors"
+                            >
+                                <HelpCircle size={16} /> Host Guide
+                            </button>
+                            <button 
+                                onClick={() => setView('create')}
+                                className="px-5 py-2 rounded-lg bg-scout-accent hover:bg-emerald-600 text-scout-900 font-bold text-sm flex items-center gap-2 shadow-lg transition-colors"
+                            >
+                                <Plus size={18} /> Add Event
+                            </button>
+                        </div>
                     </div>
 
-                    <div className="space-y-4">
-                        {/* ROLE TOGGLE */}
-                        <div className="bg-scout-900 p-1 rounded-lg border border-scout-700 flex mb-4">
-                            <button 
-                                onClick={() => setFormData(prev => ({ ...prev, isHosting: true }))}
-                                className={`flex-1 py-2 rounded-md text-sm font-bold transition-all ${formData.isHosting ? 'bg-scout-accent text-scout-900' : 'text-gray-400 hover:text-white'}`}
-                            >
-                                I am Hosting
-                            </button>
-                            <button 
-                                onClick={() => setFormData(prev => ({ ...prev, isHosting: false }))}
-                                className={`flex-1 py-2 rounded-md text-sm font-bold transition-all ${!formData.isHosting ? 'bg-scout-700 text-white' : 'text-gray-400 hover:text-white'}`}
-                            >
-                                I am Attending
-                            </button>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Name</label>
-                            <input 
-                                className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
-                                placeholder={formData.isHosting ? "e.g. Summer Talent ID Day" : "e.g. Surf Cup 2024"}
-                                value={formData.title}
-                                onChange={e => setFormData({...formData, title: e.target.value})}
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Date</label>
-                                <input 
-                                    type="date"
-                                    className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
-                                    value={formData.date}
-                                    onChange={e => setFormData({...formData, date: e.target.value})}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Location</label>
-                                <input 
-                                    className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
-                                    placeholder="City or Venue"
-                                    value={formData.location}
-                                    onChange={e => setFormData({...formData, location: e.target.value})}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                             <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Type</label>
-                                <select 
-                                    className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
-                                    value={formData.type}
-                                    onChange={e => setFormData({...formData, type: e.target.value})}
-                                >
-                                    <option>ID Day</option>
-                                    <option>Showcase</option>
-                                    <option>Camp</option>
-                                    <option>Clinic</option>
-                                    <option>Tournament</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Player Fee</label>
-                                <input 
-                                    className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
-                                    placeholder="$50 or Free"
-                                    value={formData.fee}
-                                    onChange={e => setFormData({...formData, fee: e.target.value})}
-                                />
-                            </div>
-                        </div>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto pb-8 custom-scrollbar flex-1">
+                        {/* Upcoming */}
+                        {upcomingEvents.map(evt => (
+                            <EventCard key={evt.id} event={evt} onClick={() => { setSelectedEvent(evt); setView('detail'); }} />
+                        ))}
                         
-                        {formData.isHosting && (
-                            <div className="bg-scout-900/50 p-3 rounded border border-scout-700 flex items-start gap-2 text-xs text-gray-400 mt-2">
-                                <AlertCircle size={16} className="shrink-0 mt-0.5" />
-                                <p>Hosting events requires HQ approval. The AI will generate a plan for you to submit.</p>
+                        {/* Mock Opportunities */}
+                        {MOCK_OPPORTUNITIES.filter(m => !events.some(e => e.id === m.id || (e.title === m.title && e.date === m.date))).map(evt => (
+                             <div key={evt.id} className="rounded-xl p-5 border border-scout-700 bg-scout-900/50 hover:bg-scout-800 transition-all flex flex-col justify-between h-full opacity-80 hover:opacity-100">
+                                 <div>
+                                     <div className="flex justify-between items-start mb-3">
+                                         <span className="text-[10px] font-bold bg-blue-900/30 text-blue-400 px-2 py-1 rounded border border-blue-500/30 uppercase tracking-wider">Opportunity</span>
+                                     </div>
+                                     <h3 className="text-lg font-bold text-white mb-1">{evt.title}</h3>
+                                     <p className="text-xs text-gray-400 mb-4">{evt.location} • {evt.date}</p>
+                                 </div>
+                                 <button 
+                                     onClick={() => initiateAttendance(evt)}
+                                     className="w-full py-2 bg-scout-800 hover:bg-scout-700 text-gray-300 hover:text-white text-xs font-bold rounded border border-scout-600 transition-colors"
+                                 >
+                                     Add to Schedule
+                                 </button>
+                             </div>
+                        ))}
+
+                        {/* Past Events */}
+                        {pastEvents.length > 0 && (
+                            <div className="col-span-full mt-8 pt-8 border-t border-scout-800">
+                                <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Past Events</h4>
+                                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-60">
+                                    {pastEvents.map(evt => <EventCard key={evt.id} event={evt} onClick={() => { setSelectedEvent(evt); setView('detail'); }} />)}
+                                </div>
                             </div>
                         )}
-
-                        <button 
-                            onClick={handleCreate}
-                            disabled={loading || !formData.title}
-                            className="w-full mt-4 bg-scout-accent hover:bg-emerald-600 disabled:opacity-50 text-white font-bold py-4 rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all"
-                        >
-                            {loading ? <Loader2 className="animate-spin" /> : (
-                                formData.isHosting ? <>Generate Plan & Preview <ArrowRight size={18}/></> : <>Log Event to Schedule <CheckCircle size={18}/></>
-                            )}
-                        </button>
                     </div>
                 </div>
-             </div>
+            )
         )}
-
-        {view === 'detail' && selectedEvent && <DetailView event={selectedEvent} />}
     </div>
   );
 };

@@ -709,3 +709,73 @@ export const draftScoutBio = async (profileData: Partial<UserProfile>): Promise<
         return "Professional scout with experience in identifying talent and player development.";
     }
 };
+
+// 8. Check for Duplicates (AI)
+export const checkPlayerDuplicates = async (
+    candidate: Partial<Player>,
+    existingPlayers: Player[]
+): Promise<{ id: string; name: string; reason: string; confidence: string }[]> => {
+    const ai = getAiClient();
+    
+    // Optimization: Filter existing players to a lighter format to save tokens
+    const dbContext = existingPlayers.map(p => ({
+        id: p.id,
+        name: p.name,
+        age: p.age,
+        position: p.position,
+        // Extract region/club from context if available
+        meta: p.evaluation?.summary || p.interestedProgram || ""
+    }));
+
+    const prompt = `
+        You are a data integrity agent for a player database.
+        
+        NEW CANDIDATE:
+        Name: ${candidate.name}
+        Age: ${candidate.age}
+        Position: ${candidate.position}
+        Region/Context: ${candidate.evaluation?.summary || candidate.interestedProgram || "N/A"}
+
+        EXISTING DATABASE:
+        ${JSON.stringify(dbContext)}
+
+        TASK:
+        Identify if this candidate is likely a DUPLICATE of anyone in the database.
+        Look for:
+        - Exact matches
+        - Nicknames (Jon vs Jonathan, Mike vs Michael)
+        - Typos (Thomson vs Thompson)
+        - Same person, new entry
+        
+        Return a JSON Array of matches (empty if none):
+        [{ "id": "existing_id", "name": "existing_name", "reason": "why it matches", "confidence": "High" | "Medium" }]
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+            config: {
+                responseMimeType: 'application/json',
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            id: { type: Type.STRING },
+                            name: { type: Type.STRING },
+                            reason: { type: Type.STRING },
+                            confidence: { type: Type.STRING }
+                        }
+                    }
+                }
+            }
+        });
+        
+        const text = response.text || "[]";
+        return JSON.parse(text);
+    } catch (e) {
+        console.error("Duplicate Check Error", e);
+        return [];
+    }
+}

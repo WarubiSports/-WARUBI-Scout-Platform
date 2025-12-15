@@ -1,5 +1,11 @@
+import { Player, PlayerStatus, KnowledgeItem, PathwayDef, ToolDef, NewsItem } from './types';
 
-import { Player, PlayerStatus, KnowledgeItem, PathwayDef, ToolDef } from './types';
+export const SCOUT_POINTS = {
+  PLAYER_LOG: 10,
+  EVENT_ATTEND: 15,
+  EVENT_HOST: 50,
+  PLACEMENT: 500
+};
 
 export const ITP_REFERENCE_PLAYERS: Player[] = [
   {
@@ -191,4 +197,54 @@ export const INITIAL_KNOWLEDGE_BASE: KnowledgeItem[] = [
     content: '1. Lead (Identify) -> 2. Interested (Engage) -> 3. Offered (Commit) -> 4. Placed (Sign). Keep communication clear at every step.',
     category: 'Process'
   }
+];
+
+export const INITIAL_NEWS_ITEMS: NewsItem[] = [
+    {
+        id: '1',
+        type: 'Transfer News',
+        title: '3 Warubi Players Sign Pro Contracts in Germany',
+        summary: 'Following the successful Munich Showcase, three players from the 2005 age group have signed development contracts with Regionalliga clubs. "This validates our tiering system," says Head of Scouting.',
+        source: 'FC Köln ITP',
+        date: '2 hours ago',
+        categoryColor: 'text-green-400',
+        borderColor: 'border-green-500/30'
+    },
+    {
+        id: '2',
+        type: 'Network Milestone',
+        title: 'Athletes USA surpasses 5,000 Scholarships Awarded',
+        summary: 'Our partner network Athletes USA has reached a historic milestone, securing over $200M in scholarship funding for student-athletes globally in 2024 alone.',
+        source: 'Athletes USA',
+        date: '1 day ago',
+        categoryColor: 'text-blue-400',
+        borderColor: 'border-blue-500/30'
+    },
+    {
+        id: '3',
+        type: 'Platform Update',
+        title: 'New AI Scouting Tools Now Live',
+        summary: 'The new "Scout DNA" personalization engine is now active for all users. Log in to see your custom strategy and hidden gold mines.',
+        source: 'WARUBI Tech',
+        date: '2 days ago',
+        categoryColor: 'text-scout-accent',
+        borderColor: 'border-scout-accent/30'
+    },
+    {
+        id: '4',
+        type: 'Event Recap',
+        title: 'Highlights: Florida Winter ID Camp',
+        summary: 'Over 150 players attended our sold-out event in Miami. Top scouts from 12 D1 universities were present. Check out the top rated players in the database now.',
+        source: 'Warubi Events',
+        date: '3 days ago',
+        categoryColor: 'text-orange-400',
+        borderColor: 'border-orange-500/30'
+    }
+];
+
+export const INITIAL_TICKER_ITEMS = [
+    "BREAKING: FC Köln U19s to scout at Dallas Cup 2025",
+    "REMINDER: Q2 Scouting Reports due next Friday",
+    "NEW PARTNERSHIP: Warubi x Nike Football announced for Berlin Event",
+    "STATS: 42 new placements confirmed this week across the network"
 ];

@@ -1,22 +1,31 @@
 import React, { useState } from 'react';
-import { X, Upload, CheckCircle, Loader2, FlaskConical, User, Calendar, Activity, GraduationCap, ClipboardPaste, Sparkles, Mail, Phone, Save, AlertCircle } from 'lucide-react';
-import { evaluatePlayer, parsePlayerDetails } from '../services/geminiService';
+import { X, Upload, CheckCircle, Loader2, FlaskConical, User, Calendar, Activity, GraduationCap, ClipboardPaste, Sparkles, Mail, Phone, Save, AlertCircle, Copy, ArrowRight, WifiOff } from 'lucide-react';
+import { evaluatePlayer, parsePlayerDetails, checkPlayerDuplicates } from '../services/geminiService';
 import { Player, PlayerStatus, PlayerEvaluation } from '../types';
 
 interface PlayerSubmissionProps {
   onClose: () => void;
   onAddPlayer: (player: Player) => void;
+  existingPlayers: Player[]; // Prop for duplicate check
 }
 
 const POSITIONS = ["GK", "CB", "LB", "RB", "CDM", "CM", "CAM", "LW", "RW", "ST"];
 const TEAM_LEVELS = ["Professional Academy", "Elite National (MLS Next/ECNL/GA)", "Regional (NPL/RL)", "High School Varsity", "District/Local", "Recreational"];
 const RATINGS = ["Elite", "Top 10%", "Above Average", "Average", "Below Average"];
 
-const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlayer }) => {
+const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlayer, existingPlayers }) => {
   const [loading, setLoading] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [step, setStep] = useState<'input' | 'review'>('input');
   
+  // Offline State Check
+  const isOnline = navigator.onLine;
+
+  // Duplicate Check State
+  const [showDupWarning, setShowDupWarning] = useState(false);
+  const [duplicates, setDuplicates] = useState<any[]>([]);
+  const [pendingPlayer, setPendingPlayer] = useState<Player | null>(null);
+
   // Single Player Form State
   const [formData, setFormData] = useState({
     firstName: '',
@@ -112,6 +121,10 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
   };
 
   const handleAutoFill = async () => {
+      if (!isOnline) {
+          alert("Auto-fill requires an internet connection.");
+          return;
+      }
       if (!pasteInput.trim()) return;
       setParsing(true);
       try {
@@ -158,8 +171,40 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
       return age;
   };
 
+  // DUPLICATE CHECK
+  const runDuplicateCheck = async (playerToAdd: Player) => {
+    // Skip duplicate check if offline
+    if (!isOnline) return true;
+
+    setLoading(true);
+    try {
+        const matches = await checkPlayerDuplicates(playerToAdd, existingPlayers);
+        if (matches && matches.length > 0) {
+            setDuplicates(matches);
+            setPendingPlayer(playerToAdd);
+            setShowDupWarning(true);
+            setLoading(false);
+            return false; // Stop submission
+        }
+    } catch (e) {
+        // fail silently regarding dup check and proceed
+    }
+    return true; // Proceed
+  };
+
+  const finalSubmit = (player: Player) => {
+    onAddPlayer(player);
+    onClose();
+  }
+
+  const handleForceSubmit = () => {
+      if (pendingPlayer) {
+          finalSubmit(pendingPlayer);
+      }
+  }
+
   // Quick Save (Skip AI)
-  const handleQuickSave = () => {
+  const handleQuickSave = async () => {
       // Validate minimum fields for Quick Save
       if (!formData.firstName && !formData.lastName) {
           alert("Please provide at least a First Name or Last Name to save.");
@@ -181,8 +226,10 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
         evaluation: null // Explicitly null to indicate pending evaluation
     };
 
-    onAddPlayer(newPlayer);
-    onClose();
+    const shouldProceed = await runDuplicateCheck(newPlayer);
+    if (shouldProceed) {
+        finalSubmit(newPlayer);
+    }
   };
 
   // Single Player AI Submit
@@ -243,7 +290,7 @@ Scout Ratings (vs Teammates):
     }
   };
 
-  const confirmPlayer = () => {
+  const confirmPlayer = async () => {
     if (!evalResult) return;
     
     const newPlayer: Player = {
@@ -260,12 +307,59 @@ Scout Ratings (vs Teammates):
         evaluation: evalResult
     };
 
-    onAddPlayer(newPlayer);
-    onClose();
+    const shouldProceed = await runDuplicateCheck(newPlayer);
+    if (shouldProceed) {
+        finalSubmit(newPlayer);
+    }
   };
+
+  // --- Duplicate Warning Modal ---
+  const DuplicateModal = () => (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-scout-800 w-full max-w-md rounded-xl border border-red-500/50 shadow-2xl p-6 relative">
+              <div className="flex items-center gap-3 mb-4 text-red-400">
+                  <AlertCircle size={32} />
+                  <h3 className="text-xl font-bold text-white">Possible Duplicate Found</h3>
+              </div>
+              <p className="text-gray-300 text-sm mb-4">
+                  AI detected players in your database that might be <strong>{pendingPlayer?.name}</strong>.
+                  Creating duplicates fragments your data.
+              </p>
+              
+              <div className="bg-scout-900 rounded-lg border border-scout-700 max-h-48 overflow-y-auto mb-6">
+                  {duplicates.map((dup, i) => (
+                      <div key={i} className="p-3 border-b border-scout-700 last:border-0 hover:bg-scout-800/50">
+                          <div className="flex justify-between items-start">
+                              <span className="font-bold text-white text-sm">{dup.name}</span>
+                              <span className="text-[10px] bg-red-900/50 text-red-400 px-2 py-0.5 rounded border border-red-900">{dup.confidence} Match</span>
+                          </div>
+                          <p className="text-xs text-gray-400 mt-1">{dup.reason}</p>
+                      </div>
+                  ))}
+              </div>
+
+              <div className="flex gap-3">
+                  <button 
+                    onClick={() => { setShowDupWarning(false); onClose(); }}
+                    className="flex-1 bg-scout-700 hover:bg-scout-600 text-white font-bold py-2 rounded-lg text-sm"
+                  >
+                      Cancel (Use Existing)
+                  </button>
+                  <button 
+                    onClick={handleForceSubmit}
+                    className="flex-1 bg-transparent border border-gray-600 hover:border-white text-gray-400 hover:text-white font-bold py-2 rounded-lg text-sm"
+                  >
+                      Create Anyway
+                  </button>
+              </div>
+          </div>
+      </div>
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+        {showDupWarning && <DuplicateModal />}
+
         <div className="bg-scout-900 w-full max-w-4xl rounded-2xl border border-scout-700 shadow-2xl flex flex-col md:flex-row overflow-hidden max-h-[90vh]">
             
             {/* Main Content */}
@@ -274,7 +368,11 @@ Scout Ratings (vs Teammates):
                 <div className="p-4 border-b border-scout-700 flex justify-between items-center bg-scout-800/50">
                     <div>
                          <h2 className="text-xl font-bold text-white">Manual Player Entry</h2>
-                         <p className="text-xs text-gray-400">Add a single player to your pipeline.</p>
+                         {!isOnline ? (
+                             <p className="text-xs text-red-400 font-bold flex items-center gap-1"><WifiOff size={10}/> Offline Mode: AI Disabled</p>
+                         ) : (
+                             <p className="text-xs text-gray-400">Add a single player to your pipeline.</p>
+                         )}
                     </div>
                     <button onClick={onClose} className="text-gray-400 hover:text-white">
                         <X size={24} />
@@ -300,10 +398,11 @@ Scout Ratings (vs Teammates):
                             </div>
 
                             {/* AUTO-FILL / PASTE SECTION */}
-                            <div className="bg-gradient-to-r from-scout-800 to-scout-900 border border-scout-600 rounded-xl p-4 shadow-lg">
+                            <div className={`bg-gradient-to-r from-scout-800 to-scout-900 border border-scout-600 rounded-xl p-4 shadow-lg ${!isOnline ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
                                 <div className="flex items-center gap-2 mb-2 text-white font-bold text-sm">
                                     <Sparkles size={16} className="text-scout-highlight" />
                                     <span>Quick Fill from Text</span>
+                                    {!isOnline && <span className="text-xs font-normal text-red-400 ml-auto">(Requires Internet)</span>}
                                 </div>
                                 <div className="flex gap-2">
                                     <input 
@@ -538,12 +637,13 @@ Scout Ratings (vs Teammates):
                                     onClick={handleQuickSave}
                                     className="flex-1 bg-transparent hover:bg-scout-800 text-gray-300 font-bold py-4 rounded-lg border border-scout-600 transition-all flex items-center justify-center gap-2"
                                 >
-                                    <Save size={18} /> Quick Save (Skip AI)
+                                    <Save size={18} /> {isOnline ? 'Quick Save (Skip AI)' : 'Save Locally'}
                                 </button>
                                 <button 
                                     onClick={handleSubmit}
-                                    disabled={loading || (!image && !formData.firstName)}
-                                    className="flex-[2] bg-scout-accent hover:bg-emerald-600 disabled:opacity-50 text-white font-bold py-4 rounded-lg shadow-lg flex items-center justify-center gap-2"
+                                    disabled={loading || !isOnline || (!image && !formData.firstName)}
+                                    className="flex-[2] bg-scout-accent hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-lg shadow-lg flex items-center justify-center gap-2"
+                                    title={!isOnline ? "Requires internet connection" : "Analyze"}
                                 >
                                     {loading ? <Loader2 className="animate-spin" /> : 'Run AI Analysis & Submit'}
                                 </button>

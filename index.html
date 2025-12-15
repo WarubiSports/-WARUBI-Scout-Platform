@@ -22,6 +22,50 @@
         }
       }
     </script>
+    <style>
+      /* HIGH CONTRAST LIGHT MODE OVERRIDES */
+      /* These rules force the dark-themed app to invert colors for bright sunlight visibility */
+      
+      body.light-mode {
+          background-color: #ffffff !important;
+          color: #0f172a !important;
+      }
+      
+      body.light-mode .bg-scout-900 { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
+      body.light-mode .bg-scout-800 { background-color: #f1f5f9 !important; border-color: #cbd5e1 !important; }
+      body.light-mode .bg-scout-700 { background-color: #e2e8f0 !important; border-color: #cbd5e1 !important; }
+      
+      body.light-mode .border-scout-700 { border-color: #cbd5e1 !important; }
+      body.light-mode .border-scout-600 { border-color: #94a3b8 !important; }
+      
+      /* Text Inversion */
+      body.light-mode .text-white { color: #0f172a !important; }
+      body.light-mode .text-gray-100 { color: #1e293b !important; }
+      body.light-mode .text-gray-200 { color: #334155 !important; }
+      body.light-mode .text-gray-300 { color: #475569 !important; }
+      body.light-mode .text-gray-400 { color: #475569 !important; font-weight: 500; } /* Darker gray for contrast */
+      body.light-mode .text-gray-500 { color: #64748b !important; }
+      
+      /* Inputs */
+      body.light-mode input, 
+      body.light-mode textarea, 
+      body.light-mode select {
+          background-color: #ffffff !important;
+          color: #0f172a !important;
+          border-color: #cbd5e1 !important;
+      }
+
+      /* Simplify Gradients for High Contrast (Flat look is better in sun) */
+      body.light-mode .bg-gradient-to-r, 
+      body.light-mode .bg-gradient-to-br,
+      body.light-mode .bg-gradient-to-b {
+          background-image: none !important;
+          background-color: #f8fafc !important; /* Fallback flat color */
+      }
+      
+      /* Enhance Shadows in Light Mode for depth */
+      body.light-mode .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important; }
+    </style>
   <script type="importmap">
 {
   "imports": {

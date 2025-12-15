@@ -2,7 +2,8 @@
 
 export enum AppView {
   ONBOARDING = 'ONBOARDING',
-  DASHBOARD = 'DASHBOARD'
+  DASHBOARD = 'DASHBOARD',
+  ADMIN = 'ADMIN'
 }
 
 export enum DashboardTab {
@@ -32,6 +33,7 @@ export interface UserProfile {
   scoutPersona?: string; // e.g. "The Networker", "The Data Analyst", "The Field General"
   weeklyTasks: string[]; // These will now be "Power Moves"
   scoutId?: string; // Unique ID for tracking referrals
+  isAdmin?: boolean;
   
   // Extended Profile Fields (LinkedIn Style)
   bio?: string;
@@ -102,6 +104,29 @@ export interface ScoutingEvent {
   
   // Stats
   registeredCount: number;
+  hostName?: string; // For Admin view
+}
+
+export interface NewsItem {
+    id: string;
+    type: string; // e.g., 'Transfer News'
+    title: string;
+    summary: string;
+    source: string;
+    date: string;
+    linkUrl?: string; // External blog post link
+    categoryColor?: string; // CSS class for color
+    borderColor?: string;
+}
+
+export interface AppNotification {
+  id: string;
+  type: 'INFO' | 'SUCCESS' | 'WARNING' | 'ALERT';
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  actionLink?: string; // e.g. "View Player"
 }
 
 export interface KnowledgeItem {

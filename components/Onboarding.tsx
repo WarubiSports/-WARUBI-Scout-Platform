@@ -1,8 +1,9 @@
 
+
 import React, { useState } from 'react';
 import { UserProfile, Player, PlayerStatus } from '../types';
 import { evaluatePlayer, generateOnboardingData } from '../services/geminiService';
-import { Loader2, Upload, User, ArrowRight, CheckCircle2, FlaskConical, LayoutDashboard, Database, Trophy, Mail, Target, BrainCircuit } from 'lucide-react';
+import { Loader2, Upload, User, ArrowRight, CheckCircle2, FlaskConical, LayoutDashboard, Database, Trophy, Mail, Target, BrainCircuit, ShieldCheck } from 'lucide-react';
 
 interface OnboardingProps {
     onComplete: (profile: UserProfile, firstPlayer: Player | null) => void;
@@ -121,6 +122,20 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         onComplete(demoUser, demoPlayer);
     };
 
+    const handleAdminLogin = () => {
+        const adminUser: UserProfile = {
+            name: "Warubi HQ",
+            role: "Director of Scouting",
+            region: "Global",
+            affiliation: "Warubi Sports",
+            scoutPersona: "The Director",
+            weeklyTasks: [],
+            scoutId: "admin-hq-001",
+            isAdmin: true
+        };
+        onComplete(adminUser, null);
+    };
+
     const fillDemoData = () => {
         setPlayerImage(null);
         setPlayerInput(
@@ -204,8 +219,18 @@ Goal: Earn a scholarship to a D1 college.`
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-br from-scout-900 to-black">
-            <div className="max-w-2xl w-full bg-scout-800 border border-scout-700 rounded-2xl shadow-2xl p-8">
+            <div className="max-w-2xl w-full bg-scout-800 border border-scout-700 rounded-2xl shadow-2xl p-8 relative">
                 
+                {/* Admin Shortcut */}
+                {step === 1 && (
+                    <button 
+                        onClick={handleAdminLogin}
+                        className="absolute top-4 right-4 text-xs text-gray-500 hover:text-white flex items-center gap-1"
+                    >
+                        <ShieldCheck size={12} /> HQ Login
+                    </button>
+                )}
+
                 {/* Progress Bar */}
                 <div className="flex gap-2 mb-8">
                     {[1, 2, 3, 4].map(i => (
