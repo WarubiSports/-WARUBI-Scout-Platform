@@ -1,5 +1,4 @@
 
-
 export enum AppView {
   ONBOARDING = 'ONBOARDING',
   DASHBOARD = 'DASHBOARD',
@@ -25,13 +24,25 @@ export enum PlayerStatus {
   ARCHIVED = 'Archived'
 }
 
+export interface StrategyTask {
+  id: string;
+  type: 'LEAD' | 'OUTREACH' | 'EVENT' | 'ADMIN';
+  title: string;
+  subtitle: string;
+  actionLabel: string;
+  actionLink: string; // e.g. "TAB:OUTREACH:id"
+  impactLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+  completed: boolean;
+}
+
 export interface UserProfile {
   name: string;
   role: string;
   region: string;
   affiliation?: string;
   scoutPersona?: string; // e.g. "The Networker", "The Data Analyst", "The Field General"
-  weeklyTasks: string[]; // These will now be "Power Moves"
+  weeklyTasks: string[]; // Legacy support
+  strategyTasks?: StrategyTask[]; // New Dynamic Engine
   scoutId?: string; // Unique ID for tracking referrals
   isAdmin?: boolean;
   

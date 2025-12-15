@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { UserProfile, Player, DashboardTab, ScoutingEvent, PlayerStatus, OutreachLog, NewsItem, AppNotification } from '../types';
+import { UserProfile, Player, DashboardTab, ScoutingEvent, PlayerStatus, OutreachLog, NewsItem, AppNotification, StrategyTask } from '../types';
 import { ITP_REFERENCE_PLAYERS } from '../constants';
 import PlayerCard from './PlayerCard';
 import EventHub from './EventHub';
@@ -10,6 +10,8 @@ import NewsTab from './NewsTab';
 import PlayerSubmission from './PlayerSubmission';
 import TutorialOverlay from './TutorialOverlay';
 import Confetti from './Confetti';
+import StrategyPanel from './StrategyPanel';
+import { generateDailyStrategy } from '../services/geminiService';
 import { LayoutDashboard, Users, CalendarDays, GraduationCap, CheckCircle, UserCircle, MessageSquare, LayoutGrid, List, ChevronDown, MessageCircle as MsgIcon, Search, Filter, ChevronLeft, ChevronRight, HelpCircle, PlusCircle, Sparkles, Newspaper, X, Zap, Info, Trophy, BookOpen, EyeOff, Award, Bell, Check, Wifi, WifiOff, CloudOff, Plus, ChevronUp, Send, MoreHorizontal, StickyNote, Edit2, MapPin, Sun, Moon } from 'lucide-react';
 
 interface DashboardProps {
@@ -53,6 +55,9 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [players, setPlayers] = useState<Player[]>(initialPlayers);
   const [outreachTargetId, setOutreachTargetId] = useState<string | null>(null);
   
+  // Strategy Task State
+  const [strategyTasks, setStrategyTasks] = useState<StrategyTask[]>([]);
+
   // Offline & Notification State
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -81,6 +86,18 @@ const Dashboard: React.FC<DashboardProps> = ({
           document.body.classList.remove('light-mode');
       }
   }, [isHighContrast]);
+
+  // Strategy Generation Effect
+  useEffect(() => {
+      if (user.strategyTasks && user.strategyTasks.length > 0) {
+          setStrategyTasks(user.strategyTasks);
+      } else {
+          // Generate new strategy if none exists
+          const tasks = generateDailyStrategy(players, events);
+          setStrategyTasks(tasks);
+          // Ideally persist this back to user profile via onUpdateProfile if we had API persistence
+      }
+  }, [user, players, events]); // Re-run if data changes significantly
   
   // Drag and Drop State
   const [draggedPlayerId, setDraggedPlayerId] = useState<string | null>(null);
@@ -252,6 +269,42 @@ const Dashboard: React.FC<DashboardProps> = ({
       setOutreachTargetId(player.id);
       setActiveTab(DashboardTab.OUTREACH);
       setSelectedMobilePlayer(null); // Close modal if open
+  };
+
+  // Strategy Action Handler
+  const handleStrategyAction = (actionLink: string) => {
+      if (!actionLink) return;
+      
+      const parts = actionLink.split(':');
+      const actionType = parts[0]; // e.g. TAB, MODAL
+
+      if (actionType === 'TAB') {
+          const tabName = parts[1];
+          const param = parts[2];
+
+          switch(tabName) {
+              case 'OUTREACH':
+                  setActiveTab(DashboardTab.OUTREACH);
+                  if (param) setOutreachTargetId(param);
+                  break;
+              case 'EVENTS':
+                  setActiveTab(DashboardTab.EVENTS);
+                  // Could add logic to auto-expand event if param exists
+                  break;
+              case 'KNOWLEDGE':
+                  setActiveTab(DashboardTab.KNOWLEDGE);
+                  break;
+              case 'PLAYERS':
+                  setActiveTab(DashboardTab.PLAYERS);
+                  break;
+              default:
+                  break;
+          }
+      } else if (actionType === 'MODAL') {
+          if (parts[1] === 'ADD_PLAYER') {
+              setIsSubmissionOpen(true);
+          }
+      }
   };
 
   // --- Drag and Drop Handlers ---
@@ -489,10 +542,12 @@ const Dashboard: React.FC<DashboardProps> = ({
                  <button onClick={() => setActiveTab(DashboardTab.PROFILE)} className={`w-full flex items-center gap-3 px-4 py-3 rounded transition-colors ${activeTab === DashboardTab.PROFILE ? 'bg-scout-700 text-white' : 'text-gray-400 hover:bg-scout-700/50'}`}><UserCircle size={20} /> My Profile</button>
             </nav>
 
-            <div className="p-4 bg-scout-900/50 m-4 rounded-lg border border-scout-700 shadow-lg">
-                <div className="flex items-center gap-2 mb-3"><Sparkles size={14} className="text-scout-highlight" /><h3 className="text-xs font-bold text-white uppercase tracking-wider">My Strategy: {user.scoutPersona || 'The Scout'}</h3></div>
-                <ul className="space-y-3">{user.weeklyTasks.map((task, i) => (<li key={i} className="flex items-start gap-2 text-xs text-gray-300"><CheckCircle size={12} className="mt-0.5 text-scout-accent shrink-0" /><span className="leading-tight font-medium">{task}</span></li>))}</ul>
-            </div>
+            {/* DYNAMIC STRATEGY PANEL (Replaces Static List) */}
+            <StrategyPanel 
+                persona={user.scoutPersona || 'The Scout'} 
+                tasks={strategyTasks} 
+                onAction={handleStrategyAction} 
+            />
             
             <div className="p-4 border-t border-scout-700 space-y-3">
                 {/* Theme Toggle Desktop */}

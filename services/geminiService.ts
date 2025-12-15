@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { PlayerEvaluation, ScoutingEvent, UserProfile, Player } from '../types';
+import { PlayerEvaluation, ScoutingEvent, UserProfile, Player, StrategyTask } from '../types';
 
 const getAiClient = () => {
   const apiKey = process.env.API_KEY;
@@ -38,6 +38,101 @@ const cleanJson = (text: string) => {
   }
 
   return clean;
+};
+
+// --- STRATEGY GENERATOR (Deterministic/Lightweight AI) ---
+export const generateDailyStrategy = (players: Player[], events: ScoutingEvent[]): StrategyTask[] => {
+    const tasks: StrategyTask[] = [];
+
+    // 1. HIGH IMPACT: The Hot Lead
+    // Logic: Find highest scored player who is still in early stages (Lead/Interested)
+    const topLead = players
+        .filter(p => p.status === 'Lead' || p.status === 'Interested')
+        .sort((a, b) => (b.evaluation?.score || 0) - (a.evaluation?.score || 0))[0];
+
+    if (topLead) {
+        tasks.push({
+            id: 'task-lead',
+            type: 'LEAD',
+            title: 'Top Target',
+            subtitle: `Convert ${topLead.name} (${topLead.evaluation?.score || 0})`,
+            actionLabel: 'Message',
+            actionLink: `TAB:OUTREACH:${topLead.id}`,
+            impactLevel: 'HIGH',
+            completed: false
+        });
+    } else {
+        tasks.push({
+            id: 'task-lead-new',
+            type: 'LEAD',
+            title: 'Pipeline Empty',
+            subtitle: 'Add 3 new prospects to start.',
+            actionLabel: 'Add Player',
+            actionLink: 'MODAL:ADD_PLAYER',
+            impactLevel: 'HIGH',
+            completed: false
+        });
+    }
+
+    // 2. MEDIUM IMPACT: Events or Outreach
+    // Logic: If event coming up in < 7 days, focus on that. Else, general outreach.
+    const upcomingEvent = events
+        .filter(e => new Date(e.date) >= new Date())
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+
+    if (upcomingEvent) {
+        const daysAway = Math.ceil((new Date(upcomingEvent.date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        tasks.push({
+            id: 'task-event',
+            type: 'EVENT',
+            title: 'Event Prep',
+            subtitle: `${upcomingEvent.title} is in ${daysAway} days.`,
+            actionLabel: 'View Plan',
+            actionLink: `TAB:EVENTS:${upcomingEvent.id}`,
+            impactLevel: 'MEDIUM',
+            completed: false
+        });
+    } else {
+        tasks.push({
+            id: 'task-outreach',
+            type: 'OUTREACH',
+            title: 'Expand Network',
+            subtitle: 'Contact 3 club directors this week.',
+            actionLabel: 'Open Templates',
+            actionLink: 'TAB:OUTREACH',
+            impactLevel: 'MEDIUM',
+            completed: false
+        });
+    }
+
+    // 3. LOW IMPACT / ADMIN
+    // Logic: Always good to learn or cleanup
+    const incompletePlayer = players.find(p => !p.evaluation || !p.position || p.position === 'Unknown');
+    if (incompletePlayer) {
+        tasks.push({
+            id: 'task-cleanup',
+            type: 'ADMIN',
+            title: 'Data Hygiene',
+            subtitle: `Update profile for ${incompletePlayer.name}.`,
+            actionLabel: 'Edit',
+            actionLink: `TAB:PLAYERS:${incompletePlayer.id}`, // Would need specific handling
+            impactLevel: 'LOW',
+            completed: false
+        });
+    } else {
+        tasks.push({
+            id: 'task-knowledge',
+            type: 'ADMIN',
+            title: 'Sharpen Skills',
+            subtitle: 'Review the ITP pricing model.',
+            actionLabel: 'Learn',
+            actionLink: 'TAB:KNOWLEDGE',
+            impactLevel: 'LOW',
+            completed: false
+        });
+    }
+
+    return tasks;
 };
 
 // --- PROMPT TEMPLATES ---
@@ -511,11 +606,17 @@ export const askScoutAI = async (question: string): Promise<string> => {
       ROLE:
       Be concise, direct, professional, and encouraging.
       
-      RULES:
+      FORMATTING RULES (STRICT):
+      1. Do NOT use Markdown Headings (#). They are too big.
+      2. Use **Bold** for key numbers, terms, or emphasis.
+      3. Use standard bullet points (• or -) for lists.
+      4. Keep paragraphs short (max 2-3 sentences).
+      5. Insert new lines between sections for readability.
+      
+      CONTENT RULES:
       1. Keep answers SHORT (max 150 words usually).
-      2. Use bullet points for lists to make them easy to read.
-      3. Always guide the scout to use the specific Warubi Tools (ROI Calculator, Assessment Link) when relevant.
-      4. If asked about prices or specifics, refer to the "Pathways" tab.
+      2. Always guide the scout to use the specific Warubi Tools (ROI Calculator, Assessment Link) when relevant.
+      3. If asked about prices or specifics, refer to the "Pathways" tab.
       
       Question/Context: ${question}
     `;

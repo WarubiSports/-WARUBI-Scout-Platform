@@ -7,7 +7,7 @@ import {
     Sparkles, User, Globe, Calendar, ArrowRight, Calculator, Copy, CheckCircle, 
     Link, DollarSign, TrendingUp, HelpCircle, X, Award, Ruler, Activity, Scale, 
     Anchor, HeartHandshake, AlertTriangle, ShieldCheck, ExternalLink, Lock, Footprints, Info,
-    Timer, Dumbbell, Target, Trophy
+    Timer, Dumbbell, Target, Trophy, Bot
 } from 'lucide-react';
 import { UserProfile, PathwayDef, Player } from '../types';
 
@@ -41,6 +41,44 @@ const TIER_BENCHMARKS: Record<string, any> = {
         gpa: '2.5+ (Eligibility minimum)',
         video: 'Highlight reel is mandatory to get noticed.'
     }
+};
+
+// --- FORMATTED MESSAGE RENDERER ---
+const FormattedMessage = ({ text }: { text: string }) => {
+    // Split by new lines to handle paragraphs and lists
+    const lines = text.split('\n');
+    
+    return (
+        <div className="space-y-2">
+            {lines.map((line, i) => {
+                const trimmed = line.trim();
+                if (!trimmed) return <div key={i} className="h-1"></div>; // Spacer for empty lines
+
+                // Check for list item (bullet points)
+                const isList = trimmed.startsWith('-') || trimmed.startsWith('•') || trimmed.startsWith('* ');
+                const content = isList ? trimmed.replace(/^[-•*]\s?/, '') : trimmed;
+
+                // Parse bold text: **text**
+                const parts = content.split(/(\*\*.*?\*\*)/g).map((part, j) => {
+                    if (part.startsWith('**') && part.endsWith('**')) {
+                        return <span key={j} className="font-bold text-white">{part.slice(2, -2)}</span>;
+                    }
+                    return part;
+                });
+
+                if (isList) {
+                    return (
+                        <div key={i} className="flex gap-2 ml-1">
+                            <div className="mt-2 w-1.5 h-1.5 rounded-full bg-scout-accent shrink-0"></div>
+                            <div className="text-gray-300 text-sm leading-relaxed">{parts}</div>
+                        </div>
+                    );
+                }
+
+                return <p key={i} className="text-gray-300 text-sm leading-relaxed">{parts}</p>;
+            })}
+        </div>
+    );
 };
 
 const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
@@ -313,7 +351,7 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
                         { title: "No pay-to-play", desc: "Players are represented, not sold without a clear pathway.", icon: <ShieldCheck size={20}/> },
                         { title: "Performance rewards", desc: "Clear commissions. Long-term builders earn more access.", icon: <TrendingUp size={20}/> },
                         { title: "Proof > Talk", desc: "Real clubs, licenses, teams, and programs create real evaluation.", icon: <CheckCircle2 size={20}/> },
-                        { title: "No one-sided deals", desc: "If it only benefits one side, it does not happen. Must be win/win.", icon: <Scale size={20}/> },
+                        { title: "Think win-win at all times", desc: "Every agreement must benefit all sides. If it only works for one party, it does not happen.", icon: <Scale size={20}/> },
                         { title: "Reputation unlocks access", desc: "Good work leads to better players and partners automatically.", icon: <Lock size={20}/> },
                         { title: "System + Local", desc: "Warubi builds the system, scouts run locally.", icon: <Map size={20}/> },
                     ].map((item, i) => (
@@ -360,6 +398,7 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
 
     // 4. ROI CALCULATOR (Interactive Tool)
     const ROICalculator = () => {
+        // ... (existing code) ...
         const setMode = (mode: 'custom' | 'averages') => {
             if (mode === 'averages') {
                 setRoiData({
@@ -582,6 +621,7 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
 
     // 4. LINK GENERATOR (Simple Tool View)
     const LinkGenerator = ({ toolId }: { toolId: string }) => {
+        // ... (existing code) ...
         const tool = WARUBI_TOOLS.find(t => t.id === toolId);
         if (!tool) return null;
 
@@ -629,7 +669,7 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
             
             {/* LEFT SIDE: Main Content Area */}
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-10">
-                
+                {/* ... (Existing Views: HOME, PATHWAY_DETAIL, REF_DETAIL, MODEL, TOOL) ... */}
                 {view === 'HOME' && (
                     <div className="space-y-8 animate-fade-in">
                         {/* Header */}
@@ -929,7 +969,7 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
                     <p className="text-xs text-gray-400">Expert on Pathways & Pricing.</p>
                 </div>
                 
-                <div className="flex-1 p-4 overflow-y-auto bg-scout-900/30 custom-scrollbar space-y-4">
+                <div className="flex-1 p-4 overflow-y-auto bg-scout-900/30 custom-scrollbar space-y-6">
                      {aiChatHistory.length === 0 && (
                          <div className="text-center py-8 text-gray-500">
                              <Lightbulb size={24} className="mx-auto mb-2 opacity-50"/>
@@ -940,13 +980,30 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
                      )}
                      
                      {aiChatHistory.map((msg, i) => (
-                         <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                             <div className={`max-w-[85%] p-3 rounded-xl text-sm ${msg.role === 'user' ? 'bg-scout-700 text-white rounded-tr-none' : 'bg-scout-800 text-gray-200 border border-scout-700 rounded-tl-none'}`}>
-                                 {msg.text}
+                         <div key={i} className={`flex flex-col animate-fade-in ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                             <div className={`max-w-[90%] p-3 rounded-xl text-sm shadow-sm ${
+                                 msg.role === 'user' 
+                                 ? 'bg-blue-600 text-white rounded-br-none' 
+                                 : 'bg-scout-700/50 text-gray-200 border border-scout-600/50 rounded-bl-none'
+                             }`}>
+                                 {msg.role === 'ai' ? (
+                                     <FormattedMessage text={msg.text} />
+                                 ) : (
+                                     msg.text
+                                 )}
                              </div>
+                             <span className="text-[10px] text-gray-600 mt-1 px-1">
+                                 {msg.role === 'user' ? 'You' : 'ScoutAI'}
+                             </span>
                          </div>
                      ))}
-                     {aiLoading && <Loader2 className="animate-spin text-scout-accent mx-auto" size={20} />}
+                     {aiLoading && (
+                         <div className="flex items-start gap-2 animate-fade-in">
+                             <div className="bg-scout-700/50 p-2 rounded-xl rounded-bl-none border border-scout-600/50">
+                                <Loader2 className="animate-spin text-scout-accent" size={16} />
+                             </div>
+                         </div>
+                     )}
                 </div>
 
                 <div className="p-3 bg-scout-800 border-t border-scout-700">
