@@ -15,7 +15,7 @@ export enum DashboardTab {
 }
 
 export enum PlayerStatus {
-  PROSPECT = 'Prospect', // Hidden state for Shadow Pipeline
+  PROSPECT = 'Prospect', // Shadow Pipeline / Sandbox
   LEAD = 'Lead',
   INTERESTED = 'Interested',
   FINAL_REVIEW = 'Final Review',
@@ -30,33 +30,32 @@ export interface StrategyTask {
   title: string;
   subtitle: string;
   actionLabel: string;
-  actionLink: string; // e.g. "TAB:OUTREACH:id"
+  actionLink: string;
   impactLevel: 'HIGH' | 'MEDIUM' | 'LOW';
   completed: boolean;
 }
 
 export interface UserProfile {
   name: string;
-  role: string;
+  roles: string[];
   region: string;
   affiliation?: string;
-  scoutPersona?: string; // e.g. "The Networker", "The Data Analyst", "The Field General"
-  weeklyTasks: string[]; // Legacy support
-  strategyTasks?: StrategyTask[]; // New Dynamic Engine
-  scoutId?: string; // Unique ID for tracking referrals
+  scoutPersona?: string;
+  weeklyTasks: string[];
+  strategyTasks?: StrategyTask[];
+  scoutId?: string;
   isAdmin?: boolean;
-  
-  // Extended Profile Fields (LinkedIn Style)
   bio?: string;
   experience?: { id: string; role: string; org: string; duration: string }[];
   certifications?: string[];
+  leadMagnetActive?: boolean;
 }
 
 export interface PlayerEvaluation {
-  score: number; // 0-100
+  score: number;
   collegeLevel: string;
   scholarshipTier: 'Tier 1' | 'Tier 2' | 'Tier 3';
-  recommendedPathways: string[]; // e.g., "College Pathway", "Development in Europe"
+  recommendedPathways: string[];
   strengths: string[];
   weaknesses: string[];
   nextAction: string;
@@ -76,57 +75,71 @@ export interface Player {
   name: string;
   age: number;
   position: string;
+  secondaryPosition?: string;
+  dominantFoot?: 'Left' | 'Right' | 'Both';
+  nationality?: string;
+  hasEuPassport?: boolean;
+  height?: string;
+  weight?: string;
+  // Performance Audit Traits
+  pace?: number;
+  physical?: number;
+  technical?: number;
+  tactical?: number;
+  coachable?: number;
   status: PlayerStatus;
-  
-  // Contact Info
   email?: string;
   phone?: string;
   parentEmail?: string;
-
-  interestedProgram?: string; // e.g. "UCLA"
-  placedLocation?: string;    // e.g. "Signed with FC Dallas"
+  parentPhone?: string;
+  parentName?: string;
+  gpa?: string;
+  gradYear?: string;
+  satAct?: string;
+  videoLink?: string;
+  club?: string;
+  teamLevel?: string;
+  interestedProgram?: string;
+  placedLocation?: string;
   evaluation: PlayerEvaluation | null;
   outreachLogs: OutreachLog[];
-  notes?: string; // Free-text notes
+  notes?: string;
   submittedAt: string;
-
-  // Smart Tracking Fields
-  lastActive?: string; // ISO Date string
-  activityStatus?: 'viewed' | 'submitted' | 'none';
+  lastActive?: string;
+  lastContactedAt?: string;
+  activityStatus?: 'signal' | 'spotlight' | 'spark' | 'undiscovered';
+  isRecalibrating?: boolean;
+  previousScore?: number;
 }
 
 export type EventStatus = 'Draft' | 'Pending Approval' | 'Approved' | 'Published' | 'Completed' | 'Rejected';
 
 export interface ScoutingEvent {
   id: string;
-  isMine: boolean; // True if hosting, False if attending/viewing (Legacy/Helper)
-  role?: 'HOST' | 'ATTENDEE'; // Explicit role
+  isMine: boolean;
+  role?: 'HOST' | 'ATTENDEE';
   status: EventStatus;
   title: string;
   date: string;
   location: string;
   type: 'ID Day' | 'Showcase' | 'Camp' | 'Tournament';
-  fee: string; // e.g. "$50" or "Free"
-  
-  // AI Generated Assets (Only for hosted events)
+  fee: string;
   marketingCopy?: string;
   agenda?: string[];
   checklist?: { task: string; completed: boolean }[];
-  
-  // Stats
   registeredCount: number;
-  hostName?: string; // For Admin view
+  hostName?: string;
 }
 
 export interface NewsItem {
     id: string;
-    type: string; // e.g., 'Transfer News'
+    type: string;
     title: string;
     summary: string;
     source: string;
     date: string;
-    linkUrl?: string; // External blog post link
-    categoryColor?: string; // CSS class for color
+    linkUrl?: string;
+    categoryColor?: string;
     borderColor?: string;
 }
 
@@ -137,7 +150,7 @@ export interface AppNotification {
   message: string;
   timestamp: string;
   read: boolean;
-  actionLink?: string; // e.g. "View Player"
+  actionLink?: string;
 }
 
 export interface KnowledgeItem {
@@ -151,7 +164,7 @@ export interface PathwayDef {
     id: string;
     title: string;
     shortDesc: string;
-    icon: any; // Lucide icon name or component
+    icon: any;
     color: string;
     idealProfile: string[];
     redFlags: string[];

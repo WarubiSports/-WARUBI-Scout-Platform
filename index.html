@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -9,13 +10,28 @@
       tailwind.config = {
         theme: {
           extend: {
+            fontFamily: {
+              mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', 'monospace'],
+            },
             colors: {
               scout: {
-                900: '#0f172a', // Slate 900
-                800: '#1e293b', // Slate 800
-                700: '#334155', // Slate 700
-                accent: '#10b981', // Emerald 500
-                highlight: '#fbbf24', // Amber 400
+                950: '#05080f', 
+                900: '#0f172a', 
+                800: '#1e293b', 
+                700: '#334155', 
+                accent: '#10b981', 
+                highlight: '#fbbf24', 
+                warning: '#ef4444', 
+              }
+            },
+            animation: {
+              'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'signal-glow': 'signal-glow 2s infinite',
+            },
+            keyframes: {
+              'signal-glow': {
+                '0%, 100%': { boxShadow: '0 0 5px rgba(16, 185, 129, 0.2)', borderColor: 'rgba(16, 185, 129, 0.3)' },
+                '50%': { boxShadow: '0 0 15px rgba(16, 185, 129, 0.6)', borderColor: 'rgba(16, 185, 129, 0.8)' },
               }
             }
           }
@@ -23,30 +39,80 @@
       }
     </script>
     <style>
-      /* HIGH CONTRAST LIGHT MODE OVERRIDES */
-      /* These rules force the dark-themed app to invert colors for bright sunlight visibility */
-      
       body.light-mode {
-          background-color: #ffffff !important;
-          color: #0f172a !important;
+          background-color: #f8fafc !important; 
+          color: #0f172a !important; 
       }
       
-      body.light-mode .bg-scout-900 { background-color: #ffffff !important; border-color: #e2e8f0 !important; }
-      body.light-mode .bg-scout-800 { background-color: #f1f5f9 !important; border-color: #cbd5e1 !important; }
-      body.light-mode .bg-scout-700 { background-color: #e2e8f0 !important; border-color: #cbd5e1 !important; }
+      body.light-mode aside {
+          background-color: #ffffff !important;
+          border-right-color: #e2e8f0 !important;
+      }
       
-      body.light-mode .border-scout-700 { border-color: #cbd5e1 !important; }
-      body.light-mode .border-scout-600 { border-color: #94a3b8 !important; }
+      body.light-mode aside .text-gray-500 {
+          color: #1e293b !important; 
+          font-weight: 800 !important;
+          letter-spacing: 0.05em;
+      }
+
+      body.light-mode aside button {
+          color: #475569 !important; 
+      }
       
-      /* Text Inversion */
+      body.light-mode aside button.bg-scout-700 {
+          background-color: #f1f5f9 !important; 
+          color: #0f172a !important;
+          font-weight: 700;
+      }
+
+      body.light-mode .bg-scout-900,
+      body.light-mode .bg-scout-900\/80,
+      body.light-mode .bg-scout-900\/50,
+      body.light-mode .bg-scout-800 {
+          background-color: #ffffff !important;
+          border-color: #e2e8f0 !important;
+          color: #1e293b !important;
+      }
+
+      body.light-mode .bg-scout-800\/30 {
+          background-color: #f1f5f9 !important; 
+          border-color: #e2e8f0 !important;
+      }
+
+      body.light-mode .bg-scout-900\/80 {
+          background-color: #ffffff !important;
+          box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important;
+      }
+
+      body.light-mode .bg-scout-800 {
+          background-color: #f8fafc !important;
+          color: #334155 !important;
+          border: 1px solid #e2e8f0 !important;
+      }
+
+      body.light-mode .bg-scout-800:hover {
+          background-color: #f1f5f9 !important;
+          border-color: #cbd5e1 !important;
+      }
+
       body.light-mode .text-white { color: #0f172a !important; }
-      body.light-mode .text-gray-100 { color: #1e293b !important; }
-      body.light-mode .text-gray-200 { color: #334155 !important; }
-      body.light-mode .text-gray-300 { color: #475569 !important; }
-      body.light-mode .text-gray-400 { color: #475569 !important; font-weight: 500; } /* Darker gray for contrast */
+      body.light-mode .text-slate-100 { color: #0f172a !important; }
+      body.light-mode .text-gray-100 { color: #0f172a !important; }
+      body.light-mode .text-gray-200 { color: #1e293b !important; }
+      body.light-mode .text-gray-300 { color: #334155 !important; }
+      body.light-mode .text-gray-400 { color: #475569 !important; }
       body.light-mode .text-gray-500 { color: #64748b !important; }
+      body.light-mode .text-gray-600 { color: #475569 !important; }
       
-      /* Inputs */
+      body.light-mode .text-scout-accent { color: #059669 !important; } 
+      body.light-mode .text-scout-highlight { color: #d97706 !important; } 
+      body.light-mode .text-blue-400 { color: #2563eb !important; }
+
+      body.light-mode .group-hover\:border-scout-500\/50:hover {
+          border-color: #059669 !important;
+          background-color: #ecfdf5 !important;
+      }
+
       body.light-mode input, 
       body.light-mode textarea, 
       body.light-mode select {
@@ -55,16 +121,39 @@
           border-color: #cbd5e1 !important;
       }
 
-      /* Simplify Gradients for High Contrast (Flat look is better in sun) */
       body.light-mode .bg-gradient-to-r, 
       body.light-mode .bg-gradient-to-br,
       body.light-mode .bg-gradient-to-b {
           background-image: none !important;
-          background-color: #f8fafc !important; /* Fallback flat color */
+          background-color: #ffffff !important;
+      }
+
+      body.light-mode .bg-scout-accent {
+          background-color: #10b981 !important;
+          color: #ffffff !important;
       }
       
-      /* Enhance Shadows in Light Mode for depth */
-      body.light-mode .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important; }
+      body.light-mode .shadow-lg {
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+      }
+
+      body.light-mode .from-scout-800.to-scout-900 {
+          background-color: #ffffff !important;
+          border-color: #e2e8f0 !important;
+      }
+
+      @keyframes marquee {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+      }
+      .animate-marquee {
+        animation: marquee 40s linear infinite;
+      }
+
+      /* Custom Pulse for the "Signal detected" state */
+      .signal-pulse {
+        animation: signal-glow 2s infinite ease-in-out;
+      }
     </style>
   <script type="importmap">
 {
@@ -78,7 +167,7 @@
 }
 </script>
 </head>
-  <body class="bg-scout-900 text-slate-100 antialiased selection:bg-scout-accent selection:text-white">
+  <body class="bg-scout-950 text-slate-100 antialiased selection:bg-scout-accent selection:text-white">
     <div id="root"></div>
   </body>
 </html>

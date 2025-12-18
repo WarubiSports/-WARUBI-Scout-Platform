@@ -27,11 +27,12 @@ interface AdminDashboardProps {
 }
 
 // EXTENDED MOCK DATA FOR SCOUTS
+// Fix: Changed 'role' to 'roles' to match UserProfile interface
 const INITIAL_MOCK_SCOUTS: (UserProfile & { id: string, leads: number, conversion: string, status: string })[] = [
     { 
         id: 'scout-1', 
         name: 'Alex Scout', 
-        role: 'Head Coach', 
+        roles: ['Head Coach'], 
         region: 'California', 
         leads: 42, 
         conversion: '12%', 
@@ -42,7 +43,7 @@ const INITIAL_MOCK_SCOUTS: (UserProfile & { id: string, leads: number, conversio
     { 
         id: 'scout-2', 
         name: 'Sarah Jenkins', 
-        role: 'Independent', 
+        roles: ['Independent'], 
         region: 'New York', 
         leads: 28, 
         conversion: '15%', 
@@ -53,7 +54,7 @@ const INITIAL_MOCK_SCOUTS: (UserProfile & { id: string, leads: number, conversio
     { 
         id: 'scout-3', 
         name: 'David Mueller', 
-        role: 'Agent', 
+        roles: ['Agent'], 
         region: 'Berlin', 
         leads: 15, 
         conversion: '22%', 
@@ -64,7 +65,7 @@ const INITIAL_MOCK_SCOUTS: (UserProfile & { id: string, leads: number, conversio
     { 
         id: 'scout-4', 
         name: 'James O.', 
-        role: 'Academy Director', 
+        roles: ['Academy Director'], 
         region: 'Lagos', 
         leads: 60, 
         conversion: '8%', 
@@ -677,8 +678,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                     <label className="block text-xs font-bold text-gray-500 mb-1">Role / Title</label>
                                     <input 
                                         className="w-full border border-gray-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        value={scoutFormData.role}
-                                        onChange={e => setScoutFormData({...scoutFormData!, role: e.target.value})}
+                                        // Fix: Using roles[0] as a placeholder for editing the primary role
+                                        value={scoutFormData.roles[0] || ''}
+                                        onChange={e => setScoutFormData({...scoutFormData!, roles: [e.target.value]})}
                                     />
                                 </div>
                                 <div>
@@ -903,7 +905,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                             {scout.name.charAt(0)}
                                         </div>
                                         <h3 className="font-bold text-gray-900">{scout.name}</h3>
-                                        <p className="text-xs text-gray-500 mb-4">{scout.role} • {scout.region}</p>
+                                        <p className="text-xs text-gray-500 mb-4">{scout.roles.join(', ')} • {scout.region}</p>
                                         
                                         <div className="flex justify-center gap-4 w-full mb-4 border-t border-b border-gray-50 py-3">
                                             <div>
@@ -959,7 +961,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                                                     <BadgeCheck size={14} className="text-blue-500 fill-blue-50" />
                                                                 )}
                                                             </div>
-                                                            <div className="text-xs text-gray-500">{scout.role}</div>
+                                                            <div className="text-xs text-gray-500">{scout.roles.join(', ')}</div>
                                                         </div>
                                                     </div>
                                                 </td>

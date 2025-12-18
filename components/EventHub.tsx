@@ -5,7 +5,7 @@ import {
   Calendar, MapPin, Sparkles, Plus, Copy, CheckCircle, 
   Share2, Users, FileText, CheckSquare, Loader2, ArrowRight,
   ClipboardList, X, ShieldCheck, Lock, Eye,
-  HelpCircle, Check, QrCode, ChevronRight, Navigation, History, CalendarPlus, Ticket
+  HelpCircle, Check, QrCode, ChevronRight, Navigation, History, CalendarPlus, Ticket, Clock, Camera
 } from 'lucide-react';
 
 interface EventHubProps {
@@ -13,6 +13,7 @@ interface EventHubProps {
   user: UserProfile;
   onAddEvent: (event: ScoutingEvent) => void;
   onUpdateEvent: (event: ScoutingEvent) => void;
+  onScanRoster?: (event: ScoutingEvent) => void;
 }
 
 // Mock Data for "Inspiration" / Overview
@@ -67,7 +68,7 @@ const StatusPill = ({ status }: { status: EventStatus }) => {
         'Rejected': 'bg-red-500/20 text-red-400 border-red-500/50',
     };
     return (
-        <span className={`px-2 py-1 rounded text-[10px] uppercase font-bold tracking-wider border ${styles[status] || styles['Draft']}`}>
+        <span className={`px-2 py-0.5 rounded text-[9px] uppercase font-bold tracking-wider border ${styles[status] || styles['Draft']}`}>
             {status}
         </span>
     );
@@ -148,40 +149,68 @@ const HostGuideModal = ({ onClose }: { onClose: () => void }) => (
     </div>
 );
 
-const EventCard: React.FC<{ event: ScoutingEvent; onClick: (e: ScoutingEvent) => void }> = ({ event, onClick }) => {
+// --- NEW COMPONENT: SCOUT LEDGER ROW ---
+const EventRow: React.FC<{ event: ScoutingEvent; isOpportunity?: boolean; isAdded?: boolean; onClick: (e: ScoutingEvent) => void; onAdd?: (e: ScoutingEvent) => void; onScan?: (e: ScoutingEvent) => void }> = ({ event, isOpportunity, isAdded, onClick, onAdd, onScan }) => {
     const isHost = event.role === 'HOST' || event.isMine;
-
+    const dateObj = new Date(event.date);
+    
     return (
         <div 
             onClick={() => onClick(event)}
-            className={`rounded-xl p-5 border transition-all shadow-lg cursor-pointer group relative overflow-hidden flex flex-col justify-between h-full
-            ${isHost 
-                ? 'bg-gradient-to-br from-scout-800 to-[#1a2c38] border-scout-accent/60 hover:border-scout-accent hover:shadow-scout-accent/20' 
-                : 'bg-scout-800 border-scout-700 hover:border-blue-500 hover:shadow-blue-500/10'}`}
+            className="group flex items-center bg-scout-800 hover:bg-scout-700/50 border border-scout-700 rounded-lg overflow-hidden transition-all cursor-pointer shadow-sm mb-2"
         >
-            <div>
-                <div className="flex justify-between items-start mb-4">
-                    <StatusPill status={event.status} />
-                    {isHost ? (
-                        <span className="text-[10px] font-bold bg-scout-accent/10 text-scout-accent px-2 py-1 rounded border border-scout-accent/20 uppercase tracking-wider">Host</span>
-                    ) : (
-                        <span className="text-[10px] font-bold bg-gray-700 text-gray-300 px-2 py-1 rounded border border-gray-600 uppercase tracking-wider">Going</span>
-                    )}
-                </div>
-                
-                <h3 className="text-xl font-bold text-white mb-1 line-clamp-2 leading-tight group-hover:text-scout-highlight transition-colors">{event.title}</h3>
-                <p className="text-xs text-gray-400 mb-4 flex items-center gap-1">
-                    <MapPin size={12}/> {event.location}
-                </p>
+            {/* Left Status Bar */}
+            <div className={`w-1.5 self-stretch ${isHost ? 'bg-emerald-500' : (isAdded || !isOpportunity) ? 'bg-blue-500' : 'bg-gray-600'}`}></div>
+
+            {/* Date Block */}
+            <div className="flex flex-col items-center justify-center px-4 py-2 min-w-[70px] border-r border-scout-700/50">
+                <span className="text-[10px] font-black uppercase tracking-tighter text-gray-500">{dateObj.toLocaleString('default', { month: 'short' })}</span>
+                <span className="text-xl font-black text-white leading-none">{dateObj.getDate() + 1}</span>
             </div>
 
-            <div className="flex items-center justify-between text-sm pt-4 border-t border-white/5">
-                <span className="flex items-center gap-2 text-gray-300 font-medium">
-                    <Calendar size={14} className="text-gray-500" /> {new Date(event.date).toLocaleDateString()}
-                </span>
-                <div className="w-8 h-8 rounded-full bg-black/20 flex items-center justify-center group-hover:bg-scout-accent group-hover:text-scout-900 transition-colors">
-                    <ArrowRight size={14} />
+            {/* Event Info */}
+            <div className="flex-1 px-4 py-2 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                    <h3 className="text-sm font-bold text-white truncate group-hover:text-scout-accent transition-colors">{event.title}</h3>
+                    <StatusPill status={event.status} />
                 </div>
+                <div className="flex items-center gap-3 text-[11px] text-gray-400">
+                    <span className="flex items-center gap-1"><MapPin size={10} className="text-gray-600"/> {event.location}</span>
+                    <span className="hidden md:flex items-center gap-1"><Ticket size={10} className="text-gray-600"/> {event.type}</span>
+                </div>
+            </div>
+
+            {/* Proximity Actions */}
+            <div className="px-4 py-2 shrink-0 flex items-center gap-2">
+                {!isOpportunity && isAdded && onScan && (
+                     <button 
+                        onClick={(e) => { e.stopPropagation(); onScan(event); }}
+                        className="p-2 bg-scout-900 border border-scout-700 rounded-full text-scout-highlight hover:text-white hover:border-scout-highlight/50 transition-all shadow-sm active:scale-90"
+                        title="Scan Paper Roster"
+                     >
+                        <Camera size={16} />
+                     </button>
+                )}
+
+                {isOpportunity ? (
+                    isAdded ? (
+                        <div className="flex items-center gap-1.5 text-emerald-400 text-xs font-bold bg-emerald-900/20 px-3 py-1.5 rounded-full border border-emerald-500/20">
+                            <CheckCircle size={14}/> Scheduled
+                        </div>
+                    ) : (
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onAdd && onAdd(event); }}
+                            className="bg-scout-accent hover:bg-emerald-600 text-scout-900 font-bold text-xs px-4 py-1.5 rounded-full shadow-lg active:scale-95 transition-all flex items-center gap-1"
+                        >
+                            <Plus size={14} /> Add to Schedule
+                        </button>
+                    )
+                ) : (
+                    <div className="flex items-center gap-2 text-gray-500 group-hover:text-white transition-colors">
+                        <span className="text-[10px] font-bold uppercase hidden md:inline">View Details</span>
+                        <ChevronRight size={16} />
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -297,144 +326,6 @@ const CreateEventForm = ({ formData, setFormData, loading, handleCreate, onCance
     </div>
 );
 
-const MobileEventList = ({ activeTab, setActiveTab, nextEvent, upcomingEvents, pastEvents, events, onEventClick, onInitiateAttendance, onCreateClick }: any) => (
-    <div className="flex flex-col h-full">
-        <div className="flex border-b border-scout-700 bg-scout-900 sticky top-0 z-10">
-            <button 
-                onClick={() => setActiveTab('schedule')}
-                className={`flex-1 py-3 text-sm font-bold text-center border-b-2 ${activeTab === 'schedule' ? 'text-scout-accent border-scout-accent' : 'text-gray-400 border-transparent'}`}
-            >
-                My Schedule
-            </button>
-            <button 
-                onClick={() => setActiveTab('discover')}
-                className={`flex-1 py-3 text-sm font-bold text-center border-b-2 ${activeTab === 'discover' ? 'text-scout-accent border-scout-accent' : 'text-gray-400 border-transparent'}`}
-            >
-                Discover
-            </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar pb-24">
-            {activeTab === 'schedule' ? (
-                <div className="space-y-4">
-                    {nextEvent ? (
-                        <div 
-                            onClick={() => onEventClick(nextEvent)}
-                            className="bg-gradient-to-br from-scout-800 to-scout-900 border border-scout-accent/50 rounded-xl p-5 shadow-lg relative overflow-hidden group active:scale-[0.98] transition-transform"
-                        >
-                            <div className="absolute top-0 right-0 p-3">
-                                <span className="text-[10px] font-bold bg-scout-accent text-scout-900 px-2 py-1 rounded uppercase tracking-wider">Next Up</span>
-                            </div>
-                            <div className="mb-4">
-                                <span className="text-xs text-scout-accent font-bold uppercase tracking-wider mb-1 block">
-                                    {new Date(nextEvent.date).toLocaleDateString(undefined, { weekday: 'long' })}
-                                </span>
-                                <h3 className="text-2xl font-black text-white leading-tight">{nextEvent.title}</h3>
-                            </div>
-                            <div className="flex items-center gap-4 text-sm text-gray-300">
-                                <div className="flex items-center gap-1.5"><Calendar size={14}/> {new Date(nextEvent.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</div>
-                                <div className="flex items-center gap-1.5"><MapPin size={14}/> {nextEvent.location}</div>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="text-center py-8 text-gray-500 bg-scout-800/30 rounded-xl border border-dashed border-scout-700">
-                            <Calendar size={32} className="mx-auto mb-2 opacity-50"/>
-                            <p className="text-sm">No upcoming events.</p>
-                        </div>
-                    )}
-
-                    {upcomingEvents.length > 1 && (
-                        <>
-                            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-6 mb-2">Future Events</h4>
-                            <div className="space-y-2">
-                                {upcomingEvents.slice(1).map((evt: ScoutingEvent) => (
-                                    <div 
-                                        key={evt.id}
-                                        onClick={() => onEventClick(evt)}
-                                        className="bg-scout-800 border border-scout-700 rounded-lg p-3 flex items-center gap-4 active:bg-scout-700 transition-colors"
-                                    >
-                                        <div className="bg-scout-900 border border-scout-700 rounded p-2 text-center min-w-[50px]">
-                                            <div className="text-[10px] text-gray-400 uppercase font-bold">{new Date(evt.date).toLocaleString('default', { month: 'short' })}</div>
-                                            <div className="text-lg font-bold text-white leading-none">{new Date(evt.date).getDate() + 1}</div>
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="text-sm font-bold text-white truncate">{evt.title}</h4>
-                                            <p className="text-xs text-gray-400 truncate">{evt.location}</p>
-                                        </div>
-                                        <ChevronRight size={16} className="text-gray-600" />
-                                    </div>
-                                ))}
-                            </div>
-                        </>
-                    )}
-
-                    {pastEvents.length > 0 && (
-                        <>
-                            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mt-8 mb-2 flex items-center gap-2">
-                                <History size={12} /> Past Events
-                            </h4>
-                            <div className="space-y-2 opacity-75">
-                                {pastEvents.map((evt: ScoutingEvent) => (
-                                    <div 
-                                        key={evt.id}
-                                        onClick={() => onEventClick(evt)}
-                                        className="bg-scout-900 border border-scout-800 rounded-lg p-3 flex items-center gap-4 active:bg-scout-800 transition-colors"
-                                    >
-                                        <div className="bg-scout-800 border border-scout-700 rounded p-2 text-center min-w-[50px] grayscale">
-                                            <div className="text-[10px] text-gray-500 uppercase font-bold">{new Date(evt.date).toLocaleString('default', { month: 'short' })}</div>
-                                            <div className="text-lg font-bold text-gray-400 leading-none">{new Date(evt.date).getDate() + 1}</div>
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="text-sm font-bold text-gray-300 truncate">{evt.title}</h4>
-                                            <p className="text-xs text-gray-500 truncate">{evt.location}</p>
-                                        </div>
-                                        {evt.role === 'HOST' || evt.isMine ? (
-                                             <span className="text-[9px] border border-scout-700 text-gray-500 px-1.5 py-0.5 rounded">Hosted</span>
-                                        ) : (
-                                             <span className="text-[9px] border border-scout-700 text-gray-600 px-1.5 py-0.5 rounded">Attended</span>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </>
-                    )}
-                </div>
-            ) : (
-                <div className="space-y-4">
-                    {MOCK_OPPORTUNITIES.map(evt => {
-                        const isAdded = events.some((e: any) => e.id === evt.id || (e.title === evt.title && e.date === evt.date));
-                        return (
-                            <div key={evt.id} className="bg-scout-800 border border-scout-700 rounded-xl p-4 relative">
-                                <h4 className="text-sm font-bold text-white mb-1">{evt.title}</h4>
-                                <p className="text-xs text-gray-400 mb-3">{evt.location} • {evt.date}</p>
-                                {isAdded ? (
-                                    <div className="flex items-center gap-2 text-green-400 text-xs font-bold bg-green-900/20 px-2 py-1 rounded w-fit">
-                                        <CheckCircle size={12}/> Added
-                                    </div>
-                                ) : (
-                                    <button 
-                                        onClick={() => onInitiateAttendance(evt)}
-                                        className="w-full py-2 bg-scout-700 text-white text-xs font-bold rounded hover:bg-scout-600"
-                                    >
-                                        Add to Schedule
-                                    </button>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
-        </div>
-        
-        <button 
-            onClick={onCreateClick}
-            className="absolute bottom-6 right-6 w-14 h-14 bg-scout-accent rounded-full flex items-center justify-center text-scout-900 shadow-xl border-4 border-scout-900 active:scale-90 transition-transform"
-        >
-            <CalendarPlus size={28} />
-        </button>
-    </div>
-);
-
 const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateAttendance, copyToClipboard, copied, onSubmitForApproval, onSimulateHQApproval, onPublishEvent }: any) => {
     const isMine = event.role === 'HOST' || event.isMine;
     const isAttending = isMine || events.some((e: any) => e.id === event.id || (e.title === event.title && e.date === event.date));
@@ -452,7 +343,7 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
           <div className="h-full flex flex-col animate-fade-in">
               <div className="flex items-center gap-2 mb-4">
                   <button onClick={onClose} className="text-gray-400 hover:text-white flex items-center gap-1 text-sm">
-                      <X size={16} /> Back to Overview
+                      <ArrowRight size={16} className="rotate-180" /> Back to Schedule
                   </button>
                   <span className="text-gray-600">/</span>
                   <span className="text-gray-300 font-medium">{event.title}</span>
@@ -632,7 +523,7 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
         <div className="h-full flex flex-col bg-scout-900">
             <div className="p-4 border-b border-scout-700 flex items-center gap-3">
                 <button onClick={onClose} className="text-gray-400 hover:text-white">
-                    <X size={24} />
+                    <ArrowRight size={24} className="rotate-180" />
                 </button>
                 <h2 className="text-lg font-bold text-white flex-1 truncate">{event.title}</h2>
                 <StatusPill status={event.status} />
@@ -724,7 +615,7 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
 
 // --- MAIN COMPONENT ---
 
-const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateEvent }) => {
+const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateEvent, onScanRoster }) => {
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
   const [mobileTab, setMobileTab] = useState<'schedule' | 'discover'>('schedule');
   const [selectedEvent, setSelectedEvent] = useState<ScoutingEvent | null>(null);
@@ -750,11 +641,19 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
     isHosting: false 
   });
 
-  // Sort events by date
+  // Date Logic for Grouping
+  const now = new Date();
+  const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  
   const sortedEvents = [...events].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  const upcomingEvents = sortedEvents.filter(e => new Date(e.date) >= new Date(new Date().setHours(0,0,0,0)));
-  const pastEvents = sortedEvents.filter(e => new Date(e.date) < new Date(new Date().setHours(0,0,0,0))).reverse();
-  const nextEvent = upcomingEvents.length > 0 ? upcomingEvents[0] : null;
+  
+  const thisWeekEvents = sortedEvents.filter(e => {
+      const d = new Date(e.date);
+      return d >= now && d <= nextWeek;
+  });
+
+  const futureEvents = sortedEvents.filter(e => new Date(e.date) > nextWeek);
+  const pastEvents = sortedEvents.filter(e => new Date(e.date) < now).reverse();
 
   const handleCreate = async () => {
     if (!formData.title || !formData.date || !formData.location) return;
@@ -784,20 +683,13 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
             onAddEvent(finalEvent);
             setSelectedEvent(finalEvent);
         } else {
-            // For attending, inject standard scout SOP checklist
             const attendeeEvent: ScoutingEvent = {
                 ...baseEvent,
                 marketingCopy: `Personal scouting mission for ${formData.title}. Goal: Identify top talent and build relationships with coaches.`,
-                agenda: [
-                    "Arrival & Check-in",
-                    "Match Observation",
-                    "Coach Networking",
-                    "Post-Match Assessment"
-                ],
+                agenda: ["Arrival", "Match Observation", "Coach Networking", "Assessment"],
                 checklist: [
-                    { task: "Get the Roster (Jersey #s & Contacts)", completed: false },
-                    { task: "Prepare Warubi QR Code", completed: false },
-                    { task: "Talk to Coaches: Identify Top 3 players", completed: false }
+                    { task: "Get the Roster", completed: false },
+                    { task: "Prepare Warubi QR Code", completed: false }
                 ]
             };
             onAddEvent(attendeeEvent);
@@ -849,11 +741,10 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
       setTimeout(() => setCopied(''), 2000);
   };
 
-  // Actions for Detail View
   const submitForApproval = (event: ScoutingEvent) => {
       const updated = { ...event, status: 'Pending Approval' as EventStatus };
       onUpdateEvent(updated);
-      setSelectedEvent(updated); // Update local state to reflect change immediately
+      setSelectedEvent(updated);
   };
 
   const simulateHQApproval = (event: ScoutingEvent) => {
@@ -879,71 +770,36 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
             />
         )}
 
-        {isMobile ? (
-            view === 'create' ? (
-                <CreateEventForm 
-                    formData={formData}
-                    setFormData={setFormData}
-                    loading={loading}
-                    handleCreate={handleCreate}
-                    onCancel={() => setView('list')}
-                />
-            ) : view === 'detail' && selectedEvent ? (
-                <DetailView 
-                    event={selectedEvent}
-                    events={events}
-                    isMobile={true}
-                    onClose={() => setView('list')}
-                    onUpdateEvent={onUpdateEvent}
-                    initiateAttendance={initiateAttendance}
-                    copyToClipboard={copyToClipboard}
-                    copied={copied}
-                    onSubmitForApproval={submitForApproval}
-                    onSimulateHQApproval={simulateHQApproval}
-                    onPublishEvent={publishEvent}
-                />
-            ) : (
-                <MobileEventList 
-                    activeTab={mobileTab}
-                    setActiveTab={setMobileTab}
-                    nextEvent={nextEvent}
-                    upcomingEvents={upcomingEvents}
-                    pastEvents={pastEvents}
-                    events={events}
-                    onEventClick={(evt: ScoutingEvent) => { setSelectedEvent(evt); setView('detail'); }}
-                    onInitiateAttendance={initiateAttendance}
-                    onCreateClick={() => setView('create')}
-                />
-            )
+        {view === 'create' ? (
+            <CreateEventForm 
+                formData={formData}
+                setFormData={setFormData}
+                loading={loading}
+                handleCreate={handleCreate}
+                onCancel={() => setView('list')}
+            />
+        ) : view === 'detail' && selectedEvent ? (
+            <DetailView 
+                event={selectedEvent}
+                events={events}
+                isMobile={isMobile}
+                onClose={() => setView('list')}
+                onUpdateEvent={onUpdateEvent}
+                initiateAttendance={initiateAttendance}
+                copyToClipboard={copyToClipboard}
+                copied={copied}
+                onSubmitForApproval={submitForApproval}
+                onSimulateHQApproval={simulateHQApproval}
+                onPublishEvent={publishEvent}
+            />
         ) : (
-            view === 'create' ? (
-                <CreateEventForm 
-                    formData={formData}
-                    setFormData={setFormData}
-                    loading={loading}
-                    handleCreate={handleCreate}
-                    onCancel={() => setView('list')}
-                />
-            ) : view === 'detail' && selectedEvent ? (
-                <DetailView 
-                    event={selectedEvent}
-                    events={events}
-                    isMobile={false}
-                    onClose={() => setView('list')}
-                    onUpdateEvent={onUpdateEvent}
-                    initiateAttendance={initiateAttendance}
-                    copyToClipboard={copyToClipboard}
-                    copied={copied}
-                    onSubmitForApproval={submitForApproval}
-                    onSimulateHQApproval={simulateHQApproval}
-                    onPublishEvent={publishEvent}
-                />
-            ) : (
-                <div className="h-full flex flex-col animate-fade-in">
+            <div className="h-full flex flex-col animate-fade-in">
+                {/* Simplified Desktop Header */}
+                {!isMobile && (
                     <div className="flex justify-between items-end mb-6">
                         <div>
-                            <h2 className="text-3xl font-bold text-white">Scouting Calendar</h2>
-                            <p className="text-gray-400 mt-1">Manage your schedule and hosted events.</p>
+                            <h2 className="text-3xl font-black text-white tracking-tight uppercase">Scout Ledger</h2>
+                            <p className="text-gray-400 mt-1">Direct access to your scheduled and upcoming events.</p>
                         </div>
                         <div className="flex gap-3">
                             <button 
@@ -960,44 +816,121 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
                             </button>
                         </div>
                     </div>
+                )}
 
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto pb-8 custom-scrollbar flex-1">
-                        {/* Upcoming */}
-                        {upcomingEvents.map(evt => (
-                            <EventCard key={evt.id} event={evt} onClick={() => { setSelectedEvent(evt); setView('detail'); }} />
-                        ))}
-                        
-                        {/* Mock Opportunities */}
-                        {MOCK_OPPORTUNITIES.filter(m => !events.some(e => e.id === m.id || (e.title === m.title && e.date === m.date))).map(evt => (
-                             <div key={evt.id} className="rounded-xl p-5 border border-scout-700 bg-scout-900/50 hover:bg-scout-800 transition-all flex flex-col justify-between h-full opacity-80 hover:opacity-100">
-                                 <div>
-                                     <div className="flex justify-between items-start mb-3">
-                                         <span className="text-[10px] font-bold bg-blue-900/30 text-blue-400 px-2 py-1 rounded border border-blue-500/30 uppercase tracking-wider">Opportunity</span>
-                                     </div>
-                                     <h3 className="text-lg font-bold text-white mb-1">{evt.title}</h3>
-                                     <p className="text-xs text-gray-400 mb-4">{evt.location} • {evt.date}</p>
-                                 </div>
-                                 <button 
-                                     onClick={() => initiateAttendance(evt)}
-                                     className="w-full py-2 bg-scout-800 hover:bg-scout-700 text-gray-300 hover:text-white text-xs font-bold rounded border border-scout-600 transition-colors"
-                                 >
-                                     Add to Schedule
-                                 </button>
-                             </div>
-                        ))}
-
-                        {/* Past Events */}
-                        {pastEvents.length > 0 && (
-                            <div className="col-span-full mt-8 pt-8 border-t border-scout-800">
-                                <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Past Events</h4>
-                                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-60">
-                                    {pastEvents.map(evt => <EventCard key={evt.id} event={evt} onClick={() => { setSelectedEvent(evt); setView('detail'); }} />)}
-                                </div>
-                            </div>
-                        )}
+                {/* Mobile Tab Toggle */}
+                {isMobile && (
+                    <div className="flex border-b border-scout-700 bg-scout-900 sticky top-0 z-20">
+                        <button onClick={() => setMobileTab('schedule')} className={`flex-1 py-4 text-xs font-black uppercase tracking-widest ${mobileTab === 'schedule' ? 'text-scout-accent border-b-2 border-scout-accent' : 'text-gray-500'}`}>My Schedule</button>
+                        <button onClick={() => setMobileTab('discover')} className={`flex-1 py-4 text-xs font-black uppercase tracking-widest ${mobileTab === 'discover' ? 'text-scout-accent border-b-2 border-scout-accent' : 'text-gray-500'}`}>Opportunities</button>
                     </div>
+                )}
+
+                <div className="flex-1 overflow-y-auto custom-scrollbar pb-24 md:pb-8">
+                    
+                    {/* SCHEDULE VIEW */}
+                    {(mobileTab === 'schedule' || !isMobile) && (
+                        <div className="space-y-8">
+                            {/* THIS WEEK */}
+                            {thisWeekEvents.length > 0 && (
+                                <div>
+                                    <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                                        <Clock size={12} className="text-scout-accent"/> This Week
+                                    </h4>
+                                    {thisWeekEvents.map(evt => (
+                                        <EventRow 
+                                            key={evt.id} 
+                                            event={evt} 
+                                            isAdded={true}
+                                            onClick={(e) => { setSelectedEvent(e); setView('detail'); }} 
+                                            onScan={onScanRoster}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* FUTURE */}
+                            {futureEvents.length > 0 && (
+                                <div>
+                                    <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                                        <Calendar size={12}/> Coming Up
+                                    </h4>
+                                    {futureEvents.map(evt => (
+                                        <EventRow 
+                                            key={evt.id} 
+                                            event={evt} 
+                                            isAdded={true}
+                                            onClick={(e) => { setSelectedEvent(e); setView('detail'); }} 
+                                            onScan={onScanRoster}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* EMPTY STATE */}
+                            {thisWeekEvents.length === 0 && futureEvents.length === 0 && (
+                                <div className="text-center py-20 bg-scout-800/30 rounded-xl border border-dashed border-scout-700">
+                                    <Calendar size={48} className="mx-auto mb-4 text-gray-700" />
+                                    <h3 className="text-lg font-bold text-gray-400">Schedule is empty</h3>
+                                    <p className="text-sm text-gray-600 mb-6">Find an event to attend or host your own.</p>
+                                    <button onClick={() => setView('create')} className="bg-scout-700 hover:bg-scout-600 text-white px-6 py-2 rounded-lg font-bold transition-all">Add Event</button>
+                                </div>
+                            )}
+
+                            {/* PAST */}
+                            {pastEvents.length > 0 && (
+                                <div className="opacity-60 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
+                                    <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                                        <History size={12}/> Past Events
+                                    </h4>
+                                    {pastEvents.map(evt => (
+                                        <EventRow 
+                                            key={evt.id} 
+                                            event={evt} 
+                                            isAdded={true}
+                                            onClick={(e) => { setSelectedEvent(e); setView('detail'); }} 
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* OPPORTUNITIES / DISCOVER (ALWAYS VISIBLE ON DESKTOP RIGHT OR VIA MOBILE TAB) */}
+                    {(mobileTab === 'discover' || !isMobile) && (
+                        <div className={!isMobile ? "mt-12 pt-12 border-t border-scout-800" : ""}>
+                            <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                                <Sparkles size={12} className="text-scout-highlight"/> Opportunities to Scout
+                            </h4>
+                            <div className="space-y-2">
+                                {MOCK_OPPORTUNITIES.map(evt => {
+                                    const isAdded = events.some(e => e.id === evt.id || (e.title === evt.title && e.date === evt.date));
+                                    return (
+                                        <EventRow 
+                                            key={evt.id} 
+                                            event={evt} 
+                                            isOpportunity={true} 
+                                            isAdded={isAdded}
+                                            onClick={(e) => { setSelectedEvent(e); setView('detail'); }}
+                                            onAdd={initiateAttendance}
+                                        />
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </div>
-            )
+                
+                {/* Mobile FAB */}
+                {isMobile && (
+                    <button 
+                        onClick={() => setView('create')}
+                        className="fixed bottom-24 right-6 w-14 h-14 bg-scout-accent rounded-full flex items-center justify-center text-scout-900 shadow-2xl border-4 border-scout-900 active:scale-90 transition-transform z-30"
+                    >
+                        <CalendarPlus size={28} />
+                    </button>
+                )}
+            </div>
         )}
     </div>
   );

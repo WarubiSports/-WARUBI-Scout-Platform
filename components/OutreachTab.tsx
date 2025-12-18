@@ -1,7 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Player, UserProfile, OutreachLog, PlayerStatus, AppNotification } from '../types';
-import { Search, Mail, Sparkles, Copy, CheckCircle, MessageCircle, Send, Link, History, Clock, Upload, Loader2, FlaskConical, AlertCircle, X, Trash2, Smartphone, MousePointer, ExternalLink, Zap, EyeOff, HelpCircle, ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
-import { generateOutreachMessage, extractPlayersFromBulkData } from '../services/geminiService';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { Player, UserProfile, OutreachLog, PlayerStatus } from '../types';
+import { 
+    Search, Sparkles, Copy, CheckCircle, MessageCircle, Send, Link, 
+    Clock, Upload, Loader2, X, Trash2, Smartphone, 
+    MousePointer, Zap, ArrowRight, Check, Flame, Ghost, HelpCircle, 
+    ChevronDown, LayoutList, Plus, TrendingUp, Info, Trophy, FileText, Camera,
+    RotateCcw, Users, Globe, FileUp, Clipboard
+} from 'lucide-react';
+import { generateOutreachMessage, extractPlayersFromBulkData, extractRosterFromPhoto } from '../services/geminiService';
 
 interface OutreachTabProps {
   players: Player[];
@@ -9,645 +16,532 @@ interface OutreachTabProps {
   initialPlayerId?: string | null;
   onMessageSent: (id: string, log: Omit<OutreachLog, 'id'>) => void;
   onAddPlayers: (players: Player[]) => void;
-  onPlayerAction?: (id: string, action: 'viewed' | 'submitted') => void;
-  onAddNotification?: (notification: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) => void;
+  onStatusChange?: (id: string, newStatus: PlayerStatus) => void;
 }
 
-const TEMPLATES = [
-  { id: 'first_contact', title: 'First Contact', desc: 'Initial intro after seeing them play' },
-  { id: 'invite_id_day', title: 'Invite to ID Day', desc: 'Formal invitation to a showcase' },
-  { id: 'request_video', title: 'Request Video', desc: 'Ask for highlights/full match' },
-  { id: 'follow_up', title: 'Polite Follow-up', desc: 'Checking in after no response' },
-  { id: 'rejection', title: 'Professional Decline', desc: 'Respectful "not right now"' },
+const INTENTS = [
+  { id: 'first_spark', title: 'First Spark', desc: 'Initial contact + Assessment Link', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' },
+  { id: 'invite_id', title: 'Invite to ID', desc: 'Formal invitation to event', color: 'bg-blue-500/10 text-blue-400 border-blue-500/30' },
+  { id: 'request_video', title: 'Request Video', desc: 'Ask for highlight footage', color: 'bg-purple-500/10 text-purple-400 border-purple-500/30' },
+  { id: 'follow_up', title: 'Follow-up', desc: 'Second spark after no signal', color: 'bg-amber-500/10 text-amber-400 border-amber-500/30' },
 ];
 
-const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerId, onMessageSent, onAddPlayers, onPlayerAction, onAddNotification }) => {
+const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerId, onMessageSent, onAddPlayers, onStatusChange }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(initialPlayerId || null);
-  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
-  const [generatedMessage, setGeneratedMessage] = useState('');
+  const [draftedMessage, setDraftedMessage] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showGuide, setShowGuide] = useState(true);
+  const [includeSmartLink, setIncludeSmartLink] = useState(true);
+  const [activeIntent, setActiveIntent] = useState<string | null>(null);
+  const [ingestionMode, setIngestionMode] = useState<'LIST' | 'DROPZONE' | 'PROCESSING' | 'REVIEW' | 'LINK'>('LIST');
+  const [extractedProspects, setExtractedProspects] = useState<Partial<Player>[]>([]);
+  const [rosterUrl, setRosterUrl] = useState('');
   const [copied, setCopied] = useState(false);
-  const [includeAssessment, setIncludeAssessment] = useState(false);
-  const [showShadowGuide, setShowShadowGuide] = useState(true); 
-
-  // Mobile View State
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const [mobileView, setMobileView] = useState<'LIST' | 'DETAIL'>('LIST');
-
-  // Bulk Import State
-  const [showBulkModal, setShowBulkModal] = useState(false);
-  const [bulkStep, setBulkStep] = useState<'input' | 'review'>('input');
-  const [bulkInput, setBulkInput] = useState('');
-  const [bulkImage, setBulkImage] = useState<string | null>(null);
-  const [bulkMimeType, setBulkMimeType] = useState('image/jpeg');
-  const [extractedPlayers, setExtractedPlayers] = useState<Partial<Player>[]>([]);
-  const [isBulkLoading, setIsBulkLoading] = useState(false);
-
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
-    if (initialPlayerId) {
-        setSelectedPlayerId(initialPlayerId);
-        if (isMobile) setMobileView('DETAIL');
-    }
-  }, [initialPlayerId, isMobile]);
-
-  const filteredPlayers = players.filter(p => 
-    p.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const prospectCount = players.filter(p => p.status === PlayerStatus.PROSPECT).length;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const selectedPlayer = players.find(p => p.id === selectedPlayerId);
 
-  // When selecting a player on mobile, switch view
-  const handlePlayerSelect = (id: string) => {
-      setSelectedPlayerId(id);
-      setGeneratedMessage('');
-      setSelectedTemplate(null);
-      if (isMobile) setMobileView('DETAIL');
-  };
+  // Grouping for the Sidebar
+  const undiscoveredTalent = players.filter(p => p.status === PlayerStatus.PROSPECT);
+  
+  const spotlights = undiscoveredTalent.filter(p => p.activityStatus === 'spotlight');
+  const signals = undiscoveredTalent.filter(p => p.activityStatus === 'signal');
+  const sparks = undiscoveredTalent.filter(p => p.activityStatus === 'spark');
+  const undiscovered = undiscoveredTalent.filter(p => !p.activityStatus || p.activityStatus === 'undiscovered');
 
-  const handleBackToList = () => {
-      setMobileView('LIST');
-      // Optional: Clear selection or keep it? Keeping it feels faster if they go back.
-  };
+  const filteredUndiscovered = undiscovered.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredSparks = sparks.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredSignals = signals.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredSpotlights = spotlights.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  const handleGenerate = async () => {
-    if (!selectedPlayer || !selectedTemplate) return;
-    setIsLoading(true);
-    setGeneratedMessage('');
-    setCopied(false);
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    const templateName = TEMPLATES.find(t => t.id === selectedTemplate)?.title || 'Message';
+    setIngestionMode('PROCESSING');
     
-    const smartLink = includeAssessment 
-        ? `https://warubi.com/eval/${selectedPlayer.id}?ref=${user.scoutId || 'demo'}&s=${Date.now()}`
-        : undefined;
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+        const base64Data = event.target?.result?.toString().split(',')[1];
+        if (!base64Data) return;
+
+        try {
+            let prospects: Partial<Player>[] = [];
+            if (file.type.startsWith('image/')) {
+                prospects = await extractRosterFromPhoto(base64Data, file.type);
+            } else {
+                // If it's CSV or text, we can pass it as a bulk string to Gemini
+                const text = atob(base64Data);
+                prospects = await extractPlayersFromBulkData(text, false);
+            }
+            setExtractedProspects(prospects);
+            setIngestionMode('REVIEW');
+        } catch (error) {
+            console.error("Extraction failed", error);
+            setIngestionMode('DROPZONE');
+        }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleLinkExtraction = async () => {
+      if (!rosterUrl.trim()) return;
+      setIngestionMode('PROCESSING');
+      try {
+          // AI extracts from the provided URL content (simulated via intent)
+          const prospects = await extractPlayersFromBulkData(`Extract from this roster URL: ${rosterUrl}`, false);
+          setExtractedProspects(prospects);
+          setIngestionMode('REVIEW');
+      } catch (error) {
+          console.error("Link extraction failed", error);
+          setIngestionMode('LINK');
+      }
+  };
+
+  const handleIntentClick = async (intentId: string) => {
+    if (!selectedPlayer) return;
+    setActiveIntent(intentId);
+    setIsLoading(true);
+    setDraftedMessage('');
+    
+    const intent = INTENTS.find(i => i.id === intentId);
+    const smartLink = includeSmartLink ? `app.warubi-sports.com/audit?sid=${user.scoutId || 'demo'}&pid=${selectedPlayer.id}` : undefined;
 
     try {
-      const msg = await generateOutreachMessage(user.name, selectedPlayer, templateName, smartLink);
-      setGeneratedMessage(msg);
-    } catch (error) {
-      setGeneratedMessage("Error generating message. Please try again.");
+        const message = await generateOutreachMessage(user.name, selectedPlayer, intent?.title || 'Intro', smartLink);
+        setDraftedMessage(message);
+        setIsTyping(true);
+    } catch (e) {
+        setDraftedMessage(`Hi ${selectedPlayer.name}, let's talk about your football future.`);
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
   };
 
-  const logAction = (method: 'Email' | 'WhatsApp' | 'Clipboard') => {
-      if (!selectedPlayer) return;
-      const templateName = TEMPLATES.find(t => t.id === selectedTemplate)?.title || 'Custom Message';
-      onMessageSent(selectedPlayer.id, {
-          date: new Date().toISOString(),
-          method,
-          templateName,
-          note: generatedMessage.substring(0, 50) + '...'
-      });
-  };
+  useEffect(() => {
+      if (activeIntent && selectedPlayer) {
+          handleIntentClick(activeIntent);
+      }
+  }, [includeSmartLink]);
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(generatedMessage);
+  const handleCopyAndLog = () => {
+    if (!selectedPlayer || !draftedMessage) return;
+    
+    navigator.clipboard.writeText(draftedMessage);
     setCopied(true);
-    logAction('Clipboard');
     setTimeout(() => setCopied(false), 2000);
+
+    onMessageSent(selectedPlayer.id, {
+        date: new Date().toISOString(),
+        method: 'Clipboard',
+        templateName: 'Outreach Studio Draft',
+        note: draftedMessage.substring(0, 50) + '...'
+    });
   };
 
-  const openMail = () => {
-      window.open(`mailto:?subject=Warubi%20Scouting&body=${encodeURIComponent(generatedMessage)}`);
-      logAction('Email');
-  };
-
-  const openWhatsApp = () => {
-      window.open(`https://wa.me/?text=${encodeURIComponent(generatedMessage)}`);
-      logAction('WhatsApp');
-  };
-
-  const formatDate = (isoString: string) => {
-      const date = new Date(isoString);
-      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-  };
-
-  // --- Bulk Import Logic (Desktop Only / Modal) ---
-  const handleBulkFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            const base64String = reader.result as string;
-            const base64Data = base64String.split(',')[1];
-            setBulkImage(base64Data);
-            setBulkMimeType(file.type);
-        };
-        reader.readAsDataURL(file);
-    }
-  };
-
-  const fillBulkDemoData = () => {
-      setBulkImage(null);
-      setBulkInput(
-`First Name, Last Name, Position, Age, Notes
-James, Rodriguez, CAM, 17, Technical wizard, great vision
-Sarah, Smith, CB, 18, Strong in air, leader`
-      );
-  }
-
-  const checkLimit = () => {
-      const LIMIT = 25;
-      const today = new Date().toDateString();
-      const usage = JSON.parse(localStorage.getItem('warubi_bulk_limit') || '{}');
-      if (usage.date !== today) {
-          usage.date = today;
-          usage.count = 0;
-      }
-      return { usage, limit: LIMIT, remaining: LIMIT - usage.count };
-  };
-
-  const updateLimit = (count: number) => {
-      const { usage } = checkLimit();
-      usage.count += count;
-      localStorage.setItem('warubi_bulk_limit', JSON.stringify(usage));
-  };
-
-  const handleBulkProcess = async () => {
-      if (!bulkInput && !bulkImage) return;
-      const { remaining } = checkLimit();
-      if (remaining <= 0) {
-          alert("Daily limit reached.");
-          return;
-      }
-      setIsBulkLoading(true);
-      setExtractedPlayers([]);
-      try {
-          const isImage = !!bulkImage;
-          const data = isImage ? bulkImage! : bulkInput;
-          const results = await extractPlayersFromBulkData(data, isImage, bulkMimeType);
-          if (results && results.length > 0) {
-              setExtractedPlayers(results);
-              setBulkStep('review');
-          } else {
-              alert("No valid players found.");
-          }
-      } catch (e) {
-          console.error(e);
-          alert("Bulk processing failed.");
-      } finally {
-          setIsBulkLoading(false);
+  const promoteToSpotlight = () => {
+      if (selectedPlayer && onStatusChange) {
+          onStatusChange(selectedPlayer.id, PlayerStatus.LEAD);
+          setSelectedPlayerId(null);
+          setDraftedMessage('');
+          setActiveIntent(null);
       }
   };
 
-  const confirmBulkPlayers = () => {
-      const { remaining } = checkLimit();
-      if (extractedPlayers.length > remaining) {
-          alert(`You can only import ${remaining} more players today.`);
-          return;
-      }
-      const newPlayers: Player[] = extractedPlayers.map((p, idx) => ({
-          id: Date.now().toString() + idx,
-          name: p.name || "Unknown Player",
-          age: p.age || 17,
-          position: p.position || "Unknown",
-          status: PlayerStatus.PROSPECT,
-          submittedAt: new Date().toISOString(),
-          outreachLogs: [],
-          evaluation: {
-              score: p.evaluation?.score || 50,
-              collegeLevel: "Pending Review",
-              scholarshipTier: (p.evaluation?.scholarshipTier as any) || "Tier 3",
-              recommendedPathways: p.evaluation?.recommendedPathways || ["Exposure Events"],
-              strengths: [],
-              weaknesses: [],
-              nextAction: "Outreach",
-              summary: p.evaluation?.summary || "Imported from bulk outreach list"
-          }
-      }));
-      updateLimit(newPlayers.length);
-      onAddPlayers(newPlayers);
-      setShowBulkModal(false);
-      setBulkInput('');
-      setBulkImage(null);
-      setBulkStep('input');
+  const handleConfirmIngestion = () => {
+    const newPlayers: Player[] = extractedProspects.map((p, i) => ({
+        id: `ingested-${Date.now()}-${i}`,
+        name: p.name || 'Unknown Ghost',
+        age: p.age || 17,
+        position: p.position || 'ST',
+        status: PlayerStatus.PROSPECT,
+        submittedAt: new Date().toISOString(),
+        outreachLogs: [],
+        evaluation: null,
+        activityStatus: 'undiscovered'
+    }));
+    onAddPlayers(newPlayers);
+    setIngestionMode('LIST');
+    setExtractedProspects([]);
   };
 
-  const removeBulkItem = (index: number) => {
-      const newList = [...extractedPlayers];
-      newList.splice(index, 1);
-      setExtractedPlayers(newList);
-      if (newList.length === 0) setBulkStep('input');
-  };
-
-  const ShadowPipelineExplainer = () => (
-    <div className="bg-gradient-to-r from-scout-900 to-scout-800 p-4 rounded-xl border border-scout-700 mb-4 animate-fade-in relative shadow-lg">
-        <button onClick={() => setShowShadowGuide(false)} className="absolute top-2 right-2 text-gray-500 hover:text-white"><X size={14}/></button>
-        <h4 className="text-xs font-bold text-white mb-3 flex items-center gap-2 uppercase tracking-wider">
-            <EyeOff size={14} className="text-scout-highlight"/> The Shadow Pipeline
-        </h4>
-        <div className="flex items-center justify-between text-xs gap-1 relative">
-            <div className="absolute top-1/2 left-0 w-full h-0.5 bg-scout-700 -z-10"></div>
-            <div className="flex-1 flex flex-col items-center gap-1 z-10">
-                <div className="w-6 h-6 rounded-full bg-scout-800 border border-scout-600 flex items-center justify-center text-gray-400 font-bold">1</div>
-                <div className="text-[9px] text-gray-400 font-medium bg-scout-900 px-1 rounded">Import Hidden</div>
-            </div>
-            <div className="flex-1 flex flex-col items-center gap-1 z-10">
-                <div className="w-6 h-6 rounded-full bg-scout-800 border border-scout-accent flex items-center justify-center text-scout-accent font-bold">2</div>
-                <div className="text-[9px] text-gray-200 font-medium bg-scout-900 px-1 rounded text-center">Send Smart Link</div>
-            </div>
-            <div className="flex-1 flex flex-col items-center gap-1 z-10">
-                <div className="w-6 h-6 rounded-full bg-green-900 border border-green-500 flex items-center justify-center text-green-400 font-bold"><CheckCircle size={12}/></div>
-                <div className="text-[9px] text-green-400 font-medium bg-scout-900 px-1 rounded text-center">Auto-Promote</div>
-            </div>
-        </div>
-    </div>
-  );
-
-  // --- RENDER CONTENT ---
-
-  // 1. DESKTOP VIEW (SPLIT PANE)
-  if (!isMobile) {
+  const MessageRenderer = ({ text }: { text: string }) => {
       return (
-        <div className="flex h-[calc(100vh-140px)] gap-6 animate-fade-in relative">
-          
-          {/* LEFT: List */}
-          <div className="w-1/3 bg-scout-800 rounded-xl border border-scout-700 flex flex-col overflow-hidden">
-            <div className="p-4 border-b border-scout-700">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="font-bold text-white">Outreach List</h3>
-                <button 
-                    onClick={() => setShowBulkModal(true)}
-                    className="text-[10px] bg-scout-accent/10 text-scout-accent border border-scout-accent/50 hover:bg-scout-accent hover:text-white px-2 py-1 rounded transition-colors flex items-center gap-1"
-                >
-                    <Upload size={10} /> Import Leads
-                </button>
-              </div>
-              
-              {showShadowGuide && <ShadowPipelineExplainer />}
+          <div className="font-mono text-sm md:text-base text-emerald-400/90 leading-relaxed italic whitespace-pre-wrap">
+              {text.split(/(\*\*.*?\*\*)/g).map((part, i) => {
+                  if (part.startsWith('**') && part.endsWith('**')) {
+                      return <span key={i} className="text-white font-black not-italic">{part.slice(2, -2)}</span>;
+                  }
+                  return part;
+              })}
+          </div>
+      );
+  };
 
-              <div className="relative mb-2">
-                <Search className="absolute left-3 top-2.5 text-gray-500" size={16} />
-                <input 
-                  type="text" 
-                  placeholder="Search players..." 
-                  className="w-full bg-scout-900 border border-scout-700 rounded-lg pl-9 pr-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-scout-accent"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+  return (
+    <div className="flex h-[calc(100vh-140px)] gap-6 animate-fade-in flex-col overflow-hidden">
+      
+      {/* Workflow Ribbon */}
+      <div className="bg-scout-800/50 border border-scout-700 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-6 shrink-0">
+          <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-scout-accent/10 rounded-xl flex items-center justify-center text-scout-accent border border-scout-accent/20">
+                  <Info size={20} />
               </div>
-              
-              {/* Shadow Pipeline Counter */}
-              <div 
-                onClick={() => setShowShadowGuide(!showShadowGuide)}
-                className="flex items-center justify-between bg-scout-900/50 p-2 rounded border border-scout-700/50 text-[10px] text-gray-400 cursor-pointer hover:bg-scout-900 hover:border-scout-accent/50 transition-colors group"
-              >
-                 <div className="flex items-center gap-2">
-                     <EyeOff size={12} className={prospectCount > 0 ? "text-scout-highlight" : "text-gray-600"}/>
-                     <span><strong>{prospectCount} Prospects</strong> in Shadow Pool</span>
-                 </div>
-                 <HelpCircle size={12} className="text-gray-600 group-hover:text-white" />
+              <div>
+                  <h3 className="text-sm font-black text-white uppercase tracking-tighter italic">Talent Spotlight Protocol</h3>
+                  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Bridging the Gap from Shadow to Lead</p>
               </div>
+          </div>
+          <div className="flex gap-4 md:gap-12">
+              {[
+                  { i: <Ghost size={16}/>, l: '1. Undiscovered', s: 'Hidden Talent', c: 'text-gray-500' },
+                  { i: <Zap size={16}/>, l: '2. Spark', s: 'Initial Contact', c: 'text-yellow-500' },
+                  { i: <Flame size={16} className="animate-pulse"/>, l: '3. Signal', s: 'Click Detected', c: 'text-orange-500' },
+                  { i: <Trophy size={16} className="text-scout-accent"/>, l: '4. Spotlight', s: 'Data Verified', c: 'text-scout-accent' }
+              ].map((step, idx) => (
+                  <div key={idx} className="flex flex-col items-center text-center">
+                      <div className={`flex items-center gap-1.5 font-black uppercase text-[10px] mb-1 ${step.c}`}>
+                          {step.i} {step.l}
+                      </div>
+                      <span className="text-[8px] text-gray-600 font-mono tracking-tighter">{step.s}</span>
+                  </div>
+              ))}
+          </div>
+          <button onClick={() => setShowGuide(!showGuide)} className="text-gray-600 hover:text-white transition-colors"><HelpCircle size={18}/></button>
+      </div>
+
+      <div className="flex flex-1 gap-6 overflow-hidden">
+        {/* LEFT: UNIFIED SIDEBAR */}
+        <div className="w-1/3 bg-scout-800 rounded-[2rem] border border-scout-700 flex flex-col overflow-hidden shadow-2xl shrink-0">
+            <div className="p-4 border-b border-scout-700 bg-scout-900/50">
+                <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center gap-2">
+                        <Users className="text-scout-highlight" size={18} />
+                        <h3 className="font-black text-white uppercase tracking-tighter italic">Discovery Pool</h3>
+                    </div>
+                    <div className="flex bg-scout-800 p-1 rounded-xl border border-scout-700">
+                        <button onClick={() => setIngestionMode('LIST')} className={`p-2 rounded-lg transition-all ${ingestionMode === 'LIST' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><LayoutList size={16} /></button>
+                        <button onClick={() => setIngestionMode('DROPZONE')} className={`p-2 rounded-lg transition-all ${ingestionMode !== 'LIST' ? 'bg-scout-accent text-scout-900' : 'text-gray-500 hover:text-gray-300'}`}><Plus size={16} /></button>
+                    </div>
+                </div>
+                {ingestionMode === 'LIST' && (
+                    <div className="relative">
+                        <Search className="absolute left-3 top-2.5 text-gray-500" size={16} />
+                        <input type="text" placeholder="Search uncontacted..." className="w-full bg-scout-900 border border-scout-700 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-scout-accent transition-all" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    </div>
+                )}
             </div>
-            
+
             <div className="flex-1 overflow-y-auto custom-scrollbar">
-              {filteredPlayers.length === 0 ? (
-                <div className="p-8 text-center text-gray-500 text-sm">No players found</div>
-              ) : (
-                filteredPlayers.map(player => {
-                   const lastContact = player.outreachLogs && player.outreachLogs.length > 0 ? player.outreachLogs[0] : null;
-                   return (
-                    <div 
-                        key={player.id}
-                        onClick={() => handlePlayerSelect(player.id)}
-                        className={`p-4 border-b border-scout-700/50 cursor-pointer transition-colors hover:bg-scout-700/50 ${selectedPlayerId === player.id ? 'bg-scout-700/80 border-l-4 border-l-scout-accent' : ''}`}
-                    >
-                        <div className="flex justify-between items-start mb-1">
-                            <div>
-                                <h4 className={`font-semibold ${selectedPlayerId === player.id ? 'text-white' : 'text-gray-300'}`}>{player.name}</h4>
-                                <p className="text-xs text-gray-500">{player.position} • {player.age} yo</p>
-                            </div>
-                            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border border-scout-700 ${
-                                player.status === PlayerStatus.PROSPECT ? 'bg-gray-800 text-gray-500 border-gray-700' :
-                                player.status === 'Placed' ? 'bg-scout-accent text-white border-scout-accent' : 
-                                player.status === 'Offered' ? 'bg-scout-highlight/20 text-scout-highlight border-scout-highlight' :
-                                'bg-scout-900 text-gray-400'
-                            }`}>
-                                {player.status === PlayerStatus.PROSPECT ? 'Shadow' : player.status}
-                            </span>
-                        </div>
-                        {lastContact && (
-                            <div className="flex items-center gap-1.5 mt-2 text-[10px] text-green-400 font-medium bg-green-900/20 w-fit px-1.5 py-0.5 rounded border border-green-900/30">
-                                <CheckCircle size={10} />
-                                <span>Contacted {formatDate(lastContact.date)} via {lastContact.method}</span>
+                {ingestionMode === 'LIST' ? (
+                    <div className="pb-10">
+                        {/* 1. SPOTLIGHTS */}
+                        {filteredSpotlights.length > 0 && (
+                            <div className="bg-scout-accent/5 pb-2">
+                                <div className="px-6 py-4 flex items-center gap-2 border-b border-scout-accent/10">
+                                    <Trophy size={14} className="text-scout-accent" />
+                                    <h4 className="text-[10px] font-black text-scout-accent uppercase tracking-widest">Spotlight Ready</h4>
+                                </div>
+                                {filteredSpotlights.map(p => (
+                                    <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all border-l-4 ${selectedPlayerId === p.id ? 'border-scout-accent bg-scout-accent/10' : 'border-transparent bg-scout-accent/5'} flex items-center justify-between group`}>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-bold text-white truncate">{p.name}</p>
+                                            <p className="text-[9px] text-scout-accent font-black uppercase">Verified • View Report</p>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
 
-          {/* RIGHT: Detail */}
-          <div className="w-2/3 flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-2">
-            <div className="bg-scout-800 p-6 rounded-xl border border-scout-700">
-              <div className="flex items-center gap-2 mb-4">
-                <Sparkles className="text-scout-highlight" size={20} />
-                <h3 className="font-bold text-white">Choose Template</h3>
-              </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {TEMPLATES.map(template => (
-                  <button
-                    key={template.id}
-                    onClick={() => setSelectedTemplate(template.id)}
-                    disabled={!selectedPlayer}
-                    className={`p-3 rounded-lg border text-left transition-all relative overflow-hidden group
-                      ${selectedTemplate === template.id 
-                        ? 'bg-scout-accent/10 border-scout-accent text-white' 
-                        : 'bg-scout-900 border-scout-700 text-gray-400 hover:border-scout-500 hover:text-gray-200'
-                      }
-                      ${!selectedPlayer ? 'opacity-50 cursor-not-allowed' : ''}
-                    `}
-                  >
-                    <div className="font-semibold text-sm truncate">{template.title}</div>
-                    <div className="text-[10px] opacity-70 truncate">{template.desc}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex-1 bg-scout-800 p-6 rounded-xl border border-scout-700 flex flex-col min-h-[400px]">
-              <div className="flex justify-between items-center mb-2">
-                <h3 className="font-bold text-white">Message Draft</h3>
-                <span className="text-xs text-gray-500 italic">
-                   {selectedPlayer ? `Drafting for ${selectedPlayer.name}` : 'Select a player first'}
-                </span>
-              </div>
-              <div className="flex-1 relative mb-4">
-                 <textarea 
-                   value={generatedMessage}
-                   onChange={(e) => setGeneratedMessage(e.target.value)}
-                   placeholder={!selectedPlayer ? "Select a player to start..." : !selectedTemplate ? "Select a template above..." : "Message will appear here..."}
-                   className="w-full h-full bg-scout-900 border border-scout-700 rounded-lg p-4 text-gray-200 resize-none focus:outline-none focus:ring-1 focus:ring-scout-accent text-sm"
-                 />
-                 {isLoading && (
-                   <div className="absolute inset-0 bg-scout-900/80 flex items-center justify-center rounded-lg">
-                     <div className="flex flex-col items-center gap-2">
-                        <Sparkles className="animate-spin text-scout-accent" size={32} />
-                        <span className="text-sm font-medium text-white">AI is writing...</span>
-                     </div>
-                   </div>
-                 )}
-              </div>
-              <div className="flex flex-col gap-3">
-                 <label className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-colors ${includeAssessment ? 'bg-scout-accent/10 border-scout-accent' : 'bg-scout-900 border-scout-700 hover:border-scout-500'}`}>
-                    <input 
-                        type="checkbox" 
-                        checked={includeAssessment}
-                        onChange={(e) => setIncludeAssessment(e.target.checked)}
-                        className="w-5 h-5 rounded border-gray-500 text-scout-accent focus:ring-scout-accent"
-                    />
-                    <div className="flex-1">
-                        <span className={`text-sm font-bold flex items-center gap-2 ${includeAssessment ? 'text-scout-accent' : 'text-white'}`}>
-                            <Link size={14} /> Include "Smart Link" Assessment
-                        </span>
-                        <p className="text-xs text-gray-400">Players who click this are automatically tracked & promoted.</p>
-                    </div>
-                 </label>
-                 <div className="flex gap-3">
-                    {!generatedMessage ? (
-                    <button 
-                        onClick={handleGenerate}
-                        disabled={!selectedPlayer || !selectedTemplate || isLoading}
-                        className="flex-1 bg-scout-700 hover:bg-scout-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-lg transition-all flex items-center justify-center gap-2"
-                    >
-                        <Sparkles size={18} /> Generate Message
-                    </button>
-                    ) : (
-                        <>
-                        <button onClick={handleGenerate} className="px-4 bg-scout-800 border border-scout-600 hover:bg-scout-700 text-gray-300 rounded-lg transition-all"><Sparkles size={18} /></button>
-                        <button onClick={copyToClipboard} className="flex-1 bg-scout-accent hover:bg-emerald-600 text-white font-bold py-3 rounded-lg transition-all flex items-center justify-center gap-2">
-                            {copied ? <><CheckCircle size={18}/> Logged!</> : <><Copy size={18} /> Copy & Log</>}
-                        </button>
-                        <button onClick={openWhatsApp} className="px-6 bg-[#25D366] hover:bg-[#20bd5a] text-white rounded-lg transition-all flex items-center justify-center gap-2"><MessageCircle size={20} /></button>
-                        <button onClick={openMail} className="px-6 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-all flex items-center justify-center gap-2"><Mail size={20} /></button>
-                        </>
-                    )}
-                 </div>
-              </div>
-            </div>
-            
-            {/* History Section Desktop */}
-            {selectedPlayer && (
-                <div className="bg-scout-800 p-4 rounded-xl border border-scout-700 max-h-48 overflow-y-auto custom-scrollbar">
-                    <h4 className="text-xs font-bold text-gray-400 uppercase mb-3 flex items-center gap-2"><History size={12} /> Communication History</h4>
-                    {selectedPlayer.outreachLogs && selectedPlayer.outreachLogs.length > 0 ? (
-                        <div className="space-y-3">
-                            {selectedPlayer.outreachLogs.map(log => (
-                                <div key={log.id} className="text-sm border-l-2 border-scout-600 pl-3">
-                                    <div className="flex justify-between text-xs text-gray-500 mb-0.5">
-                                        <span>{new Date(log.date).toLocaleString()}</span>
-                                        <span className="font-bold text-scout-accent">{log.method}</span>
+                        {/* 2. SIGNALS */}
+                        {filteredSignals.length > 0 && (
+                            <div className="bg-orange-500/5 pb-2">
+                                <div className="px-6 py-4 flex items-center gap-2 border-b border-orange-500/10">
+                                    <Flame size={14} className="text-orange-500" />
+                                    <h4 className="text-[10px] font-black text-orange-500 uppercase tracking-widest">Active Signals</h4>
+                                </div>
+                                {filteredSignals.map(p => (
+                                    <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all border-l-4 signal-pulse ${selectedPlayerId === p.id ? 'border-orange-500 bg-orange-500/10' : 'border-transparent bg-orange-500/5'} flex items-center justify-between group`}>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-bold text-white truncate">{p.name}</p>
+                                            <p className="text-[9px] text-orange-400 font-black uppercase">Interacting • Live</p>
+                                        </div>
                                     </div>
-                                    <div className="text-gray-300"><span className="font-medium text-white">{log.templateName}</span></div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* 3. SPARKS */}
+                        {filteredSparks.length > 0 && (
+                            <div className="pb-2">
+                                <div className="px-6 py-4 flex items-center gap-2">
+                                    <Zap size={14} className="text-yellow-500" />
+                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Sparks Sent</h4>
+                                </div>
+                                {filteredSparks.map(p => (
+                                    <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all hover:bg-scout-700/30 flex items-center border-l-4 ${selectedPlayerId === p.id ? 'border-yellow-500 bg-yellow-500/5' : 'border-transparent'}`}>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-bold text-white truncate">{p.name}</p>
+                                            <p className="text-[9px] text-gray-500 uppercase font-black">Waiting for Click</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* 4. UNDISCOVERED */}
+                        <div className="px-6 py-4 border-t border-scout-700/30 flex items-center gap-2 mt-4">
+                            <Ghost size={14} className="text-gray-600" />
+                            <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Undiscovered</h4>
+                        </div>
+                        <div className="divide-y divide-scout-700/30">
+                            {filteredUndiscovered.map(p => (
+                                <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all hover:bg-scout-700/50 flex items-center opacity-60 grayscale border-l-4 ${selectedPlayerId === p.id ? 'border-white/20 bg-white/5 grayscale-0 opacity-100' : 'border-transparent'}`}>
+                                    <div className="min-w-0 flex-1">
+                                        <h4 className="text-sm font-bold truncate text-white">{p.name}</h4>
+                                        <p className="text-[9px] text-gray-500 font-black uppercase">{p.position} • {p.age}yo</p>
+                                    </div>
                                 </div>
                             ))}
                         </div>
-                    ) : (
-                        <p className="text-xs text-gray-500 italic">No recorded messages yet.</p>
-                    )}
-                </div>
-            )}
-          </div>
-
-          {/* Bulk Modal Injection for Desktop */}
-          {showBulkModal && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-                 <div className="bg-scout-900 w-full max-w-2xl rounded-2xl border border-scout-700 shadow-2xl flex flex-col overflow-hidden max-h-[90vh]">
-                    <div className="p-4 border-b border-scout-700 flex justify-between items-center bg-scout-800/50">
-                        <div><h2 className="text-xl font-bold text-white">Import Leads (Bulk)</h2><p className="text-xs text-gray-400">Import up to 25 leads per day.</p></div>
-                        <button onClick={() => setShowBulkModal(false)} className="text-gray-400 hover:text-white"><X size={24} /></button>
                     </div>
-                    <div className="flex-1 overflow-y-auto p-6 bg-scout-900">
-                        {bulkStep === 'input' ? (
-                            <div className="space-y-6">
-                                <div className="bg-scout-800/50 p-3 rounded border border-scout-700 flex items-center justify-between text-sm">
-                                    <span className="text-gray-300">Daily Limit</span>
-                                    <span className="font-bold text-scout-accent">{checkLimit().remaining} / 25 remaining</span>
-                                </div>
-                                <div className="border-2 border-dashed border-scout-700 rounded-xl p-6 text-center hover:border-scout-accent transition-colors bg-scout-800/30">
-                                    <input type="file" id="bulkFile" className="hidden" accept="image/*" onChange={handleBulkFileChange} />
-                                    <label htmlFor="bulkFile" className="cursor-pointer flex flex-col items-center"><Upload size={32} className="text-scout-highlight mb-2" /><span className="text-white font-medium">Upload Roster</span></label>
-                                </div>
-                                <div className="bg-scout-800 rounded-lg p-1 border border-scout-700">
-                                    <textarea value={bulkInput} onChange={(e) => setBulkInput(e.target.value)} className="w-full h-40 bg-scout-900 border-none rounded p-4 text-white focus:ring-0 resize-none font-mono text-sm" placeholder="Paste CSV-like list here..." />
-                                    <div className="p-2 flex justify-end bg-scout-800"><button onClick={fillBulkDemoData} className="text-xs flex items-center gap-1 text-scout-accent hover:text-white transition-colors"><FlaskConical size={12} /> Fill Demo</button></div>
-                                </div>
-                                <button onClick={handleBulkProcess} disabled={isBulkLoading || (!bulkInput && !bulkImage)} className="w-full bg-scout-accent hover:bg-emerald-600 disabled:opacity-50 text-white font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2">{isBulkLoading ? <Loader2 className="animate-spin" /> : 'Process & Extract'}</button>
+                ) : ingestionMode === 'DROPZONE' ? (
+                    <div className="p-6 h-full flex flex-col animate-fade-in space-y-6">
+                        <div 
+                            onClick={() => fileInputRef.current?.click()}
+                            className="w-full py-12 border-2 border-dashed border-scout-700 rounded-[2rem] flex flex-col items-center justify-center gap-4 hover:border-scout-accent hover:bg-scout-accent/5 transition-all cursor-pointer group"
+                        >
+                            <div className="w-12 h-12 bg-scout-900 rounded-2xl flex items-center justify-center text-gray-500 group-hover:text-scout-accent transition-all">
+                                <FileUp size={24} />
                             </div>
-                        ) : (
-                            <div className="space-y-4 animate-fade-in h-full flex flex-col">
-                                <div className="flex justify-between items-center"><div><h3 className="text-xl font-bold text-white">Review Extracted Players</h3></div><button onClick={() => setBulkStep('input')} className="text-sm text-gray-400 hover:text-white">Cancel</button></div>
-                                <div className="flex-1 overflow-y-auto bg-scout-800 rounded-lg border border-scout-700 custom-scrollbar max-h-60">
-                                    <table className="w-full text-sm text-left"><thead className="text-xs text-gray-400 uppercase bg-scout-900 sticky top-0"><tr><th className="px-4 py-3">Player Name</th><th className="px-4 py-3">Pos</th><th className="px-4 py-3">Age</th><th className="px-4 py-3">Action</th></tr></thead>
-                                        <tbody className="divide-y divide-scout-700">{extractedPlayers.map((p, i) => (<tr key={i} className="hover:bg-scout-700/50"><td className="px-4 py-3 font-medium text-white">{p.name}</td><td className="px-4 py-3 text-gray-300">{p.position}</td><td className="px-4 py-3 text-gray-300">{p.age}</td><td className="px-4 py-3"><button onClick={() => removeBulkItem(i)} className="text-red-400 hover:text-red-300 p-1"><Trash2 size={16} /></button></td></tr>))}</tbody>
-                                    </table>
+                            <div className="text-center">
+                                <p className="text-white font-black uppercase text-xs tracking-widest">Upload Roster File</p>
+                                <p className="text-[10px] text-gray-500 mt-1">Image, PDF, or CSV</p>
+                            </div>
+                        </div>
+
+                        <div 
+                            onClick={() => setIngestionMode('LINK')}
+                            className="w-full py-12 border-2 border-dashed border-scout-700 rounded-[2rem] flex flex-col items-center justify-center gap-4 hover:border-blue-400 hover:bg-blue-400/5 transition-all cursor-pointer group"
+                        >
+                            <div className="w-12 h-12 bg-scout-900 rounded-2xl flex items-center justify-center text-gray-500 group-hover:text-blue-400 transition-all">
+                                <Globe size={24} />
+                            </div>
+                            <div className="text-center">
+                                <p className="text-white font-black uppercase text-xs tracking-widest">Paste Roster Link</p>
+                                <p className="text-[10px] text-gray-500 mt-1">AI will extract from URL</p>
+                            </div>
+                        </div>
+
+                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.pdf,.csv,.txt" onChange={handleFileUpload} />
+                        
+                        <button onClick={() => setIngestionMode('LIST')} className="w-full py-4 text-gray-500 hover:text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
+                             <LayoutList size={14}/> Back to Pool
+                        </button>
+                    </div>
+                ) : ingestionMode === 'LINK' ? (
+                    <div className="p-8 h-full flex flex-col animate-fade-in space-y-6">
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-black text-white uppercase tracking-tighter italic">Import via Link</h3>
+                            <p className="text-xs text-gray-500 leading-relaxed">Provide a URL to a club roster or tournament page. AI will scan the content for player identities.</p>
+                            <div className="relative">
+                                <Globe className="absolute left-3 top-3.5 text-gray-500" size={18} />
+                                <input 
+                                    autoFocus
+                                    type="text" 
+                                    placeholder="https://club-soccer.com/u17-roster" 
+                                    className="w-full bg-scout-900 border-2 border-scout-700 rounded-2xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-blue-400 transition-all"
+                                    value={rosterUrl}
+                                    onChange={(e) => setRosterUrl(e.target.value)}
+                                />
+                            </div>
+                            <button 
+                                onClick={handleLinkExtraction}
+                                disabled={!rosterUrl.trim()}
+                                className="w-full bg-blue-500 hover:bg-blue-600 disabled:opacity-30 text-white font-black py-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase text-xs tracking-widest"
+                            >
+                                <Sparkles size={16}/> Extract Talent
+                            </button>
+                        </div>
+                        <button onClick={() => setIngestionMode('DROPZONE')} className="w-full py-4 text-gray-500 hover:text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
+                             <ChevronDown size={14} className="rotate-90" /> Other Methods
+                        </button>
+                    </div>
+                ) : ingestionMode === 'REVIEW' ? (
+                    <div className="p-6 h-full flex flex-col animate-fade-in">
+                        <div className="flex items-center justify-between mb-6">
+                             <h3 className="text-sm font-black text-white uppercase italic">Discovery Review</h3>
+                             <span className="bg-scout-accent text-scout-900 text-[10px] px-2 py-0.5 rounded font-black">{extractedProspects.length} Found</span>
+                        </div>
+                        <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar mb-6">
+                            {extractedProspects.map((p, i) => (
+                                <div key={i} className="bg-scout-900/50 p-3 rounded-xl border border-scout-700 flex justify-between items-center">
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-bold text-white truncate">{p.name || 'Unknown'}</p>
+                                        <p className="text-[10px] text-gray-500 uppercase">{p.position || 'ST'} • {p.age || '17'}yo</p>
+                                    </div>
+                                    <button onClick={() => setExtractedProspects(prev => prev.filter((_, idx) => idx !== i))} className="text-gray-600 hover:text-red-400"><X size={14}/></button>
                                 </div>
-                                <button onClick={confirmBulkPlayers} className="w-full bg-white hover:bg-gray-100 text-scout-900 font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2"><CheckCircle size={20} /> Import {extractedPlayers.length} Players</button>
+                            ))}
+                        </div>
+                        <div className="space-y-3">
+                            <button onClick={handleConfirmIngestion} className="w-full bg-scout-accent text-scout-900 font-black py-4 rounded-2xl shadow-glow uppercase text-xs tracking-widest">
+                                Confirm & Add to Pool
+                            </button>
+                            <button onClick={() => setIngestionMode('DROPZONE')} className="w-full text-gray-500 hover:text-white text-[10px] font-black uppercase">Cancel</button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="p-8 h-full flex flex-col items-center justify-center text-center space-y-4 animate-fade-in">
+                        <Loader2 className="w-12 h-12 text-scout-accent animate-spin" />
+                        <h3 className="text-lg font-black text-white uppercase tracking-tighter">AI Extraction Engine...</h3>
+                        <p className="text-[10px] text-gray-600 uppercase tracking-widest">Structuring talent data</p>
+                    </div>
+                )}
+            </div>
+        </div>
+
+        {/* RIGHT: COMMAND CONSOLE */}
+        <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+            {!selectedPlayer ? (
+                <div className="flex-1 bg-scout-800/30 rounded-[3rem] border border-scout-700 border-dashed flex flex-col items-center justify-center text-center p-12 opacity-50">
+                    <MousePointer size={64} className="text-gray-700 mb-6" />
+                    <h3 className="text-2xl font-black text-gray-500 uppercase tracking-tighter italic">Select Talent to Spark</h3>
+                </div>
+            ) : (
+                <div className="flex-1 flex flex-col gap-4 animate-fade-in overflow-hidden">
+                    {/* SPOTLIGHT PROMOTION BANNER */}
+                    {(selectedPlayer.activityStatus === 'signal' || selectedPlayer.activityStatus === 'spotlight') && (
+                        <div className="bg-emerald-500/10 border-2 border-scout-accent/30 rounded-3xl p-4 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0 overflow-hidden group">
+                             <div className="flex items-center gap-4 relative z-10">
+                                 <div className="w-10 h-10 bg-scout-accent/20 rounded-full flex items-center justify-center text-scout-accent border border-scout-accent/30">
+                                     {selectedPlayer.activityStatus === 'spotlight' ? <Trophy size={20} /> : <Flame size={20} className="animate-pulse-fast" />}
+                                 </div>
+                                 <div>
+                                     <h4 className="text-base font-black text-white uppercase tracking-tighter italic leading-none">
+                                         {selectedPlayer.activityStatus === 'spotlight' ? 'Spotlight Ready' : 'Signal Detected'}
+                                     </h4>
+                                     <p className="text-[10px] text-gray-400 font-medium mt-1">
+                                         {selectedPlayer.activityStatus === 'spotlight' ? 'Player has completed the assessment.' : 'Player clicked the Spark link.'}
+                                     </p>
+                                 </div>
+                             </div>
+                             <button 
+                                onClick={promoteToSpotlight}
+                                className="px-6 py-2 bg-scout-accent hover:bg-emerald-600 text-scout-900 font-black rounded-xl shadow-glow relative z-10 transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest"
+                             >
+                                <Trophy size={14}/> Promote to Pipeline
+                             </button>
+                        </div>
+                    )}
+
+                    {/* CONSOLE HEADER */}
+                    <div className={`p-4 md:p-6 bg-scout-800 border-2 rounded-[2.5rem] shrink-0 transition-all duration-500 ${selectedPlayer.activityStatus === 'spotlight' ? 'border-scout-accent shadow-glow' : 'border-scout-700'}`}>
+                        <div className="flex justify-between items-start">
+                            <div className="flex gap-4 md:gap-6 items-center">
+                                <div className="w-14 h-14 md:w-16 md:h-16 bg-scout-900 border-2 border-scout-700 rounded-2xl flex items-center justify-center text-2xl font-black text-white shadow-xl">
+                                    {selectedPlayer.name.charAt(0)}
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tighter italic leading-tight">{selectedPlayer.name}</h2>
+                                    <div className="flex gap-2 mt-1.5 flex-wrap">
+                                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest border border-gray-700 px-1.5 py-0.5 rounded">{selectedPlayer.position}</span>
+                                        <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest border border-gray-700 px-1.5 py-0.5 rounded">{selectedPlayer.age} Years Old</span>
+                                        <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${selectedPlayer.activityStatus === 'spotlight' ? 'bg-scout-accent/10 text-scout-accent' : 'bg-gray-700 text-gray-400'}`}>
+                                            {selectedPlayer.activityStatus === 'spotlight' ? 'Spotlight Verified' : selectedPlayer.activityStatus === 'signal' ? 'Signal Active' : selectedPlayer.activityStatus === 'spark' ? 'Spark Sent' : 'Undiscovered Ghost'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* INTENT BAR */}
+                    <div className="grid grid-cols-4 gap-3 shrink-0">
+                        {INTENTS.map(intent => (
+                            <button 
+                                key={intent.id}
+                                onClick={() => handleIntentClick(intent.id)}
+                                disabled={isLoading}
+                                className={`p-3 md:p-4 rounded-2xl border-2 text-left transition-all hover:scale-[1.02] active:scale-[0.98] ${intent.color} ${activeIntent === intent.id ? 'ring-2 ring-white/50 border-white' : ''} group relative overflow-hidden`}
+                            >
+                                <div className="font-black text-[10px] md:text-xs uppercase tracking-tight relative z-10">{intent.title}</div>
+                                <p className="text-[8px] md:text-[9px] opacity-70 mt-1 relative z-10 leading-tight hidden md:block">{intent.desc}</p>
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* AI TERMINAL */}
+                    <div className="flex-1 bg-scout-950 border border-scout-700 rounded-[2rem] p-6 md:p-8 relative flex flex-col shadow-inner overflow-hidden">
+                        <div className="absolute top-4 left-6 flex gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-scout-warning/50"></div>
+                            <div className="w-2 h-2 rounded-full bg-scout-highlight/50"></div>
+                            <div className="w-2 h-2 rounded-full bg-scout-accent/50"></div>
+                        </div>
+
+                        {/* Terminal Header Controls */}
+                        <div className="absolute top-4 right-6 flex items-center gap-4">
+                            <div className="flex items-center gap-2 bg-scout-900/80 border border-scout-700 px-2.5 py-1 rounded-full">
+                                <Link size={10} className={includeSmartLink ? "text-scout-accent" : "text-gray-600"} />
+                                <span className="text-[8px] font-black uppercase text-gray-500 tracking-widest">Assessment Link</span>
+                                <button 
+                                    onClick={() => setIncludeSmartLink(!includeSmartLink)}
+                                    className={`w-7 h-3.5 rounded-full relative transition-all ${includeSmartLink ? 'bg-scout-accent' : 'bg-scout-800'}`}
+                                >
+                                    <div className={`absolute top-0.5 w-2.5 h-2.5 bg-white rounded-full transition-all ${includeSmartLink ? 'left-[16px]' : 'left-0.5'}`}></div>
+                                </button>
+                            </div>
+                            <div className="text-[9px] font-mono text-gray-700 uppercase tracking-widest hidden lg:block">Outreach v3.0</div>
+                        </div>
+
+                        {/* CONTENT AREA - SCROLLABLE */}
+                        <div className="mt-8 flex-1 overflow-y-auto custom-scrollbar">
+                            {isLoading ? (
+                                <div className="flex items-center gap-3 h-full justify-center text-gray-600 font-mono">
+                                    <Loader2 className="animate-spin" size={20} />
+                                    <span className="text-sm">Drafting tactical spark...</span>
+                                </div>
+                            ) : draftedMessage ? (
+                                <MessageRenderer text={draftedMessage} />
+                            ) : (
+                                <div className="h-full flex flex-col items-center justify-center opacity-20">
+                                    <MessageCircle size={64} className="mb-4" />
+                                    <p className="uppercase tracking-[0.3em] font-black text-xs">Select Intent to Spark Player</p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* ACTION FOOTER */}
+                        {draftedMessage && !isLoading && (
+                            <div className="pt-6 flex gap-3 border-t border-scout-700 mt-4 shrink-0 bg-scout-950/80 backdrop-blur-sm">
+                                <button 
+                                    onClick={handleCopyAndLog}
+                                    className="flex-[2] bg-white hover:bg-gray-100 text-scout-900 font-black py-3 md:py-4 rounded-xl shadow-xl transition-all flex items-center justify-center gap-2 md:gap-3 uppercase tracking-widest text-xs md:text-sm"
+                                >
+                                    {copied ? <CheckCircle size={18} /> : <Copy size={18} />} {copied ? 'Logged' : 'Copy Spark'}
+                                </button>
+                                <button 
+                                    onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(draftedMessage)}`)}
+                                    className="flex-1 bg-[#25D366] hover:bg-[#20bd5a] text-white font-black py-3 md:py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 uppercase text-[10px]"
+                                >
+                                    <MessageCircle size={16}/> <span className="hidden md:inline">WhatsApp</span>
+                                </button>
+                                <button 
+                                    onClick={() => window.open(`mailto:?body=${encodeURIComponent(draftedMessage)}`)}
+                                    className="flex-1 bg-scout-700 hover:bg-scout-600 text-white font-black py-3 md:py-4 rounded-xl transition-all flex items-center justify-center gap-2 uppercase text-[10px]"
+                                >
+                                    <Send size={16}/> <span className="hidden md:inline">Email</span>
+                                </button>
                             </div>
                         )}
                     </div>
-                 </div>
-            </div>
-          )}
+                </div>
+            )}
         </div>
-      );
-  }
-
-  // 2. MOBILE VIEW (MASTER-DETAIL)
-  return (
-      <div className="flex flex-col h-[calc(100vh-140px)] animate-fade-in relative overflow-hidden">
-          {/* VIEW 1: MASTER LIST */}
-          <div className={`absolute inset-0 flex flex-col transition-transform duration-300 ${mobileView === 'LIST' ? 'translate-x-0' : '-translate-x-full'}`}>
-              <div className="bg-scout-900 border-b border-scout-700 p-4 sticky top-0 z-10 shadow-md">
-                  <h3 className="text-lg font-bold text-white mb-2">Outreach Center</h3>
-                  <div className="relative">
-                      <Search className="absolute left-3 top-2.5 text-gray-500" size={16} />
-                      <input 
-                          type="text" 
-                          placeholder="Search players..." 
-                          className="w-full bg-scout-800 border border-scout-700 rounded-full pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-scout-accent transition-colors"
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                      />
-                  </div>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar pb-24">
-                  {/* Shadow Pool Alert (Simplified) */}
-                  {prospectCount > 0 && (
-                      <div className="mb-4 bg-scout-800/80 border border-scout-700 p-3 rounded-xl flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-xs text-gray-400">
-                              <EyeOff size={14} className="text-scout-highlight" />
-                              <span>{prospectCount} Shadow Prospects</span>
-                          </div>
-                          <ChevronRight size={14} className="text-gray-600" />
-                      </div>
-                  )}
-
-                  {/* Player List */}
-                  {filteredPlayers.length === 0 ? (
-                      <div className="text-center py-10 text-gray-500 text-sm">No players found.</div>
-                  ) : (
-                      <div className="space-y-2">
-                          {filteredPlayers.map(p => {
-                              const lastContact = p.outreachLogs?.[0];
-                              return (
-                                  <div 
-                                      key={p.id} 
-                                      onClick={() => handlePlayerSelect(p.id)}
-                                      className="bg-scout-800 p-4 rounded-xl border border-scout-700 active:scale-[0.98] transition-transform flex items-center justify-between"
-                                  >
-                                      <div>
-                                          <h4 className="font-bold text-white">{p.name}</h4>
-                                          <p className="text-xs text-gray-500">{p.position} • {p.age}yo</p>
-                                          {lastContact && (
-                                              <p className="text-[10px] text-green-400 mt-1 flex items-center gap-1">
-                                                  <CheckCircle size={8} /> {lastContact.method} {formatDate(lastContact.date)}
-                                              </p>
-                                          )}
-                                      </div>
-                                      <div className={`w-8 h-8 rounded-full flex items-center justify-center border ${
-                                          p.status === 'Placed' ? 'bg-scout-accent text-scout-900 border-scout-accent' : 
-                                          'bg-scout-900 text-gray-400 border-scout-700'
-                                      }`}>
-                                          <ArrowRight size={14} />
-                                      </div>
-                                  </div>
-                              );
-                          })}
-                      </div>
-                  )}
-              </div>
-          </div>
-
-          {/* VIEW 2: DETAIL (STUDIO) */}
-          <div className={`absolute inset-0 flex flex-col bg-scout-900 transition-transform duration-300 z-20 ${mobileView === 'DETAIL' ? 'translate-x-0' : 'translate-x-full'}`}>
-              {/* Header */}
-              <div className="flex items-center gap-3 p-4 border-b border-scout-700 bg-scout-900">
-                  <button onClick={handleBackToList} className="p-2 -ml-2 text-gray-400 hover:text-white">
-                      <ChevronLeft size={24} />
-                  </button>
-                  <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-white truncate">{selectedPlayer?.name || 'New Message'}</h3>
-                      <p className="text-xs text-gray-500">Drafting Message</p>
-                  </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-4 pb-32">
-                  {/* Template Horizontal Scroll */}
-                  <div className="flex gap-2 overflow-x-auto pb-4 -mx-4 px-4 scrollbar-hide">
-                      {TEMPLATES.map(t => (
-                          <button
-                              key={t.id}
-                              onClick={() => setSelectedTemplate(t.id)}
-                              className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold border transition-colors ${
-                                  selectedTemplate === t.id 
-                                  ? 'bg-scout-accent text-scout-900 border-scout-accent' 
-                                  : 'bg-scout-800 text-gray-400 border-scout-700'
-                              }`}
-                          >
-                              {t.title}
-                          </button>
-                      ))}
-                  </div>
-
-                  {/* Smart Link Toggle */}
-                  <div className="bg-scout-800 p-3 rounded-xl border border-scout-700 mb-4 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                          <Link size={16} className={includeAssessment ? "text-scout-accent" : "text-gray-500"} />
-                          <span className={`text-sm font-bold ${includeAssessment ? "text-white" : "text-gray-400"}`}>Attach Smart Link</span>
-                      </div>
-                      <div 
-                          onClick={() => setIncludeAssessment(!includeAssessment)}
-                          className={`w-10 h-6 rounded-full p-1 cursor-pointer transition-colors ${includeAssessment ? 'bg-scout-accent' : 'bg-scout-700'}`}
-                      >
-                          <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${includeAssessment ? 'translate-x-4' : 'translate-x-0'}`}></div>
-                      </div>
-                  </div>
-
-                  {/* Text Area */}
-                  <textarea 
-                      value={generatedMessage}
-                      onChange={(e) => setGeneratedMessage(e.target.value)}
-                      placeholder="Select a template or start typing..."
-                      className="w-full h-64 bg-scout-800 border border-scout-700 rounded-xl p-4 text-white text-sm focus:outline-none focus:border-scout-accent resize-none"
-                  />
-                  
-                  {isLoading && <div className="text-center text-xs text-scout-accent mt-2 animate-pulse">AI is writing...</div>}
-              </div>
-
-              {/* Action Bar (Sticky Bottom) */}
-              <div className="absolute bottom-0 w-full bg-scout-800 border-t border-scout-700 p-4 pb-safe">
-                  {!generatedMessage ? (
-                      <button 
-                          onClick={handleGenerate}
-                          disabled={!selectedTemplate || isLoading}
-                          className="w-full bg-scout-accent text-scout-900 font-bold py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg disabled:opacity-50"
-                      >
-                          <Sparkles size={18} /> Generate Draft
-                      </button>
-                  ) : (
-                      <div className="grid grid-cols-4 gap-2">
-                          <button onClick={handleGenerate} className="col-span-1 bg-scout-900 border border-scout-700 rounded-xl flex items-center justify-center text-gray-400"><Sparkles size={18}/></button>
-                          <button onClick={openWhatsApp} className="col-span-1 bg-[#25D366] rounded-xl flex items-center justify-center text-white"><MessageCircle size={20}/></button>
-                          <button onClick={openMail} className="col-span-1 bg-blue-600 rounded-xl flex items-center justify-center text-white"><Mail size={20}/></button>
-                          <button onClick={copyToClipboard} className="col-span-1 bg-scout-700 rounded-xl flex items-center justify-center text-white">{copied ? <CheckCircle size={18}/> : <Copy size={18}/>}</button>
-                      </div>
-                  )}
-              </div>
-          </div>
       </div>
+    </div>
   );
 };
 

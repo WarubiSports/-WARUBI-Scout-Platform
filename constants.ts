@@ -1,4 +1,5 @@
-import { Player, PlayerStatus, KnowledgeItem, PathwayDef, ToolDef, NewsItem } from './types';
+
+import { Player, PlayerStatus, KnowledgeItem, PathwayDef, ToolDef, NewsItem, ScoutingEvent } from './types';
 
 export const SCOUT_POINTS = {
   PLAYER_LOG: 10,
@@ -6,6 +7,62 @@ export const SCOUT_POINTS = {
   EVENT_HOST: 50,
   PLACEMENT: 500
 };
+
+export const MARKET_DATA = {
+  GLOBAL_MARKET: "$50B+",
+  TOTAL_PLAYERS: "265M",
+  US_SCHOLARSHIP_FUND: "$3B",
+  ANNUAL_PLACEMENTS: "200+",
+  AUDIT_METRICS: [
+    { label: "Agency Transparency", warubi: "Live Outreach Logs", oldWay: "Hidden Emails/No Logs" },
+    { label: "Selection Basis", warubi: "AI-Verified Merit", oldWay: "Pay-To-Play Rankings" },
+    { label: "Financial Model", warubi: "Simple Refund Policy", oldWay: "Complex Retainers" },
+    { label: "Pathways", warubi: "Hybrid (Pro + College)", oldWay: "Single Source / Limited" }
+  ]
+};
+
+export const WARUBI_PROTOCOLS = [
+  {
+    id: 'ownership',
+    title: 'Ownership Protocol',
+    principles: [
+      'Scouts are owners, not employees.',
+      'Regional autonomy with global infrastructure.',
+      'Direct revenue attribution for every lead.'
+    ],
+    color: 'border-blue-500/30 text-blue-400'
+  },
+  {
+    id: 'trust',
+    title: 'Trust Protocol',
+    principles: [
+      'Results before revenue: Placements drive the brand.',
+      'Immutable logs: Parents see every interaction.',
+      'Simple refund standards eliminate legal friction.'
+    ],
+    color: 'border-scout-accent/30 text-scout-accent'
+  },
+  {
+    id: 'selectivity',
+    title: 'Selectivity Protocol',
+    principles: [
+      'No Pay-to-Play. Tier 1 talent is earned.',
+      'Quality gates at every transition point.',
+      'Scout reputation is a system currency.'
+    ],
+    color: 'border-purple-500/30 text-purple-400'
+  },
+  {
+    id: 'integrity',
+    title: 'Integrity Protocol',
+    principles: [
+      'UEFA methodology is the technical benchmark.',
+      'FIFA verified agents handle pro transitions.',
+      'Proof of placement beats theory of potential.'
+    ],
+    color: 'border-red-500/30 text-red-400'
+  }
+];
 
 export const ITP_REFERENCE_PLAYERS: Player[] = [
   {
@@ -68,6 +125,141 @@ export const ITP_REFERENCE_PLAYERS: Player[] = [
     }
   }
 ];
+
+export const DEMO_DATA = {
+    players: [
+        {
+            id: 'demo-1',
+            name: 'Leo Silva',
+            age: 18,
+            position: 'ST',
+            status: PlayerStatus.PLACED,
+            placedLocation: 'FC Köln ITP / Pro Residency',
+            submittedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(),
+            outreachLogs: [{ id: 'l1', date: new Date().toISOString(), method: 'WhatsApp', templateName: 'Placement Confirmation' }],
+            evaluation: {
+                score: 91,
+                collegeLevel: 'Top 25 NCAA D1 / Pro',
+                scholarshipTier: 'Tier 1',
+                recommendedPathways: ['Development in Europe'],
+                strengths: ['Elite Finishing', 'Pro-ready Frame', 'Top 1% Acceleration'],
+                weaknesses: ['Defensive Workrate'],
+                nextAction: 'Quarterly Check-in',
+                summary: 'Silva is the gold standard for a modern #9. His physical data matches Regionalliga standards in Germany.'
+            },
+            notes: 'Successfully moved through the Germany pathway in Oct 2024.'
+        },
+        {
+            id: 'demo-2',
+            name: 'Marco Rossi',
+            age: 17,
+            position: 'CAM',
+            status: PlayerStatus.FINAL_REVIEW,
+            submittedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(),
+            outreachLogs: [],
+            evaluation: {
+                score: 88,
+                collegeLevel: 'NCAA D1 Power 5',
+                scholarshipTier: 'Tier 1',
+                recommendedPathways: ['College Pathway', 'Development in Europe'],
+                strengths: ['Vision', 'Technical Precision', 'GPA: 3.9'],
+                weaknesses: ['Strength'],
+                nextAction: 'Submit to HQ',
+                summary: 'Highly intelligent midfielder with elite academic profile. Ideal for Top D1 programs looking for technical superiority.'
+            }
+        },
+        {
+            id: 'demo-3',
+            name: 'Elena Vance',
+            age: 18,
+            position: 'LB',
+            status: PlayerStatus.INTERESTED,
+            interestedProgram: 'West Coast D1 Programs',
+            submittedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(),
+            outreachLogs: [],
+            evaluation: {
+                score: 82,
+                collegeLevel: 'NCAA D1 / Top D2',
+                scholarshipTier: 'Tier 2',
+                recommendedPathways: ['College Pathway'],
+                strengths: ['Recovery Speed', '1v1 Defending'],
+                weaknesses: ['Crossing Consistency'],
+                nextAction: 'Film Review',
+                summary: 'Athletic left back who dominates the wing. High ceiling if she improves her final ball delivery.'
+            }
+        },
+        {
+            id: 'demo-4',
+            name: 'Tariq Bakari',
+            age: 17,
+            position: 'CM',
+            status: PlayerStatus.LEAD,
+            submittedAt: new Date().toISOString(),
+            outreachLogs: [],
+            evaluation: {
+                score: 75,
+                collegeLevel: 'NCAA D2 / NAIA',
+                scholarshipTier: 'Tier 3',
+                recommendedPathways: ['Exposure Events'],
+                strengths: ['Engine / Stamina', 'Aerial Presence'],
+                weaknesses: ['Decision Making'],
+                nextAction: 'Invite to ID Day',
+                summary: 'Bakari is a physical powerhouse who needs a more structured tactical environment to shine.'
+            }
+        },
+        {
+            id: 'demo-5',
+            name: 'Samir Amin',
+            age: 16,
+            position: 'RW',
+            status: PlayerStatus.PROSPECT,
+            activityStatus: 'signal',
+            lastActive: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
+            submittedAt: new Date().toISOString(),
+            outreachLogs: [],
+            evaluation: null
+        },
+        {
+            id: 'demo-6',
+            name: 'Javier Hernandez',
+            age: 17,
+            position: 'GK',
+            status: PlayerStatus.PROSPECT,
+            activityStatus: 'undiscovered',
+            submittedAt: new Date().toISOString(),
+            outreachLogs: [],
+            evaluation: null
+        }
+    ] as Player[],
+    events: [
+        {
+            id: 'demo-evt-1',
+            isMine: true,
+            role: 'HOST',
+            status: 'Draft',
+            title: 'Regional Talent ID: Texas',
+            date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString(),
+            location: 'Round Rock Multipurpose Complex',
+            type: 'ID Day',
+            fee: '$45',
+            registeredCount: 12,
+            agenda: ['09:00 - Arrival', '10:00 - Technical Audit', '11:30 - Small Sided Games'],
+            checklist: [{ task: 'Book field space', completed: true }, { task: 'Send invites to local clubs', completed: false }]
+        },
+        {
+            id: 'demo-evt-2',
+            isMine: false,
+            role: 'ATTENDEE',
+            status: 'Published',
+            title: 'ECNL National Showcase',
+            date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 3).toISOString(),
+            location: 'Phoenix, AZ',
+            type: 'Showcase',
+            fee: 'N/A',
+            registeredCount: 0
+        }
+    ] as ScoutingEvent[]
+};
 
 export const WARUBI_PATHWAYS: PathwayDef[] = [
     {

@@ -3,6 +3,7 @@
   "description": "AI-powered scouting platform for identifying and managing soccer talent with automated evaluations and event planning.",
   "requestFramePermissions": [
     "camera",
-    "microphone"
+    "microphone",
+    "geolocation"
   ]
 }

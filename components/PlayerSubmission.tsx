@@ -1,723 +1,398 @@
-import React, { useState } from 'react';
-import { X, Upload, CheckCircle, Loader2, FlaskConical, User, Calendar, Activity, GraduationCap, ClipboardPaste, Sparkles, Mail, Phone, Save, AlertCircle, Copy, ArrowRight, WifiOff } from 'lucide-react';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  X, CheckCircle, Loader2, User, Activity, GraduationCap, Sparkles, Mail, Phone, Save, 
+  ChevronRight, Wand2, ArrowLeft, ShieldCheck, Award, Target, Users, Smartphone, Keyboard,
+  Ruler, Weight, Calendar, Globe, Footprints, Video, Plus, MessageSquare, ChevronLeft, SmartphoneIcon,
+  Flame, Zap, Brain
+} from 'lucide-react';
 import { evaluatePlayer, parsePlayerDetails, checkPlayerDuplicates } from '../services/geminiService';
 import { Player, PlayerStatus, PlayerEvaluation } from '../types';
+import PlayerCard from './PlayerCard';
 
 interface PlayerSubmissionProps {
   onClose: () => void;
   onAddPlayer: (player: Player) => void;
-  existingPlayers: Player[]; // Prop for duplicate check
+  onUpdatePlayer?: (player: Player) => void;
+  existingPlayers: Player[];
+  editingPlayer?: Player | null;
 }
 
+type SubmissionMode = 'HUB' | 'SCANNING' | 'BUILD' | 'FIELD';
+
 const POSITIONS = ["GK", "CB", "LB", "RB", "CDM", "CM", "CAM", "LW", "RW", "ST"];
-const TEAM_LEVELS = ["Professional Academy", "Elite National (MLS Next/ECNL/GA)", "Regional (NPL/RL)", "High School Varsity", "District/Local", "Recreational"];
-const RATINGS = ["Elite", "Top 10%", "Above Average", "Average", "Below Average"];
+const TEAM_LEVELS = ["MLS Next", "ECNL", "GA", "High School Varsity", "NPL", "Regional", "International Academy"];
+const FEET = ["Right", "Left", "Both"];
 
-const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlayer, existingPlayers }) => {
+const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlayer, onUpdatePlayer, existingPlayers, editingPlayer }) => {
+  const [mode, setMode] = useState<SubmissionMode>(editingPlayer ? 'BUILD' : 'HUB');
+  const [buildStep, setBuildStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [parsing, setParsing] = useState(false);
-  const [step, setStep] = useState<'input' | 'review'>('input');
-  
-  // Offline State Check
-  const isOnline = navigator.onLine;
+  const [fieldInput, setFieldInput] = useState('');
 
-  // Duplicate Check State
-  const [showDupWarning, setShowDupWarning] = useState(false);
-  const [duplicates, setDuplicates] = useState<any[]>([]);
-  const [pendingPlayer, setPendingPlayer] = useState<Player | null>(null);
-
-  // Single Player Form State
+  // Form State
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    gender: 'Male',
-    gradYear: '',
-    dob: '',
-    region: '',
-    nationality: 'USA',
-    heightFt: '',
-    heightIn: '',
-    foot: 'Right',
     position: 'CM',
     secondaryPosition: '',
+    dominantFoot: 'Right' as 'Right' | 'Left' | 'Both',
+    nationality: '',
+    hasEuPassport: false,
+    dob: '',
     club: '',
-    teamLevel: 'Elite National (MLS Next/ECNL/GA)',
+    teamLevel: 'ECNL',
+    height: '',
+    weight: '',
+    // Traits
+    pace: 50,
+    physical: 50,
+    technical: 50,
+    tactical: 50,
+    coachable: 50,
+    gradYear: '',
     gpa: '',
-    testScore: '',
+    satAct: '',
+    videoLink: '',
     email: '',
     phone: '',
+    parentName: '',
     parentEmail: '',
-    ratings: {
-      speed: 'Above Average',
-      strength: 'Above Average',
-      endurance: 'Above Average',
-      workRate: 'Above Average',
-      technical: 'Above Average',
-      tactical: 'Above Average'
-    }
+    parentPhone: '',
   });
 
-  const [image, setImage] = useState<string | null>(null);
-  const [mimeType, setMimeType] = useState('image/jpeg');
-  const [evalResult, setEvalResult] = useState<PlayerEvaluation | null>(null);
-  const [pasteInput, setPasteInput] = useState('');
+  const [evalResult, setEvalResult] = useState<PlayerEvaluation | null>(editingPlayer?.evaluation || null);
+
+  useEffect(() => {
+      if (editingPlayer) {
+          const names = editingPlayer.name.split(' ');
+          setFormData({
+              firstName: names[0] || '',
+              lastName: names.slice(1).join(' ') || '',
+              position: editingPlayer.position as any,
+              secondaryPosition: editingPlayer.secondaryPosition || '',
+              dominantFoot: editingPlayer.dominantFoot || 'Right',
+              nationality: editingPlayer.nationality || '',
+              hasEuPassport: editingPlayer.hasEuPassport || false,
+              dob: '', 
+              club: editingPlayer.club || '',
+              teamLevel: editingPlayer.teamLevel || 'ECNL',
+              height: editingPlayer.height || '',
+              weight: editingPlayer.weight || '',
+              pace: editingPlayer.pace || 50,
+              physical: editingPlayer.physical || 50,
+              technical: editingPlayer.technical || 50,
+              tactical: editingPlayer.tactical || 50,
+              coachable: editingPlayer.coachable || 50,
+              gradYear: editingPlayer.gradYear || '',
+              gpa: editingPlayer.gpa || '',
+              satAct: editingPlayer.satAct || '',
+              videoLink: editingPlayer.videoLink || '',
+              email: editingPlayer.email || '',
+              phone: editingPlayer.phone || '',
+              parentName: editingPlayer.parentName || '',
+              parentEmail: editingPlayer.parentEmail || '',
+              parentPhone: editingPlayer.parentPhone || '',
+          });
+      }
+  }, [editingPlayer]);
+
+  const draftPlayer: Player = {
+    id: editingPlayer?.id || 'draft',
+    name: `${formData.firstName} ${formData.lastName}`.trim() || 'Unnamed Prospect',
+    age: formData.dob ? new Date().getFullYear() - new Date(formData.dob).getFullYear() : (editingPlayer?.age || 17),
+    position: formData.position,
+    secondaryPosition: formData.secondaryPosition,
+    dominantFoot: formData.dominantFoot,
+    nationality: formData.nationality,
+    hasEuPassport: formData.hasEuPassport,
+    height: formData.height,
+    weight: formData.weight,
+    pace: formData.pace,
+    physical: formData.physical,
+    technical: formData.technical,
+    tactical: formData.tactical,
+    coachable: formData.coachable,
+    status: editingPlayer?.status || PlayerStatus.LEAD,
+    email: formData.email,
+    phone: formData.phone,
+    parentName: formData.parentName,
+    parentEmail: formData.parentEmail,
+    parentPhone: formData.parentPhone,
+    gpa: formData.gpa,
+    gradYear: formData.gradYear,
+    satAct: formData.satAct,
+    videoLink: formData.videoLink,
+    club: formData.club,
+    teamLevel: formData.teamLevel,
+    submittedAt: editingPlayer?.submittedAt || new Date().toISOString(),
+    outreachLogs: editingPlayer?.outreachLogs || [],
+    notes: editingPlayer?.notes || '',
+    evaluation: evalResult,
+    activityStatus: editingPlayer?.activityStatus,
+    lastActive: editingPlayer?.lastActive,
+    lastContactedAt: editingPlayer?.lastContactedAt,
+    previousScore: editingPlayer?.evaluation?.score
+  };
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleRatingChange = (rating: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      ratings: { ...prev.ratings, [rating]: value }
-    }));
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            const base64String = reader.result as string;
-            const base64Data = base64String.split(',')[1];
-            setImage(base64Data);
-            setMimeType(file.type);
-        };
-        reader.readAsDataURL(file);
-    }
-  };
-
-  const fillDemoData = () => {
-    setImage(null);
-    setFormData({
-      firstName: 'Marco',
-      lastName: 'Rossi',
-      gender: 'Male',
-      gradYear: '2025',
-      dob: '2006-05-15',
-      region: 'New Jersey',
-      nationality: 'Italy / USA',
-      heightFt: '5',
-      heightIn: '10',
-      foot: 'Right',
-      position: 'RB',
-      secondaryPosition: 'RWB',
-      club: 'East Coast Elite Academy',
-      teamLevel: 'Elite National (MLS Next/ECNL/GA)',
-      gpa: '3.6',
-      testScore: '1250 SAT',
-      email: 'marco.rossi@example.com',
-      phone: '555-0123',
-      parentEmail: 'mario.rossi@example.com',
-      ratings: {
-        speed: 'Elite',
-        strength: 'Average',
-        endurance: 'Top 10%',
-        workRate: 'Top 10%',
-        technical: 'Above Average',
-        tactical: 'Above Average'
-      }
-    });
-  };
-
-  const handleAutoFill = async () => {
-      if (!isOnline) {
-          alert("Auto-fill requires an internet connection.");
-          return;
-      }
-      if (!pasteInput.trim()) return;
-      setParsing(true);
-      try {
-          const parsed = await parsePlayerDetails(pasteInput);
-          if (parsed) {
-              setFormData(prev => ({
-                  ...prev,
-                  firstName: parsed.firstName || prev.firstName,
-                  lastName: parsed.lastName || prev.lastName,
-                  email: parsed.email || prev.email,
-                  phone: parsed.phone || prev.phone,
-                  parentEmail: parsed.parentEmail || prev.parentEmail,
-                  position: parsed.position || prev.position,
-                  dob: parsed.dob || prev.dob,
-                  gradYear: parsed.gradYear || prev.gradYear,
-                  club: parsed.club || prev.club,
-                  teamLevel: parsed.teamLevel || prev.teamLevel,
-                  region: parsed.region || prev.region,
-                  heightFt: parsed.heightFt || prev.heightFt,
-                  heightIn: parsed.heightIn || prev.heightIn,
-                  gpa: parsed.gpa || prev.gpa,
-              }));
-              setPasteInput(''); // Clear input on success
-          } else {
-              alert("Could not extract data. Please try again.");
-          }
-      } catch (e) {
-          alert("Parsing error.");
-      } finally {
-          setParsing(false);
-      }
-  };
-
-  // Helper to calc age
-  const calculateAge = (dobString: string) => {
-      if (!dobString) return 17; // Default fallback
-      const birthDate = new Date(dobString);
-      const today = new Date();
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const m = today.getMonth() - birthDate.getMonth();
-      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-          age--;
-      }
-      return age;
-  };
-
-  // DUPLICATE CHECK
-  const runDuplicateCheck = async (playerToAdd: Player) => {
-    // Skip duplicate check if offline
-    if (!isOnline) return true;
-
+  const startAiMagic = async (data: string) => {
     setLoading(true);
+    setMode('SCANNING');
     try {
-        const matches = await checkPlayerDuplicates(playerToAdd, existingPlayers);
-        if (matches && matches.length > 0) {
-            setDuplicates(matches);
-            setPendingPlayer(playerToAdd);
-            setShowDupWarning(true);
-            setLoading(false);
-            return false; // Stop submission
-        }
-    } catch (e) {
-        // fail silently regarding dup check and proceed
-    }
-    return true; // Proceed
-  };
-
-  const finalSubmit = (player: Player) => {
-    onAddPlayer(player);
-    onClose();
-  }
-
-  const handleForceSubmit = () => {
-      if (pendingPlayer) {
-          finalSubmit(pendingPlayer);
+      const result = await evaluatePlayer(data, false);
+      const parsed = await parsePlayerDetails(data);
+      if (parsed) {
+        setFormData(prev => ({ ...prev, ...parsed }));
       }
-  }
-
-  // Quick Save (Skip AI)
-  const handleQuickSave = async () => {
-      // Validate minimum fields for Quick Save
-      if (!formData.firstName && !formData.lastName) {
-          alert("Please provide at least a First Name or Last Name to save.");
-          return;
-      }
-
-      const newPlayer: Player = {
-        id: Date.now().toString(),
-        name: `${formData.firstName} ${formData.lastName}`.trim() || "Unknown Player",
-        age: calculateAge(formData.dob),
-        position: formData.position || "Unknown",
-        status: PlayerStatus.LEAD, // Default to Lead
-        email: formData.email,
-        phone: formData.phone,
-        parentEmail: formData.parentEmail,
-        interestedProgram: formData.club ? `${formData.club} (${formData.teamLevel})` : formData.teamLevel, // Store context
-        submittedAt: new Date().toISOString(),
-        outreachLogs: [],
-        evaluation: null // Explicitly null to indicate pending evaluation
-    };
-
-    const shouldProceed = await runDuplicateCheck(newPlayer);
-    if (shouldProceed) {
-        finalSubmit(newPlayer);
-    }
-  };
-
-  // Single Player AI Submit
-  const handleSubmit = async () => {
-    // Validate minimum fields
-    if (!image && (!formData.firstName || !formData.lastName)) {
-        alert("Please provide at least a name or upload an image to run AI analysis.");
-        return;
-    }
-
-    setLoading(true);
-    setEvalResult(null);
-
-    try {
-        const isImage = !!image;
-        let data = "";
-
-        if (isImage) {
-            data = image!;
-        } else {
-            // Construct structured prompt from form data
-            data = `
-Player Profile:
-Name: ${formData.firstName} ${formData.lastName}
-Gender: ${formData.gender}
-DOB: ${formData.dob} (Grad Year: ${formData.gradYear})
-Location: ${formData.region}, ${formData.nationality}
-Club: ${formData.club}
-Team Level: ${formData.teamLevel}
-Contact: ${formData.email}, ${formData.phone}, Parent: ${formData.parentEmail}
-Physical: ${formData.heightFt}'${formData.heightIn}", ${formData.foot}-footed
-Position: ${formData.position} (Secondary: ${formData.secondaryPosition})
-Academics: GPA ${formData.gpa}, Test ${formData.testScore}
-
-Scout Ratings (vs Teammates):
-- Speed: ${formData.ratings.speed}
-- Strength: ${formData.ratings.strength}
-- Endurance: ${formData.ratings.endurance}
-- Work Rate: ${formData.ratings.workRate}
-- Technical: ${formData.ratings.technical}
-- Tactical: ${formData.ratings.tactical}
-            `;
-        }
-
-        const result = await evaluatePlayer(data, isImage, mimeType);
-        
-        if (result) {
-            setEvalResult(result);
-            setStep('review');
-        } else {
-             alert("The AI could not generate a result. Please check the input and try again.");
-        }
+      setEvalResult(result);
+      setMode('BUILD');
+      setBuildStep(1); 
     } catch (e) {
-        console.error("Submission error:", e);
-        alert("Evaluation failed due to an unexpected error.");
+      setMode('BUILD');
+      setBuildStep(1);
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
-  const confirmPlayer = async () => {
-    if (!evalResult) return;
-    
-    const newPlayer: Player = {
-        id: Date.now().toString(),
-        name: `${formData.firstName} ${formData.lastName}`.trim() || "New Recruit",
-        age: calculateAge(formData.dob),
-        position: formData.position || "Unknown",
-        status: PlayerStatus.LEAD,
-        email: formData.email,
-        phone: formData.phone,
-        parentEmail: formData.parentEmail,
-        submittedAt: new Date().toISOString(),
-        outreachLogs: [],
-        evaluation: evalResult
-    };
-
-    const shouldProceed = await runDuplicateCheck(newPlayer);
-    if (shouldProceed) {
-        finalSubmit(newPlayer);
+  const handleFinalSubmit = async () => {
+    if (!formData.firstName && !formData.lastName) return;
+    if (editingPlayer && onUpdatePlayer) {
+        onUpdatePlayer({ ...draftPlayer });
+    } else {
+        onAddPlayer({ ...draftPlayer, id: Date.now().toString() });
     }
+    onClose();
   };
 
-  // --- Duplicate Warning Modal ---
-  const DuplicateModal = () => (
-      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-scout-800 w-full max-w-md rounded-xl border border-red-500/50 shadow-2xl p-6 relative">
-              <div className="flex items-center gap-3 mb-4 text-red-400">
-                  <AlertCircle size={32} />
-                  <h3 className="text-xl font-bold text-white">Possible Duplicate Found</h3>
-              </div>
-              <p className="text-gray-300 text-sm mb-4">
-                  AI detected players in your database that might be <strong>{pendingPlayer?.name}</strong>.
-                  Creating duplicates fragments your data.
-              </p>
-              
-              <div className="bg-scout-900 rounded-lg border border-scout-700 max-h-48 overflow-y-auto mb-6">
-                  {duplicates.map((dup, i) => (
-                      <div key={i} className="p-3 border-b border-scout-700 last:border-0 hover:bg-scout-800/50">
-                          <div className="flex justify-between items-start">
-                              <span className="font-bold text-white text-sm">{dup.name}</span>
-                              <span className="text-[10px] bg-red-900/50 text-red-400 px-2 py-0.5 rounded border border-red-900">{dup.confidence} Match</span>
-                          </div>
-                          <p className="text-xs text-gray-400 mt-1">{dup.reason}</p>
-                      </div>
-                  ))}
-              </div>
-
-              <div className="flex gap-3">
-                  <button 
-                    onClick={() => { setShowDupWarning(false); onClose(); }}
-                    className="flex-1 bg-scout-700 hover:bg-scout-600 text-white font-bold py-2 rounded-lg text-sm"
-                  >
-                      Cancel (Use Existing)
-                  </button>
-                  <button 
-                    onClick={handleForceSubmit}
-                    className="flex-1 bg-transparent border border-gray-600 hover:border-white text-gray-400 hover:text-white font-bold py-2 rounded-lg text-sm"
-                  >
-                      Create Anyway
-                  </button>
-              </div>
-          </div>
+  const FormField = ({ label, icon: Icon, children }: any) => (
+      <div className="space-y-1.5">
+          <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
+              {Icon && <Icon size={10} className="text-scout-accent"/>} {label}
+          </label>
+          {children}
       </div>
   );
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
-        {showDupWarning && <DuplicateModal />}
+  const Input = (props: any) => (
+      <input 
+          {...props} 
+          className="w-full bg-scout-800 border-2 border-scout-700 rounded-xl px-4 py-3 text-white focus:border-scout-accent outline-none font-bold placeholder-gray-600 transition-all"
+      />
+  );
 
-        <div className="bg-scout-900 w-full max-w-4xl rounded-2xl border border-scout-700 shadow-2xl flex flex-col md:flex-row overflow-hidden max-h-[90vh]">
-            
-            {/* Main Content */}
-            <div className="flex-1 flex flex-col bg-scout-900">
-                {/* Header */}
-                <div className="p-4 border-b border-scout-700 flex justify-between items-center bg-scout-800/50">
-                    <div>
-                         <h2 className="text-xl font-bold text-white">Manual Player Entry</h2>
-                         {!isOnline ? (
-                             <p className="text-xs text-red-400 font-bold flex items-center gap-1"><WifiOff size={10}/> Offline Mode: AI Disabled</p>
-                         ) : (
-                             <p className="text-xs text-gray-400">Add a single player to your pipeline.</p>
-                         )}
-                    </div>
-                    <button onClick={onClose} className="text-gray-400 hover:text-white">
-                        <X size={24} />
+  const Select = ({ options, ...props }: any) => (
+      <select 
+          {...props} 
+          className="w-full bg-scout-800 border-2 border-scout-700 rounded-xl px-4 py-3 text-white focus:border-scout-accent outline-none font-bold appearance-none transition-all"
+      >
+          {options.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+      </select>
+  );
+
+  const AuditSlider = ({ label, value, onChange, icon: Icon }: any) => {
+      const getGlowColor = (val: number) => {
+          if (val >= 85) return 'shadow-[0_0_15px_rgba(16,185,129,0.4)]';
+          if (val >= 70) return 'shadow-[0_0_10px_rgba(251,191,36,0.3)]';
+          return '';
+      };
+
+      return (
+          <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                      {Icon && <Icon size={14} className="text-gray-500" />}
+                      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{label}</span>
+                  </div>
+                  <span className={`text-sm font-mono font-black ${value >= 85 ? 'text-scout-accent' : value >= 70 ? 'text-scout-highlight' : 'text-gray-500'}`}>
+                      {value}
+                  </span>
+              </div>
+              <div className="relative h-6 flex items-center">
+                  <input 
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={value}
+                      onChange={(e) => onChange(parseInt(e.target.value))}
+                      className={`w-full h-1.5 bg-scout-900 rounded-full appearance-none cursor-pointer accent-scout-accent hover:accent-emerald-400 transition-all ${getGlowColor(value)}`}
+                  />
+                  {/* Visual Benchmarks */}
+                  <div className="absolute left-[70%] top-0 bottom-0 w-px bg-scout-700/50 pointer-events-none" title="College Ready"></div>
+                  <div className="absolute left-[85%] top-0 bottom-0 w-px bg-scout-accent/30 pointer-events-none" title="Pro Prospect"></div>
+              </div>
+          </div>
+      );
+  };
+
+  const StepIndicator = () => (
+    <div className="flex gap-1.5 mb-8">
+        {[1, 2, 3, 4].map(i => (
+            <div key={i} className="flex-1 flex flex-col gap-2">
+                <div className={`h-1.5 rounded-full transition-all duration-500 ${buildStep >= i ? 'bg-scout-accent' : 'bg-scout-700'}`}></div>
+                <span className={`text-[8px] font-black uppercase text-center ${buildStep === i ? 'text-scout-accent' : 'text-gray-600'}`}>Step {i}</span>
+            </div>
+        ))}
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#05080f]/95 backdrop-blur-xl p-4 animate-fade-in">
+      <div className="bg-scout-900 w-full max-w-6xl rounded-[3.5rem] border border-scout-700 shadow-2xl flex flex-col overflow-hidden max-h-[95vh] relative">
+        <div className="p-8 flex justify-between items-center border-b border-white/5 bg-scout-900/50">
+          <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-scout-accent rounded-full flex items-center justify-center text-scout-900 shadow-lg"><Plus size={24} /></div>
+              <div><h2 className="text-xl font-black text-white uppercase tracking-tighter">{editingPlayer ? 'Edit Profile' : 'Add Prospect'}</h2><p className="text-[9px] text-gray-500 font-bold uppercase">Accuracy Mode</p></div>
+          </div>
+          <button onClick={onClose} className="p-3 text-gray-600 hover:text-white transition-colors bg-white/5 rounded-full"><X size={24}/></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          {mode === 'HUB' && (
+            <div className="p-16 animate-fade-in max-w-4xl mx-auto flex flex-col items-center">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+                    <button onClick={() => setMode('FIELD')} className="group flex flex-col items-center p-12 bg-scout-800 border-2 border-scout-accent/30 rounded-[3rem] hover:border-scout-accent transition-all active:scale-95 shadow-2xl">
+                        <Smartphone size={48} className="text-scout-accent mb-4 group-hover:scale-110" />
+                        <h4 className="text-white font-black uppercase">Field Mode</h4>
+                        <p className="text-gray-500 text-xs mt-2 text-center">Fastest entry. One-line data tagger.</p>
+                    </button>
+                    <button onClick={() => setMode('BUILD')} className="group flex flex-col items-center p-12 bg-scout-800 border-2 border-scout-700 rounded-[3rem] hover:border-white transition-all active:scale-95 shadow-2xl">
+                        <Keyboard size={48} className="text-gray-400 mb-4 group-hover:scale-110" />
+                        <h4 className="text-white font-black uppercase">Office Mode</h4>
+                        <p className="text-gray-500 text-xs mt-2 text-center">Comprehensive intelligence build.</p>
                     </button>
                 </div>
+            </div>
+          )}
 
-                <div className="flex-1 overflow-y-auto p-6 bg-scout-900 custom-scrollbar">
-                    {step === 'input' && (
-                        <div className="space-y-6 max-w-3xl mx-auto animate-fade-in">
-                            <div className="flex justify-between items-end mb-2">
-                                <div>
-                                    <h3 className="text-2xl font-bold text-white">Player Profile Builder</h3>
-                                    <p className="text-gray-400 text-sm mt-1">
-                                        <span className="text-scout-accent font-bold">Tip:</span> Only <span className="text-white font-bold">Name</span> is required. Capture now, refine later.
-                                    </p>
-                                </div>
-                                <button 
-                                    onClick={fillDemoData}
-                                    className="text-xs flex items-center gap-1 text-scout-accent hover:text-white transition-colors bg-scout-800 px-3 py-1.5 rounded-full border border-scout-700"
-                                >
-                                    <FlaskConical size={12} /> Fill Demo Data
-                                </button>
-                            </div>
+          {mode === 'FIELD' && (
+              <div className="p-16 max-w-2xl mx-auto animate-fade-in h-full flex flex-col justify-center">
+                  <div className="text-center mb-10"><h3 className="text-3xl font-black text-white uppercase tracking-tighter">Sideline Tagger</h3></div>
+                  <div className="bg-scout-800 rounded-[2.5rem] border-2 border-scout-700 p-8 shadow-2xl focus-within:border-scout-accent">
+                      <textarea autoFocus value={fieldInput} onChange={e => setFieldInput(e.target.value)} className="w-full bg-transparent border-none text-2xl font-bold text-white placeholder-gray-700 h-40" placeholder="e.g. #9, ST, Leo Silva, Fast, 2026..." />
+                  </div>
+                  <div className="flex gap-4 mt-8">
+                      <button onClick={() => setMode('HUB')} className="flex-1 py-5 bg-scout-800 text-gray-400 font-black rounded-2xl">Cancel</button>
+                      <button onClick={() => startAiMagic(fieldInput)} disabled={loading || !fieldInput.trim()} className="flex-[2] py-5 bg-scout-accent text-scout-900 font-black rounded-2xl shadow-xl flex items-center justify-center gap-3">
+                         {loading ? <Loader2 className="animate-spin"/> : <><Wand2 size={24}/> Run AI Magic</>}
+                      </button>
+                  </div>
+              </div>
+          )}
 
-                            {/* AUTO-FILL / PASTE SECTION */}
-                            <div className={`bg-gradient-to-r from-scout-800 to-scout-900 border border-scout-600 rounded-xl p-4 shadow-lg ${!isOnline ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
-                                <div className="flex items-center gap-2 mb-2 text-white font-bold text-sm">
-                                    <Sparkles size={16} className="text-scout-highlight" />
-                                    <span>Quick Fill from Text</span>
-                                    {!isOnline && <span className="text-xs font-normal text-red-400 ml-auto">(Requires Internet)</span>}
-                                </div>
-                                <div className="flex gap-2">
-                                    <input 
-                                        type="text"
-                                        value={pasteInput}
-                                        onChange={(e) => setPasteInput(e.target.value)}
-                                        placeholder="Paste info here (Partial info OK)..."
-                                        className="flex-1 bg-scout-900 border border-scout-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-scout-accent placeholder-gray-600"
-                                    />
-                                    <button 
-                                        onClick={handleAutoFill}
-                                        disabled={parsing || !pasteInput}
-                                        className="bg-scout-700 hover:bg-scout-600 text-white px-4 py-2 rounded text-xs font-bold whitespace-nowrap border border-scout-600 transition-colors flex items-center gap-2"
-                                    >
-                                        {parsing ? <Loader2 size={14} className="animate-spin"/> : <ClipboardPaste size={14} />}
-                                        Auto-Fill
-                                    </button>
-                                </div>
-                            </div>
+          {mode === 'SCANNING' && (
+            <div className="p-24 text-center space-y-8 animate-fade-in h-full flex flex-col justify-center items-center">
+                <Loader2 size={64} className="text-scout-accent animate-spin" />
+                <h3 className="text-3xl font-black text-white uppercase tracking-tighter">AI Structuring...</h3>
+            </div>
+          )}
 
-                            {/* Upload Banner */}
-                            <div className="bg-scout-800/30 border border-dashed border-scout-700 rounded-xl p-4 flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-scout-800 rounded-full flex items-center justify-center text-scout-accent">
-                                        <Upload size={20} />
-                                    </div>
-                                    <div>
-                                        <h4 className="text-sm font-bold text-white">Have a bio image? (Optional)</h4>
-                                        <p className="text-xs text-gray-500">Upload a screenshot to auto-fill details.</p>
+          {mode === 'BUILD' && (
+            <div className="flex flex-col md:flex-row h-full overflow-hidden">
+                <div className="flex-1 p-12 overflow-y-auto custom-scrollbar border-r border-white/5">
+                    <div className="max-w-xl mx-auto space-y-8 pb-32">
+                        <StepIndicator />
+                        {buildStep === 1 && (
+                            <div className="space-y-6 animate-fade-in">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <FormField label="First Name" icon={User}><Input value={formData.firstName} onChange={(e:any) => handleInputChange('firstName', e.target.value)} placeholder="Christopher" /></FormField>
+                                    <FormField label="Last Name" icon={User}><Input value={formData.lastName} onChange={(e:any) => handleInputChange('lastName', e.target.value)} placeholder="Griebsch" /></FormField>
+                                </div>
+                                <div className="pt-2 border-t border-scout-700/50 space-y-6">
+                                    <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest ml-1 flex items-center gap-2"><SmartphoneIcon size={12}/> PLAYER CONTACT</h4>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <FormField label="Player Email" icon={Mail}><Input value={formData.email} onChange={(e:any) => handleInputChange('email', e.target.value)} placeholder="player@email.com" /></FormField>
+                                        <FormField label="Player Phone" icon={Phone}><Input value={formData.phone} onChange={(e:any) => handleInputChange('phone', e.target.value)} placeholder="+1..." /></FormField>
                                     </div>
                                 </div>
-                                <input type="file" id="submissionFile" className="hidden" accept="image/*" onChange={handleFileChange} />
-                                <label htmlFor="submissionFile" className="cursor-pointer bg-scout-800 hover:bg-scout-700 text-white text-xs px-3 py-2 rounded border border-scout-600 transition-colors">
-                                    {image ? 'Image Attached' : 'Select Image'}
-                                </label>
+                                <div className="pt-2 border-t border-scout-700/50 space-y-6">
+                                    <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-1 flex items-center gap-2"><Users size={12}/> REACHABILITY FIRST (Parent Contact)</h4>
+                                    <FormField label="Parent Name"><Input value={formData.parentName} onChange={(e:any) => handleInputChange('parentName', e.target.value)} placeholder="Guardian Name" /></FormField>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <FormField label="Parent Email" icon={Mail}><Input value={formData.parentEmail} onChange={(e:any) => handleInputChange('parentEmail', e.target.value)} placeholder="guardian@email.com" /></FormField>
+                                        <FormField label="Parent Phone" icon={Phone}><Input value={formData.parentPhone} onChange={(e:any) => handleInputChange('parentPhone', e.target.value)} placeholder="+1..." /></FormField>
+                                    </div>
+                                </div>
                             </div>
-
-                            <div className="grid md:grid-cols-2 gap-6">
-                                {/* SECTION 1: BIO & PHYSICAL & CONTACT */}
-                                <div className="bg-scout-800 rounded-xl border border-scout-700 p-5">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <div className="flex items-center gap-2 text-scout-accent">
-                                            <User size={18} />
-                                            <h4 className="font-bold text-white">Bio & Details</h4>
+                        )}
+                        {buildStep === 2 && (
+                            <div className="space-y-6 animate-fade-in">
+                                <FormField label="Primary Position" icon={Target}><Select options={POSITIONS} value={formData.position} onChange={(e:any) => handleInputChange('position', e.target.value)} /></FormField>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <FormField label="Current Club" icon={ShieldCheck}><Input value={formData.club} onChange={(e:any) => handleInputChange('club', e.target.value)} placeholder="FC Dallas" /></FormField>
+                                    <FormField label="Level" icon={Award}><Select options={TEAM_LEVELS} value={formData.teamLevel} onChange={(e:any) => handleInputChange('teamLevel', e.target.value)} /></FormField>
+                                </div>
+                                <FormField label="Dominant Foot" icon={Footprints}><Select options={FEET} value={formData.dominantFoot} onChange={(e:any) => handleInputChange('dominantFoot', e.target.value)} /></FormField>
+                            </div>
+                        )}
+                        {buildStep === 3 && (
+                            <div className="space-y-10 animate-fade-in">
+                                <div className="bg-scout-800/40 p-6 rounded-3xl border border-white/5 space-y-6">
+                                    <h4 className="text-[10px] font-black text-scout-highlight uppercase tracking-[0.2em] mb-4 flex items-center gap-2"><Ruler size={14}/> Physical Signature</h4>
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div className="bg-scout-900 border border-scout-700 rounded-2xl p-4 shadow-inner">
+                                            <label className="block text-[8px] font-black text-gray-500 uppercase mb-2">Height (ft/in)</label>
+                                            <input value={formData.height} onChange={(e) => handleInputChange('height', e.target.value)} className="bg-transparent text-xl font-bold text-white outline-none w-full" placeholder="6'1\"" />
                                         </div>
-                                        <span className="text-[10px] text-gray-500 font-medium">NAME REQUIRED <span className="text-red-500">*</span></span>
+                                        <div className="bg-scout-900 border border-scout-700 rounded-2xl p-4 shadow-inner">
+                                            <label className="block text-[8px] font-black text-gray-500 uppercase mb-2">Weight (lbs)</label>
+                                            <input value={formData.weight} onChange={(e) => handleInputChange('weight', e.target.value)} className="bg-transparent text-xl font-bold text-white outline-none w-full" placeholder="180 lbs" />
+                                        </div>
                                     </div>
+                                </div>
+
+                                <div className="space-y-8">
+                                    <h4 className="text-[10px] font-black text-scout-accent uppercase tracking-[0.2em] mb-4 flex items-center gap-2"><Zap size={14}/> Sideline Performance Audit</h4>
                                     
-                                    <div className="space-y-3">
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">First Name <span className="text-red-500">*</span></label>
-                                                <input 
-                                                    type="text" 
-                                                    className="w-full bg-scout-900 border border-scout-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-scout-accent"
-                                                    value={formData.firstName}
-                                                    onChange={e => handleInputChange('firstName', e.target.value)}
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Last Name <span className="text-red-500">*</span></label>
-                                                <input 
-                                                    type="text" 
-                                                    className="w-full bg-scout-900 border border-scout-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-scout-accent"
-                                                    value={formData.lastName}
-                                                    onChange={e => handleInputChange('lastName', e.target.value)}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {/* Contact Section */}
-                                        <div className="bg-scout-900/50 p-2 rounded border border-scout-700/50 space-y-2">
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <div>
-                                                    <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1 flex items-center gap-1"><Mail size={10}/> Email</label>
-                                                    <input type="text" className="w-full bg-scout-800 border border-scout-600 rounded px-2 py-1 text-xs text-white focus:outline-none" value={formData.email} onChange={e => handleInputChange('email', e.target.value)} placeholder="player@email.com" />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1 flex items-center gap-1"><Phone size={10}/> Phone</label>
-                                                    <input type="text" className="w-full bg-scout-800 border border-scout-600 rounded px-2 py-1 text-xs text-white focus:outline-none" value={formData.phone} onChange={e => handleInputChange('phone', e.target.value)} placeholder="555-0123" />
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1 flex items-center gap-1"><User size={10}/> Parent Email</label>
-                                                <input type="text" className="w-full bg-scout-800 border border-scout-600 rounded px-2 py-1 text-xs text-white focus:outline-none" value={formData.parentEmail} onChange={e => handleInputChange('parentEmail', e.target.value)} placeholder="parent@email.com" />
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">DOB</label>
-                                                <div className="relative">
-                                                    <input 
-                                                        type="date" 
-                                                        className="w-full bg-scout-900 border border-scout-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-scout-accent"
-                                                        value={formData.dob}
-                                                        onChange={e => handleInputChange('dob', e.target.value)}
-                                                    />
-                                                    <Calendar size={14} className="absolute right-3 top-2.5 text-gray-500 pointer-events-none" />
-                                                </div>
-                                            </div>
-                                            <div>
-                                                    <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Grad Year</label>
-                                                    <input 
-                                                    type="number" 
-                                                    className="w-full bg-scout-900 border border-scout-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-scout-accent"
-                                                    placeholder="2025"
-                                                    value={formData.gradYear}
-                                                    onChange={e => handleInputChange('gradYear', e.target.value)}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {/* New 3-Column Grid for Position / Club / Level */}
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                            <div>
-                                                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Position</label>
-                                                <select 
-                                                    className="w-full bg-scout-900 border border-scout-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-scout-accent"
-                                                    value={formData.position}
-                                                    onChange={e => handleInputChange('position', e.target.value)}
-                                                >
-                                                    {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
-                                                </select>
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Club/Team</label>
-                                                <input 
-                                                    type="text" 
-                                                    className="w-full bg-scout-900 border border-scout-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-scout-accent"
-                                                    value={formData.club}
-                                                    onChange={e => handleInputChange('club', e.target.value)}
-                                                    placeholder="e.g. Dallas Texans"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Team Level</label>
-                                                <select 
-                                                    className="w-full bg-scout-900 border border-scout-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-scout-accent"
-                                                    value={formData.teamLevel}
-                                                    onChange={e => handleInputChange('teamLevel', e.target.value)}
-                                                >
-                                                    {TEAM_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-3 gap-3">
-                                            <div>
-                                                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Height (Ft)</label>
-                                                <input type="number" className="w-full bg-scout-900 border border-scout-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-scout-accent" value={formData.heightFt} onChange={e => handleInputChange('heightFt', e.target.value)} placeholder="5" />
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Height (In)</label>
-                                                <input type="number" className="w-full bg-scout-900 border border-scout-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-scout-accent" value={formData.heightIn} onChange={e => handleInputChange('heightIn', e.target.value)} placeholder="10" />
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Foot</label>
-                                                <select className="w-full bg-scout-900 border border-scout-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-scout-accent" value={formData.foot} onChange={e => handleInputChange('foot', e.target.value)}>
-                                                    <option>Right</option>
-                                                    <option>Left</option>
-                                                    <option>Both</option>
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Region</label>
-                                                <input type="text" className="w-full bg-scout-900 border border-scout-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-scout-accent" value={formData.region} onChange={e => handleInputChange('region', e.target.value)} placeholder="State/City" />
-                                            </div>
-                                            <div>
-                                                    <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Nationality</label>
-                                                    <input type="text" className="w-full bg-scout-900 border border-scout-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-scout-accent" value={formData.nationality} onChange={e => handleInputChange('nationality', e.target.value)} placeholder="USA" />
-                                            </div>
-                                        </div>
+                                    <div className="grid gap-8">
+                                        <AuditSlider label="Pace / Acceleration" value={formData.pace} onChange={(val: number) => handleInputChange('pace', val)} icon={Flame} />
+                                        <AuditSlider label="Physical Strength" value={formData.physical} onChange={(val: number) => handleInputChange('physical', val)} icon={Activity} />
+                                        <AuditSlider label="Technical Precision" value={formData.technical} onChange={(val: number) => handleInputChange('technical', val)} icon={Target} />
+                                        <AuditSlider label="Tactical Intelligence" value={formData.tactical} onChange={(val: number) => handleInputChange('tactical', val)} icon={Brain} />
+                                        <AuditSlider label="Coachability" value={formData.coachable} onChange={(val: number) => handleInputChange('coachable', val)} icon={Users} />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        {buildStep === 4 && (
+                            <div className="space-y-8 animate-fade-in">
+                                <div className="bg-scout-800/40 p-6 rounded-3xl border border-white/5 space-y-6">
+                                    <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] flex items-center gap-2"><GraduationCap size={14}/> Academic Profile</h4>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <FormField label="HS Grad Year"><Input value={formData.gradYear} onChange={(e:any) => handleInputChange('gradYear', e.target.value)} placeholder="2026" /></FormField>
+                                        <FormField label="Current GPA"><Input value={formData.gpa} onChange={(e:any) => handleInputChange('gpa', e.target.value)} placeholder="3.8" /></FormField>
                                     </div>
                                 </div>
 
                                 <div className="space-y-6">
-                                        {/* SECTION 2: RATINGS */}
-                                    <div className="bg-scout-800 rounded-xl border border-scout-700 p-5">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <div className="flex items-center gap-2 text-scout-highlight">
-                                                <Activity size={18} />
-                                                <h4 className="font-bold text-white">Player Ratings</h4>
-                                            </div>
-                                            <span className="text-[10px] text-gray-500 font-medium">(OPTIONAL)</span>
-                                        </div>
-                                        
-                                        <div className="grid grid-cols-2 gap-3">
-                                            {Object.keys(formData.ratings).map((key) => (
-                                                <div key={key}>
-                                                    <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1 capitalize">{key}</label>
-                                                    <select 
-                                                        className="w-full bg-scout-900 border border-scout-600 rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-scout-accent"
-                                                        value={(formData.ratings as any)[key]}
-                                                        onChange={e => handleRatingChange(key, e.target.value)}
-                                                    >
-                                                        {RATINGS.map(r => <option key={r} value={r}>{r}</option>)}
-                                                    </select>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {/* SECTION 3: ACADEMICS */}
-                                    <div className="bg-scout-800 rounded-xl border border-scout-700 p-5">
-                                        <div className="flex items-center justify-between mb-4">
-                                            <div className="flex items-center gap-2 text-blue-400">
-                                                <GraduationCap size={18} />
-                                                <h4 className="font-bold text-white">Academic Standing</h4>
-                                            </div>
-                                            <span className="text-[10px] text-gray-500 font-medium">(OPTIONAL)</span>
-                                        </div>
-                                            <div className="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">GPA (Unweighted)</label>
-                                                <input type="text" className="w-full bg-scout-900 border border-scout-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-scout-accent" value={formData.gpa} onChange={e => handleInputChange('gpa', e.target.value)} placeholder="3.5" />
-                                            </div>
-                                            <div>
-                                                <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Test Score (SAT/ACT)</label>
-                                                <input type="text" className="w-full bg-scout-900 border border-scout-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-scout-accent" value={formData.testScore} onChange={e => handleInputChange('testScore', e.target.value)} placeholder="Optional" />
-                                            </div>
-                                        </div>
+                                    <h4 className="text-[10px] font-black text-scout-highlight uppercase tracking-[0.2em] flex items-center gap-2"><Video size={14}/> Video Evidence</h4>
+                                    <FormField label="Highlight Link" icon={Video}><Input value={formData.videoLink} onChange={(e:any) => handleInputChange('videoLink', e.target.value)} placeholder="YouTube/Hudl URL" /></FormField>
+                                    <div className="p-4 rounded-xl bg-scout-accent/5 border border-scout-accent/20 text-scout-accent text-[10px] font-black uppercase flex items-center gap-3">
+                                        <Sparkles size={16} className="shrink-0"/>
+                                        <span>AI scanning will prioritize highlight tags matching audit scores.</span>
                                     </div>
                                 </div>
                             </div>
+                        )}
+                    </div>
+                </div>
 
-                            <div className="flex gap-3 mt-6">
-                                <button 
-                                    onClick={handleQuickSave}
-                                    className="flex-1 bg-transparent hover:bg-scout-800 text-gray-300 font-bold py-4 rounded-lg border border-scout-600 transition-all flex items-center justify-center gap-2"
-                                >
-                                    <Save size={18} /> {isOnline ? 'Quick Save (Skip AI)' : 'Save Locally'}
-                                </button>
-                                <button 
-                                    onClick={handleSubmit}
-                                    disabled={loading || !isOnline || (!image && !formData.firstName)}
-                                    className="flex-[2] bg-scout-accent hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 rounded-lg shadow-lg flex items-center justify-center gap-2"
-                                    title={!isOnline ? "Requires internet connection" : "Analyze"}
-                                >
-                                    {loading ? <Loader2 className="animate-spin" /> : 'Run AI Analysis & Submit'}
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {step === 'review' && evalResult && (
-                        <div className="max-w-xl mx-auto space-y-6 animate-fade-in">
-                            <div className="text-center">
-                                <div className="w-16 h-16 bg-scout-accent/20 rounded-full flex items-center justify-center mx-auto mb-4 text-scout-accent">
-                                    <CheckCircle size={32} />
-                                </div>
-                                <h3 className="text-2xl font-bold text-white">Evaluation Complete</h3>
-                            </div>
-
-                            <div className="bg-scout-800 rounded-xl border border-scout-700 p-6">
-                                <div className="flex justify-between items-center mb-4 border-b border-scout-700 pb-4">
-                                    <div>
-                                        <div className="text-sm text-gray-400">Projected Tier</div>
-                                        <div className="text-xl font-bold text-white">{evalResult.scholarshipTier}</div>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="text-sm text-gray-400">Score</div>
-                                        <div className="text-3xl font-black text-scout-accent">{evalResult.score}</div>
-                                    </div>
-                                </div>
-                                
-                                <div className="space-y-4">
-                                    <div>
-                                        <span className="text-gray-500 text-xs uppercase font-bold">Summary</span>
-                                        <p className="text-gray-300 italic">"{evalResult.summary}"</p>
-                                    </div>
-                                    
-                                    {/* Recommended Pathways */}
-                                    {evalResult.recommendedPathways && evalResult.recommendedPathways.length > 0 && (
-                                        <div className="bg-scout-900 p-3 rounded">
-                                            <span className="text-blue-400 text-xs font-bold uppercase mb-2 block">Recommended Pathways</span>
-                                            <div className="flex flex-wrap gap-2">
-                                                {evalResult.recommendedPathways.map((path, idx) => (
-                                                    <span key={idx} className="text-xs bg-scout-800 border border-scout-600 px-2 py-1 rounded text-white">{path}</span>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="bg-scout-900 p-3 rounded">
-                                            <span className="text-green-500 text-xs font-bold">STRENGTHS</span>
-                                            <ul className="list-disc list-inside text-sm text-gray-300 mt-1">
-                                                {evalResult.strengths.map(s => <li key={s}>{s}</li>)}
-                                            </ul>
-                                        </div>
-                                        <div className="bg-scout-900 p-3 rounded">
-                                            <span className="text-yellow-500 text-xs font-bold">WEAKNESSES</span>
-                                            <ul className="list-disc list-inside text-sm text-gray-300 mt-1">
-                                                {evalResult.weaknesses.map(w => <li key={w}>{w}</li>)}
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-3">
-                                <button onClick={() => setStep('input')} className="flex-1 py-3 text-gray-400 hover:text-white">Back</button>
-                                <button onClick={confirmPlayer} className="flex-[2] bg-white text-scout-900 font-bold rounded-lg hover:bg-gray-100">
-                                    Confirm & Add to Pipeline
-                                </button>
-                            </div>
-                        </div>
-                    )}
+                <div className="hidden md:flex w-[440px] bg-black/30 p-10 flex-col gap-8 relative overflow-hidden shrink-0">
+                    <PlayerCard player={draftPlayer} isReference={true} />
+                    <div className="mt-auto flex gap-3">
+                        {buildStep > 1 && <button onClick={() => setBuildStep(prev => prev - 1)} className="px-5 py-4 bg-scout-800 border border-scout-700 rounded-2xl text-gray-400 hover:text-white transition-all"><ChevronLeft size={24}/></button>}
+                        <button onClick={handleFinalSubmit} className="flex-1 py-4 bg-scout-700 hover:bg-scout-600 text-white font-black rounded-2xl shadow-xl transition-all">Quick Save</button>
+                        {buildStep < 4 ? <button onClick={() => setBuildStep(prev => prev + 1)} className="flex-[1.5] py-4 bg-scout-accent text-scout-900 font-black rounded-2xl transition-all shadow-glow">Next Step</button> : <button onClick={handleFinalSubmit} className="flex-[1.5] py-4 bg-scout-accent text-scout-900 font-black rounded-2xl transition-all shadow-glow">{editingPlayer ? 'Confirm Update' : 'Confirm & Add'}</button>}
+                    </div>
                 </div>
             </div>
+          )}
         </div>
+      </div>
     </div>
   );
 };

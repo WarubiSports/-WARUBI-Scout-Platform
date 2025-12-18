@@ -1,12 +1,14 @@
+
 import React, { useState } from 'react';
 import { Player, PlayerStatus } from '../types';
-import { TrendingUp, AlertTriangle, CheckCircle, MessageCircle, ChevronDown, ChevronUp, MapPin, School, Compass, Send, GripVertical, Flame, Eye, StickyNote, Save, X } from 'lucide-react';
+import { TrendingUp, AlertTriangle, CheckCircle, MessageCircle, MessageSquare, ChevronDown, ChevronUp, MapPin, School, Compass, Send, GripVertical, Flame, Eye, StickyNote, Save, X, History, Clock, Edit2, Loader2, Trophy, Zap } from 'lucide-react';
 
 interface PlayerCardProps {
   player: Player;
   onStatusChange?: (id: string, newStatus: PlayerStatus, extraData?: string) => void;
   onOutreach?: (player: Player) => void;
   onUpdateNotes?: (id: string, notes: string) => void;
+  onEdit?: (player: Player) => void;
   isReference?: boolean;
   onDragStart?: (id: string) => void;
   onDragEnd?: () => void;
@@ -17,13 +19,14 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
   onStatusChange, 
   onOutreach, 
   onUpdateNotes,
+  onEdit,
   isReference = false,
   onDragStart,
   onDragEnd
 }) => {
   const [extraInput, setExtraInput] = useState(player.interestedProgram || player.placedLocation || '');
-  const [isEditing, setIsEditing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'none' | 'analysis' | 'notes'>('none');
+  const [isEditingData, setIsEditingData] = useState(false);
+  const [activeTab, setActiveTab] = useState<'none' | 'analysis' | 'notes' | 'history'>('none');
   const [noteContent, setNoteContent] = useState(player.notes || '');
 
   const scoreColor = (score: number) => {
@@ -46,40 +49,20 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
   const saveExtraData = () => {
       if (!onStatusChange) return;
       onStatusChange(player.id, player.status, extraInput);
-      setIsEditing(false);
+      setIsEditingData(false);
   }
 
   const saveNotes = () => {
       if (!onUpdateNotes) return;
       onUpdateNotes(player.id, noteContent);
-      // Optional: Close tab or keep open? Keep open for now to confirm save visually (or could close)
-      // setActiveTab('none'); 
   };
 
   const sendFinalReviewEmail = () => {
     const subject = `Final Review Candidate: ${player.name}`;
-    const body = `Hi Scouting Team,
-
-I am submitting ${player.name} for final review.
-
-Player Details:
-- Position: ${player.position}
-- Age: ${player.age}
-- Scholarship Tier: ${player.evaluation?.scholarshipTier || 'N/A'}
-- Scout Score: ${player.evaluation?.score || 'N/A'}
-
-Summary:
-${player.evaluation?.summary || 'N/A'}
-
-Notes:
-${player.notes || 'N/A'}
-
-Please advise on next steps.`;
-
+    const body = `Hi Scouting Team,\n\nI am submitting ${player.name} for final review.\n\nPlayer Details:\n- Position: ${player.position}\n- Age: ${player.age}\n- Scholarship Tier: ${player.evaluation?.scholarshipTier || 'N/A'}\n- Scout Score: ${player.evaluation?.score || 'N/A'}\n\nSummary:\n${player.evaluation?.summary || 'N/A'}\n\nNotes:\n${player.notes || 'N/A'}\n\nPlease advise on next steps.`;
     window.location.href = `mailto:scouting@warubi-sports.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
-  // Visual helper for pathway tags
   const getPathwayStyle = (pathway: string) => {
       switch(pathway) {
           case 'College Pathway': return 'bg-blue-500/20 text-blue-300 border-blue-500/30';
@@ -89,14 +72,13 @@ Please advise on next steps.`;
       }
   };
 
-  // Helper to determine if "active recently"
   const isRecentlyActive = () => {
       if (!player.lastActive) return false;
       const diff = new Date().getTime() - new Date(player.lastActive).getTime();
       return diff < 1000 * 60 * 60; // 1 hour
   };
 
-  const toggleTab = (tab: 'analysis' | 'notes') => {
+  const toggleTab = (tab: 'analysis' | 'notes' | 'history') => {
       if (activeTab === tab) {
           setActiveTab('none');
       } else {
@@ -104,46 +86,75 @@ Please advise on next steps.`;
       }
   };
 
+  // Calculate score delta
+  const currentScore = player.evaluation?.score || 0;
+  const prevScore = player.previousScore || 0;
+  const delta = prevScore !== 0 ? currentScore - prevScore : 0;
+
   return (
     <div 
         draggable={!isReference}
         onDragStart={(e) => {
-            if (!isReference && onDragStart) {
-                onDragStart(player.id);
-                // Required for Firefox
+            if (!isReference) {
+                e.dataTransfer.setData('playerId', player.id);
                 e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/plain', player.id);
+                if (onDragStart) onDragStart(player.id);
             }
         }}
         onDragEnd={() => {
             if (!isReference && onDragEnd) onDragEnd();
         }}
         className={`bg-scout-800 rounded-lg border shadow-sm flex flex-col w-full transition-all 
-        ${isReference ? 'opacity-80 border-scout-700' : 'border-scout-600 hover:border-scout-accent/50 cursor-grab active:cursor-grabbing hover:shadow-md'}`}
+        ${isReference ? 'opacity-80 border-scout-700' : 'border-scout-600 hover:border-scout-accent/50 cursor-grab active:cursor-grabbing hover:shadow-md'}
+        ${player.isRecalibrating ? 'ring-2 ring-scout-accent/50 animate-pulse' : ''}`}
     >
       <div className="p-3 flex-1 flex flex-col relative">
-        {/* Hot Lead Indicator */}
-        {!isReference && player.activityStatus && player.activityStatus !== 'none' && (
-             <div className="absolute top-0 right-0 p-1">
-                 {player.activityStatus === 'submitted' ? (
-                     <div className="bg-scout-accent text-scout-900 rounded-full p-1 shadow-lg shadow-scout-accent/20" title="Assessment Completed">
-                         <CheckCircle size={12} fill="currentColor" className="text-white" />
-                     </div>
-                 ) : (
-                    <div className={`${isRecentlyActive() ? 'text-orange-500' : 'text-gray-500'} bg-scout-900/80 rounded-full p-1`} title="Link Viewed">
-                         <Flame size={12} fill={isRecentlyActive() ? "currentColor" : "none"} />
+        {!isReference && (
+             <div className="absolute top-1 right-1 flex items-center gap-2">
+                 {player.activityStatus && player.activityStatus !== 'undiscovered' && (
+                     <div className="p-1">
+                        {player.activityStatus === 'spotlight' ? (
+                            <div className="bg-scout-accent text-scout-900 rounded-full p-1 shadow-lg shadow-scout-accent/20" title="Spotlight Verified">
+                                <Trophy size={12} fill="currentColor" className="text-scout-900" />
+                            </div>
+                        ) : player.activityStatus === 'signal' ? (
+                            <div className="text-orange-500 bg-scout-900/80 rounded-full p-1 shadow-lg shadow-orange-500/20 animate-pulse" title="Interest Signal">
+                                <Flame size={12} fill="currentColor" />
+                            </div>
+                        ) : (
+                           <div className="text-yellow-500 bg-scout-900/80 rounded-full p-1" title="Spark Sent">
+                                <Zap size={12} fill="currentColor" />
+                           </div>
+                        )}
                     </div>
                  )}
+                 <button 
+                    onClick={(e) => { e.stopPropagation(); onEdit && onEdit(player); }}
+                    className="p-1.5 bg-scout-900/80 hover:bg-scout-700 rounded-lg text-gray-500 hover:text-white transition-colors"
+                    title="Edit Profile"
+                 >
+                    <Edit2 size={12} />
+                 </button>
              </div>
         )}
 
-        <div className="flex justify-between items-start mb-2">
+        <div className="flex justify-between items-start mb-2 pr-10">
             <div className="min-w-0 flex items-start gap-1">
                 {!isReference && (
                     <GripVertical size={14} className="text-gray-600 mt-1 shrink-0" />
                 )}
                 <div>
-                    <h3 className="text-base font-bold text-white leading-tight truncate pr-2">{player.name}</h3>
+                    <div className="flex items-center gap-1.5">
+                        <h3 className="text-base font-bold text-white leading-tight truncate pr-2">{player.name}</h3>
+                        {!isReference && player.outreachLogs.length > 0 && (
+                            <div className="shrink-0 group relative">
+                                <MessageSquare size={12} className="text-scout-accent" fill="currentColor" />
+                                <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-20 w-48 bg-scout-950 border border-scout-700 p-2 rounded-lg text-[10px] text-gray-300 shadow-2xl">
+                                    Last Contact: {new Date(player.lastContactedAt!).toLocaleDateString()} via {player.outreachLogs[player.outreachLogs.length - 1].method}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                     <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
                         {player.position} • {player.age} yo
                         {isRecentlyActive() && (
@@ -160,7 +171,6 @@ Please advise on next steps.`;
                             </span>
                         )}
                         
-                        {/* Status Dropdown */}
                         {!isReference ? (
                             <div className="relative group">
                                 <select 
@@ -168,7 +178,7 @@ Please advise on next steps.`;
                                     onChange={handleStatusChange}
                                     className="appearance-none bg-scout-900 text-[9px] font-bold uppercase tracking-wider pl-1.5 pr-4 py-0.5 rounded border border-scout-700 text-gray-300 focus:border-scout-accent focus:outline-none cursor-pointer hover:bg-scout-700"
                                 >
-                                    <option value={PlayerStatus.PROSPECT}>Prospect (Hidden)</option>
+                                    <option value={PlayerStatus.PROSPECT}>Undiscovered</option>
                                     <option value={PlayerStatus.LEAD}>Lead</option>
                                     <option value={PlayerStatus.INTERESTED}>Interested</option>
                                     <option value={PlayerStatus.FINAL_REVIEW}>Final Review</option>
@@ -186,15 +196,28 @@ Please advise on next steps.`;
                     </div>
                 </div>
             </div>
-            <div className="text-center pl-1 shrink-0">
-                <div className={`text-xl font-black leading-none ${scoreColor(player.evaluation?.score || 0)}`}>
-                    {player.evaluation?.score || '?'}
-                </div>
-                <span className="text-[8px] text-gray-500 uppercase tracking-tighter block">Score</span>
+            <div className="text-center pl-1 shrink-0 relative">
+                {player.isRecalibrating ? (
+                    <div className="flex flex-col items-center">
+                        <Loader2 size={16} className="text-scout-accent animate-spin mb-1" />
+                        <span className="text-[7px] text-scout-accent font-black uppercase tracking-tighter">Scanning</span>
+                    </div>
+                ) : (
+                    <>
+                        <div className={`text-xl font-black leading-none ${scoreColor(player.evaluation?.score || 0)}`}>
+                            {player.evaluation?.score || '?'}
+                        </div>
+                        <span className="text-[8px] text-gray-500 uppercase tracking-tighter block">Score</span>
+                        {delta !== 0 && (
+                            <div className={`absolute -top-3 -right-2 text-[9px] font-black px-1 rounded shadow-sm ${delta > 0 ? 'text-scout-accent bg-emerald-950/50' : 'text-red-400 bg-red-950/50'}`}>
+                                {delta > 0 ? `+${delta}` : delta}
+                            </div>
+                        )}
+                    </>
+                )}
             </div>
         </div>
 
-        {/* Pipeline Details Input */}
         {!isReference && (player.status === PlayerStatus.INTERESTED || player.status === PlayerStatus.PLACED) && (
             <div className="mb-2 bg-scout-900/50 p-1.5 rounded border border-scout-700/50 text-[10px]">
                  <div className="flex justify-between items-center mb-0.5 text-gray-400">
@@ -202,11 +225,11 @@ Please advise on next steps.`;
                         {player.status === PlayerStatus.INTERESTED ? <School size={10}/> : <MapPin size={10}/>}
                         {player.status === PlayerStatus.INTERESTED ? "Interested Program" : "Placement Location"}
                     </span>
-                    <button onClick={() => setIsEditing(!isEditing)} className="text-scout-accent hover:underline text-[9px]">
-                        {isEditing ? 'Save' : 'Edit'}
+                    <button onClick={() => setIsEditingData(!isEditingData)} className="text-scout-accent hover:underline text-[9px]">
+                        {isEditingData ? 'Save' : 'Edit'}
                     </button>
                  </div>
-                 {isEditing ? (
+                 {isEditingData ? (
                      <div className="flex gap-1">
                         <input 
                             value={extraInput}
@@ -224,7 +247,6 @@ Please advise on next steps.`;
             </div>
         )}
 
-        {/* Tab Toggle Row */}
         <div className="mt-auto pt-2 flex border-t border-scout-700/50 divide-x divide-scout-700/50">
             {player.evaluation && (
                  <button
@@ -239,14 +261,20 @@ Please advise on next steps.`;
                 className={`flex-1 flex items-center justify-center gap-1 text-[9px] uppercase font-bold py-1 transition-colors ${activeTab === 'notes' ? 'text-white bg-scout-700/50' : 'text-gray-500 hover:text-white'}`}
             >
                 {player.notes ? <StickyNote size={10} className="text-scout-highlight"/> : <StickyNote size={10} />}
-                {player.notes ? 'Edit Note' : 'Add Note'}
+                Note
             </button>
+            {!isReference && player.outreachLogs.length > 0 && (
+                <button
+                    onClick={() => toggleTab('history')}
+                    className={`flex-1 flex items-center justify-center gap-1 text-[9px] uppercase font-bold py-1 transition-colors ${activeTab === 'history' ? 'text-white bg-scout-700/50' : 'text-gray-500 hover:text-white'}`}
+                >
+                    <History size={10} /> History
+                </button>
+            )}
         </div>
 
-        {/* Expanded Content: Analysis */}
         {activeTab === 'analysis' && player.evaluation && (
             <div className="animate-fade-in space-y-2 mt-2 border-t border-scout-700 pt-2">
-                {/* Pathways Tags */}
                 {player.evaluation.recommendedPathways && player.evaluation.recommendedPathways.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-1">
                         {player.evaluation.recommendedPathways.map((path, idx) => (
@@ -285,14 +313,13 @@ Please advise on next steps.`;
             </div>
         )}
 
-        {/* Expanded Content: Notes */}
         {activeTab === 'notes' && (
              <div className="animate-fade-in mt-2 border-t border-scout-700 pt-2">
                  <textarea
                     value={noteContent}
                     onChange={(e) => setNoteContent(e.target.value)}
                     className="w-full bg-scout-900 border border-scout-600 rounded p-2 text-xs text-white focus:outline-none focus:border-scout-accent resize-none h-24 mb-2"
-                    placeholder="Add private notes about this player (e.g. Injury history, family context, budget...)"
+                    placeholder="Add private notes..."
                  />
                  <div className="flex gap-2">
                      <button 
@@ -311,9 +338,28 @@ Please advise on next steps.`;
              </div>
         )}
 
+        {activeTab === 'history' && (
+            <div className="animate-fade-in mt-2 border-t border-scout-700 pt-2 max-h-48 overflow-y-auto custom-scrollbar">
+                <div className="relative pl-4 space-y-4 py-2">
+                    <div className="absolute left-[5px] top-4 bottom-4 w-0.5 bg-scout-700"></div>
+                    {player.outreachLogs.slice().reverse().map((log, idx) => (
+                        <div key={log.id} className="relative">
+                            <div className="absolute -left-[14px] top-1 w-2.5 h-2.5 rounded-full bg-scout-accent border-2 border-scout-800"></div>
+                            <div className="bg-scout-900 p-2 rounded border border-scout-700">
+                                <div className="flex justify-between items-center mb-1">
+                                    <span className="text-[9px] font-black text-white uppercase">{log.templateName}</span>
+                                    <span className="text-[8px] text-gray-500 font-mono">{new Date(log.date).toLocaleDateString()}</span>
+                                </div>
+                                <p className="text-[9px] text-gray-400 leading-tight line-clamp-1">{log.note || `Sent via ${log.method}`}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        )}
+
       </div>
 
-      {/* Action Footer */}
       {!isReference && player.status === PlayerStatus.FINAL_REVIEW ? (
          <div className="bg-scout-900 p-2 border-t border-scout-700 rounded-b-lg flex items-center justify-between gap-2 animate-fade-in">
               <div className="flex-1 min-w-0">
@@ -338,7 +384,7 @@ Please advise on next steps.`;
                 className="bg-scout-700 hover:bg-scout-600 text-white px-2 py-1.5 rounded-md transition-colors flex items-center gap-1 text-[10px] font-bold whitespace-nowrap border border-scout-600"
                 title="Draft Message"
               >
-                  <MessageCircle size={12} className="text-scout-accent"/> Follow Up
+                  <MessageSquare size={12} className="text-scout-accent"/> Follow Up
               </button>
           </div>
       ) : !isReference && player.evaluation?.nextAction && (
