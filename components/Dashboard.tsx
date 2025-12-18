@@ -13,7 +13,7 @@ import TutorialOverlay from './TutorialOverlay';
 import Confetti from './Confetti';
 import StrategyPanel from './StrategyPanel';
 import { generateDailyStrategy } from '../services/geminiService';
-import { Users, CalendarDays, UserCircle, MessageSquare, Newspaper, Zap, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, Radio } from 'lucide-react';
+import { Users, CalendarDays, UserCircle, MessageSquare, Newspaper, Zap, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, Radio, ArrowRight, ArrowLeft } from 'lucide-react';
 
 interface DashboardProps {
   user: UserProfile;
@@ -53,7 +53,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     onStatusChange
 }) => {
   const [activeTab, setActiveTab] = useState<DashboardTab>(DashboardTab.PLAYERS);
-  const [viewMode, setViewMode] = useState<'board' | 'list'>('board');
+  const [viewMode, setViewMode] = useState<'board' | 'list' | 'stack'>('board');
   const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
   const [isBeamOpen, setIsBeamOpen] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
@@ -62,8 +62,19 @@ const Dashboard: React.FC<DashboardProps> = ({
   const [strategyTasks, setStrategyTasks] = useState<StrategyTask[]>([]);
   const [draggedOverStatus, setDraggedOverStatus] = useState<PlayerStatus | null>(null);
   const [listSearch, setListSearch] = useState('');
-  
-  // SPOTLIGHT QUEUE: Only show Prospects who have finishing assessment or clicked link
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+        const mobile = window.innerWidth < 768;
+        setIsMobile(mobile);
+        if (mobile && viewMode === 'board') setViewMode('stack');
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const spotlights = players.filter(p => p.status === PlayerStatus.PROSPECT && (p.activityStatus === 'spotlight' || p.activityStatus === 'signal'));
   const shadowCount = players.filter(p => p.status === PlayerStatus.PROSPECT).length;
   const [reviewIdx, setReviewIdx] = useState(0);
@@ -95,7 +106,6 @@ const Dashboard: React.FC<DashboardProps> = ({
       setEditingPlayer(null);
   };
 
-  // DRAG AND DROP HANDLERS
   const onDragOver = (e: React.DragEvent, status: PlayerStatus) => {
       e.preventDefault();
       setDraggedOverStatus(status);
@@ -105,13 +115,43 @@ const Dashboard: React.FC<DashboardProps> = ({
       e.preventDefault();
       setDraggedOverStatus(null);
       const playerId = e.dataTransfer.getData('playerId');
-      if (playerId) {
-          handleStatusChange(playerId, status);
-      }
+      if (playerId) handleStatusChange(playerId, status);
   };
 
-  const onDragLeave = () => {
-      setDraggedOverStatus(null);
+  const PipelineStack = () => {
+    const activePlayers = players.filter(p => p.status !== PlayerStatus.PROSPECT && p.status !== PlayerStatus.ARCHIVED);
+    const [stackIdx, setStackIdx] = useState(0);
+    const currentPlayer = activePlayers[stackIdx];
+
+    if (activePlayers.length === 0) return (
+        <div className="flex flex-col items-center justify-center py-20 opacity-40">
+            <Users size={64} className="mb-4" />
+            <p className="text-lg font-black uppercase italic">Pipeline Empty</p>
+        </div>
+    );
+
+    return (
+        <div className="space-y-8">
+            <div className="flex justify-between items-center px-2">
+                <h3 className="text-xs font-black uppercase text-scout-accent tracking-[0.2em]">Active Deck ({stackIdx + 1}/{activePlayers.length})</h3>
+                <div className="flex gap-2">
+                    <button onClick={() => setStackIdx(prev => Math.max(0, prev - 1))} className="p-2 bg-scout-800 rounded-lg text-gray-500"><ArrowLeft size={16}/></button>
+                    <button onClick={() => setStackIdx(prev => Math.min(activePlayers.length - 1, prev + 1))} className="p-2 bg-scout-800 rounded-lg text-gray-500"><ArrowRight size={16}/></button>
+                </div>
+            </div>
+            <div className="relative h-[480px]">
+                {currentPlayer && (
+                    <div className="animate-fade-in">
+                        <PlayerCard player={currentPlayer} onStatusChange={handleStatusChange} onOutreach={jumpToOutreach} onEdit={handleEditPlayer} />
+                        <div className="mt-6 grid grid-cols-2 gap-4">
+                            <button onClick={() => handleStatusChange(currentPlayer.id, PlayerStatus.ARCHIVED)} className="py-4 bg-scout-800 text-gray-400 font-black rounded-2xl border border-white/5 uppercase text-[10px] tracking-widest">Archive</button>
+                            <button onClick={() => handleStatusChange(currentPlayer.id, PlayerStatus.PLACED)} className="py-4 bg-scout-accent text-scout-900 font-black rounded-2xl shadow-glow uppercase text-[10px] tracking-widest">Mark Placed</button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
   };
 
   const ListView = () => {
@@ -121,103 +161,33 @@ const Dashboard: React.FC<DashboardProps> = ({
     );
 
     return (
-        <div className="bg-scout-800/50 rounded-[2rem] border border-scout-700/50 overflow-hidden animate-fade-in shadow-xl">
+        <div className="bg-scout-800/50 rounded-[2.5rem] border border-scout-700/50 overflow-hidden animate-fade-in shadow-xl">
             <div className="p-6 border-b border-scout-700/50 bg-scout-900/40 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="relative w-full md:w-96">
                     <Search className="absolute left-3 top-2.5 text-gray-500" size={18} />
-                    <input 
-                        type="text" 
-                        placeholder="Filter active pipeline..." 
-                        className="w-full bg-scout-950 border border-scout-700 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-scout-accent transition-all"
-                        value={listSearch}
-                        onChange={(e) => setListSearch(e.target.value)}
-                    />
-                </div>
-                <div className="flex gap-4 text-xs font-black uppercase tracking-widest text-gray-500">
-                    <span>{filteredPlayers.length} Active Candidates</span>
+                    <input type="text" placeholder="Filter active pipeline..." className="w-full bg-scout-950 border border-scout-700 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-scout-accent transition-all" value={listSearch} onChange={(e) => setListSearch(e.target.value)} />
                 </div>
             </div>
             <div className="overflow-x-auto">
                 <table className="w-full text-left">
                     <thead>
-                        <tr className="bg-scout-900/50 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 border-b border-scout-700">
-                            <th className="px-6 py-4">Player</th>
-                            <th className="px-6 py-4">Status</th>
-                            <th className="px-6 py-4">Projected Level</th>
-                            <th className="px-6 py-4">Outreach</th>
-                            <th className="px-6 py-4">Score</th>
-                            <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
+                        <tr className="bg-scout-900/50 text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 border-b border-scout-700"><th className="px-6 py-4">Player</th><th className="px-6 py-4">Status</th><th className="px-6 py-4">Score</th><th className="px-6 py-4 text-right">Actions</th></tr>
                     </thead>
                     <tbody className="divide-y divide-scout-700/30">
                         {filteredPlayers.map((p, i) => (
                             <tr key={p.id} className={`${i % 2 === 0 ? 'bg-transparent' : 'bg-white/[0.02]'} hover:bg-scout-accent/5 transition-colors group`}>
                                 <td className="px-6 py-4">
-                                    <div>
-                                        <div className="font-bold text-white text-sm">{p.name}</div>
-                                        <div className="text-[10px] text-gray-500 uppercase font-black">{p.position} • {p.age}yo</div>
-                                    </div>
+                                    <div className="font-bold text-white text-sm">{p.name}</div>
+                                    <div className="text-[10px] text-gray-500 uppercase font-black">{p.position} • {p.age}yo</div>
                                 </td>
                                 <td className="px-6 py-4">
-                                    <div className="relative inline-block group/select">
-                                        <select 
-                                            value={p.status}
-                                            onChange={(e) => handleStatusChange(p.id, e.target.value as PlayerStatus)}
-                                            className="appearance-none bg-scout-900/50 border border-scout-700/50 rounded-lg px-3 py-1 text-[10px] font-black uppercase tracking-wider text-gray-300 focus:outline-none focus:border-scout-accent cursor-pointer pr-8"
-                                        >
-                                            {Object.values(PlayerStatus).filter(s => s !== PlayerStatus.PROSPECT).map(status => (
-                                                <option key={status} value={status}>{status}</option>
-                                            ))}
-                                        </select>
-                                        <ChevronDown size={12} className="absolute right-2 top-2 text-gray-600 pointer-events-none" />
-                                    </div>
+                                    <select value={p.status} onChange={(e) => handleStatusChange(p.id, e.target.value as PlayerStatus)} className="bg-scout-900/50 border border-scout-700/50 rounded-lg px-2 py-1 text-[10px] font-black uppercase text-gray-300 outline-none">
+                                        {Object.values(PlayerStatus).filter(s => s !== PlayerStatus.PROSPECT).map(status => <option key={status} value={status}>{status}</option>)}
+                                    </select>
                                 </td>
-                                <td className="px-6 py-4">
-                                    <div className="text-xs text-gray-300">{p.evaluation?.collegeLevel || 'Unknown'}</div>
-                                    <div className="text-[9px] text-scout-highlight font-black uppercase">{p.evaluation?.scholarshipTier || 'No Tier'}</div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    {p.outreachLogs.length > 0 ? (
-                                        <div>
-                                            <div className="text-[10px] text-scout-accent font-black uppercase flex items-center gap-1">
-                                                <MessageSquare size={10} fill="currentColor"/> {p.outreachLogs[p.outreachLogs.length-1].templateName}
-                                            </div>
-                                            <div className="text-[9px] text-gray-500 uppercase font-black mt-0.5">
-                                                {new Date(p.lastContactedAt!).toLocaleDateString()}
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="text-[10px] text-gray-600 font-black uppercase">No Contact</div>
-                                    )}
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className={`text-lg font-black ${p.evaluation && p.evaluation.score >= 85 ? 'text-scout-accent' : p.evaluation && p.evaluation.score >= 70 ? 'text-scout-highlight' : 'text-gray-500'}`}>
-                                        {p.evaluation?.score || '?'}
-                                    </div>
-                                </td>
+                                <td className="px-6 py-4 font-black text-scout-accent">{p.evaluation?.score || '?'}</td>
                                 <td className="px-6 py-4 text-right">
-                                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button 
-                                            onClick={() => handleEditPlayer(p)}
-                                            className="p-2 bg-scout-900 border border-scout-700 rounded-lg text-gray-400 hover:text-white transition-colors"
-                                            title="Edit Profile"
-                                        >
-                                            <Edit2 size={14} />
-                                        </button>
-                                        <button 
-                                            onClick={() => jumpToOutreach(p)}
-                                            className="p-2 bg-scout-900 border border-scout-700 rounded-lg text-gray-400 hover:text-scout-accent transition-colors"
-                                            title="Outreach"
-                                        >
-                                            <MessageCircle size={14} />
-                                        </button>
-                                        <button 
-                                            className="p-2 bg-scout-900 border border-scout-700 rounded-lg text-gray-400 hover:text-white transition-colors"
-                                            title="View Details"
-                                        >
-                                            <MoreHorizontal size={14} />
-                                        </button>
-                                    </div>
+                                    <button onClick={() => handleEditPlayer(p)} className="p-2 text-gray-400 hover:text-white transition-colors"><Edit2 size={14} /></button>
                                 </td>
                             </tr>
                         ))}
@@ -232,7 +202,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     <div className="flex h-screen bg-[#05080f] text-white overflow-hidden relative">
         {showCelebration && <Confetti onComplete={() => setShowCelebration(false)} />}
         
-        {/* SIDEBAR */}
         <aside className="w-72 bg-scout-800 border-r border-scout-700 hidden md:flex flex-col shrink-0">
             <div className="p-8 border-b border-scout-700">
                 <h1 className="text-2xl font-black tracking-tighter text-white uppercase italic">Warubi<span className="text-scout-accent">Scout</span></h1>
@@ -254,39 +223,25 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
         </aside>
 
-        <main className="flex-1 overflow-auto p-6 md:p-10 pb-32 md:pb-10 custom-scrollbar">
+        <main className="flex-1 overflow-auto p-4 md:p-10 pb-32 custom-scrollbar">
             {activeTab === DashboardTab.PLAYERS && (
                 <div className="space-y-12 animate-fade-in">
-                    {/* SPOTLIGHT PROMOTIONS */}
+                    {/* SPOTLIGHT BANNER */}
                     {spotlights.length > 0 && (
-                        <div className="bg-emerald-500/5 border-2 border-scout-accent/30 rounded-[3rem] p-8 md:p-12 relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-scout-accent/5 rounded-full blur-3xl"></div>
-                            <div className="flex flex-col md:flex-row justify-between items-center gap-8 relative z-10">
+                        <div className="bg-emerald-500/5 border-2 border-scout-accent/30 rounded-[2.5rem] md:rounded-[3rem] p-6 md:p-10 relative overflow-hidden">
+                            <div className="flex flex-col md:flex-row justify-between items-center gap-6">
                                 <div className="flex-1">
-                                    <div className="inline-flex items-center gap-2 bg-scout-accent text-scout-900 text-[10px] font-black px-3 py-1 rounded-full uppercase mb-4 tracking-widest animate-pulse">
-                                        <Trophy size={12}/> {spotlights.length} Spotlight Ready Signals
-                                    </div>
-                                    <h2 className="text-4xl font-black text-white uppercase tracking-tighter italic mb-2">Spotlight Review</h2>
-                                    <p className="text-gray-400 font-medium max-w-lg">Undiscovered talent that has engaged with your portal. Review their verified data and promote them to your main board.</p>
+                                    <h2 className="text-2xl md:text-4xl font-black text-white uppercase tracking-tighter italic mb-2">Spotlight Review</h2>
+                                    <p className="text-gray-400 text-xs md:text-sm">{spotlights.length} talent signals ready for promotion.</p>
                                 </div>
                                 <div className="w-full max-w-sm">
                                     {currentSpotlight && (
-                                        <div className="bg-scout-800 border border-scout-700 rounded-3xl p-6 shadow-2xl animate-fade-in">
-                                            <div className="flex justify-between items-start mb-4">
-                                                <div>
-                                                    <h3 className="text-2xl font-black text-white">{currentSpotlight.name}</h3>
-                                                    <p className="text-sm text-scout-accent font-bold">{currentSpotlight.position} • {currentSpotlight.nationality || 'Unconfirmed'}</p>
-                                                </div>
-                                                <div className="text-center bg-scout-900 p-2 rounded-xl">
-                                                    <span className="text-[8px] text-emerald-400 uppercase font-black">Verified</span>
-                                                </div>
-                                            </div>
-                                            <div className="bg-scout-900/50 p-3 rounded-xl border border-scout-700/50 text-[10px] text-gray-400 mb-6 italic leading-relaxed">
-                                                {currentSpotlight.activityStatus === 'spotlight' ? "Assessment completed. Data verified." : "Signal detected. Engagement active."}
-                                            </div>
-                                            <div className="flex gap-3 w-full">
-                                                <button onClick={() => handleStatusChange(currentSpotlight.id, PlayerStatus.ARCHIVED)} className="flex-1 bg-scout-700 hover:bg-red-900/50 text-white font-black py-4 rounded-2xl border border-white/5 flex items-center justify-center gap-2 transition-all"><X size={18}/> Dismiss</button>
-                                                <button onClick={() => promoteLead(currentSpotlight.id)} className="flex-[1.5] bg-scout-accent hover:bg-emerald-600 text-scout-900 font-black py-4 rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-all"><Trophy size={18}/> Promote</button>
+                                        <div className="bg-scout-800 border border-scout-700 rounded-3xl p-5 shadow-2xl">
+                                            <h3 className="text-xl font-black text-white">{currentSpotlight.name}</h3>
+                                            <p className="text-[10px] text-scout-accent font-black uppercase mb-4">{currentSpotlight.position} • {currentSpotlight.activityStatus}</p>
+                                            <div className="flex gap-2">
+                                                <button onClick={() => handleStatusChange(currentSpotlight.id, PlayerStatus.ARCHIVED)} className="flex-1 py-3 bg-scout-900 rounded-xl text-[10px] font-black uppercase">Dismiss</button>
+                                                <button onClick={() => promoteLead(currentSpotlight.id)} className="flex-[1.5] py-3 bg-scout-accent text-scout-900 rounded-xl text-[10px] font-black uppercase shadow-glow">Promote</button>
                                             </div>
                                         </div>
                                     )}
@@ -297,85 +252,39 @@ const Dashboard: React.FC<DashboardProps> = ({
 
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                         <div>
-                            <h2 className="text-5xl font-black text-white uppercase tracking-tighter italic">Pipeline Board</h2>
-                            <p className="text-gray-500 text-xs font-bold uppercase tracking-widest mt-2 flex items-center gap-3">
-                                Verified Leads & Propects
-                                {shadowCount > 0 && (
-                                    <button 
-                                        onClick={() => setActiveTab(DashboardTab.OUTREACH)}
-                                        className="bg-scout-900 border border-scout-700 rounded-full px-3 py-1 text-[10px] font-black text-gray-400 hover:text-white transition-colors flex items-center gap-1.5"
-                                    >
-                                        <Ghost size={10} className="text-scout-highlight"/> {shadowCount} Undiscovered in Shadow
-                                    </button>
-                                )}
-                            </p>
+                            <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter italic">Pipeline</h2>
+                            <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2">Managed Leads & Signals</p>
                         </div>
                         <div className="flex items-center gap-4">
-                            {/* View Switcher */}
                             <div className="bg-scout-800 p-1 rounded-xl border border-scout-700 flex shadow-inner">
-                                <button 
-                                    onClick={() => setViewMode('board')}
-                                    className={`p-2 rounded-lg transition-all flex items-center gap-2 text-xs font-black uppercase ${viewMode === 'board' ? 'bg-scout-accent text-scout-900 shadow-md' : 'text-gray-500 hover:text-white'}`}
-                                >
-                                    <LayoutGrid size={16} /> Board
-                                </button>
-                                <button 
-                                    onClick={() => setViewMode('list')}
-                                    className={`p-2 rounded-lg transition-all flex items-center gap-2 text-xs font-black uppercase ${viewMode === 'list' ? 'bg-scout-accent text-scout-900 shadow-md' : 'text-gray-500 hover:text-white'}`}
-                                >
-                                    <List size={16} /> List
-                                </button>
+                                {!isMobile && <button onClick={() => setViewMode('board')} className={`p-2 rounded-lg transition-all flex items-center gap-2 text-[10px] font-black uppercase ${viewMode === 'board' ? 'bg-scout-accent text-scout-900' : 'text-gray-500'}`}><LayoutGrid size={16} /> Board</button>}
+                                <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-all flex items-center gap-2 text-[10px] font-black uppercase ${viewMode === 'list' ? 'bg-scout-accent text-scout-900' : 'text-gray-500'}`}><List size={16} /> List</button>
+                                {isMobile && <button onClick={() => setViewMode('stack')} className={`p-2 rounded-lg transition-all flex items-center gap-2 text-[10px] font-black uppercase ${viewMode === 'stack' ? 'bg-scout-accent text-scout-900' : 'text-gray-500'}`}><LayoutGrid size={16} /> Stack</button>}
                             </div>
-
-                            <button onClick={() => setIsSubmissionOpen(true)} className="bg-scout-accent hover:bg-emerald-600 text-scout-900 px-8 py-4 rounded-2xl font-black shadow-glow flex items-center gap-3 active:scale-95 transition-all">
-                                <PlusCircle size={24} /> New Manual Lead
-                            </button>
+                            <button onClick={() => setIsSubmissionOpen(true)} className="bg-scout-accent hover:bg-emerald-600 text-scout-900 p-4 md:px-8 md:py-4 rounded-2xl font-black shadow-glow flex items-center gap-3 active:scale-95 transition-all"><PlusCircle size={24} /> <span className="hidden md:inline">New Manual Lead</span></button>
                         </div>
                     </div>
 
                     {viewMode === 'board' ? (
                         <div className="flex gap-6 overflow-x-auto pb-8 custom-scrollbar min-h-[500px]">
                             {[PlayerStatus.LEAD, PlayerStatus.INTERESTED, PlayerStatus.FINAL_REVIEW, PlayerStatus.PLACED].map(status => (
-                                <div 
-                                    key={status} 
-                                    onDragOver={(e) => onDragOver(e, status)}
-                                    onDrop={(e) => onDrop(e, status)}
-                                    onDragLeave={onDragLeave}
-                                    className={`flex-1 min-w-[340px] flex flex-col bg-scout-800/20 rounded-[3rem] border transition-all duration-300 ${draggedOverStatus === status ? 'border-scout-accent bg-scout-accent/5 ring-4 ring-scout-accent/10 shadow-glow' : 'border-scout-700/50'}`}
-                                >
-                                    <div className="p-8 border-b border-scout-700/50 bg-scout-900/20 backdrop-blur-md flex justify-between items-center rounded-t-[3rem]">
-                                        <h3 className={`font-black uppercase text-[10px] tracking-[0.3em] transition-colors ${draggedOverStatus === status ? 'text-scout-accent' : 'text-white opacity-50'}`}>{status}</h3>
-                                        <span className={`text-[10px] px-3 py-1 rounded-full border transition-all ${draggedOverStatus === status ? 'bg-scout-accent border-scout-accent text-scout-900' : 'bg-scout-900 border-scout-700 text-gray-500 font-black'}`}>{players.filter(p => p.status === status).length}</span>
-                                    </div>
+                                <div key={status} onDragOver={(e) => onDragOver(e, status)} onDrop={(e) => onDrop(e, status)} className={`flex-1 min-w-[340px] flex flex-col bg-scout-800/20 rounded-[3rem] border ${draggedOverStatus === status ? 'border-scout-accent bg-scout-accent/5 shadow-glow' : 'border-scout-700/50'}`}>
+                                    <div className="p-8 border-b border-scout-700/50 bg-scout-900/20 backdrop-blur-md flex justify-between items-center rounded-t-[3rem]"><h3 className="font-black uppercase text-[10px] tracking-[0.3em] opacity-50">{status}</h3><span className="text-[10px] bg-scout-900 border border-scout-700 px-3 py-1 rounded-full text-gray-500 font-black">{players.filter(p => p.status === status).length}</span></div>
                                     <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1 max-h-[calc(100vh-450px)]">
-                                        {players.filter(p => p.status === status).map(p => (
-                                            <PlayerCard key={p.id} player={p} onStatusChange={handleStatusChange} onOutreach={jumpToOutreach} onEdit={handleEditPlayer} />
-                                        ))}
-                                        {players.filter(p => p.status === status).length === 0 && (
-                                            <div className="h-32 flex items-center justify-center border-2 border-dashed border-scout-700/30 rounded-3xl opacity-30 italic text-xs font-medium text-gray-500">
-                                                Drop to promote talent
-                                            </div>
-                                        )}
+                                        {players.filter(p => p.status === status).map(p => <PlayerCard key={p.id} player={p} onStatusChange={handleStatusChange} onOutreach={jumpToOutreach} onEdit={handleEditPlayer} />)}
                                     </div>
                                 </div>
                             ))}
                         </div>
-                    ) : (
+                    ) : viewMode === 'list' ? (
                         <ListView />
+                    ) : (
+                        <PipelineStack />
                     )}
                 </div>
             )}
 
-            {activeTab === DashboardTab.OUTREACH && (
-                <OutreachTab 
-                    players={players} 
-                    user={user} 
-                    initialPlayerId={outreachTargetId} 
-                    onMessageSent={onMessageSent || (() => {})} 
-                    onAddPlayers={(pls) => pls.forEach(p => onAddPlayer(p))} 
-                    onStatusChange={handleStatusChange}
-                />
-            )}
+            {activeTab === DashboardTab.OUTREACH && <OutreachTab players={players} user={user} initialPlayerId={outreachTargetId} onMessageSent={onMessageSent || (() => {})} onAddPlayers={(pls) => pls.forEach(p => onAddPlayer(p))} onStatusChange={handleStatusChange} />}
             {activeTab === DashboardTab.EVENTS && <EventHub events={events} user={user} onAddEvent={onAddEvent} onUpdateEvent={onUpdateEvent} />}
             {activeTab === DashboardTab.NEWS && <NewsTab newsItems={newsItems} tickerItems={tickerItems} user={user} scoutScore={scoutScore} />}
             {activeTab === DashboardTab.PROFILE && <ProfileTab user={user} players={players} events={events} onUpdateUser={onUpdateProfile} onNavigate={setActiveTab} scoutScore={scoutScore} onOpenBeam={() => setIsBeamOpen(true)} />}
@@ -389,7 +298,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             <button onClick={() => setActiveTab(DashboardTab.PLAYERS)} className={activeTab === DashboardTab.PLAYERS ? 'text-scout-accent' : 'text-gray-600'}><Users size={28}/></button>
             <button onClick={() => setIsBeamOpen(true)} className="text-scout-highlight animate-pulse"><Radio size={28}/></button>
             <div className="-mt-12 bg-[#05080f] p-3 rounded-full border-t border-scout-700 shadow-2xl">
-                 <button onClick={() => setIsSubmissionOpen(true)} className="w-16 h-16 bg-scout-accent text-scout-900 rounded-full flex items-center justify-center shadow-glow"><Plus size={32}/></button>
+                 <button onClick={() => setIsSubmissionOpen(true)} className="w-16 h-16 bg-scout-accent text-scout-900 rounded-full flex items-center justify-center shadow-glow border-4 border-[#05080f]"><Plus size={32}/></button>
             </div>
             <button onClick={() => setActiveTab(DashboardTab.OUTREACH)} className={activeTab === DashboardTab.OUTREACH ? 'text-scout-accent' : 'text-gray-600'}><MessageSquare size={28}/></button>
             <button onClick={() => setActiveTab(DashboardTab.PROFILE)} className={activeTab === DashboardTab.PROFILE ? 'text-scout-accent' : 'text-gray-600'}><UserCircle size={28}/></button>
