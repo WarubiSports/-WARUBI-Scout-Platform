@@ -9,6 +9,7 @@ import {
 import { evaluatePlayer, parsePlayerDetails, checkPlayerDuplicates } from '../services/geminiService';
 import { Player, PlayerStatus, PlayerEvaluation } from '../types';
 import PlayerCard from './PlayerCard';
+import { handleMobileFocus } from '../hooks/useMobileFeatures';
 
 interface PlayerSubmissionProps {
     onClose: () => void;
@@ -69,7 +70,7 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
             setFormData({
                 firstName: names[0] || '',
                 lastName: names.slice(1).join(' ') || '',
-                position: editingPlayer.position as any,
+                position: editingPlayer.position || 'CM',
                 secondaryPosition: editingPlayer.secondaryPosition || '',
                 dominantFoot: editingPlayer.dominantFoot || 'Right',
                 nationality: editingPlayer.nationality || '',
@@ -181,6 +182,10 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
     const Input = (props: any) => (
         <input
             {...props}
+            onFocus={(e: React.FocusEvent<HTMLInputElement>) => {
+                handleMobileFocus(e);
+                props.onFocus?.(e);
+            }}
             className="w-full bg-scout-800 border-2 border-scout-700 rounded-xl px-4 py-3 text-white focus:border-scout-accent outline-none font-bold placeholder-gray-600 transition-all"
         />
     );
@@ -251,7 +256,7 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                     <button onClick={onClose} className="p-3 text-gray-600 hover:text-white transition-colors bg-white/5 rounded-full"><X size={24} /></button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <div className="flex-1 overflow-y-auto custom-scrollbar pb-32 md:pb-0">
                     {mode === 'HUB' && (
                         <div className="p-8 md:p-16 animate-fade-in max-w-4xl mx-auto flex flex-col items-center">
                             {/* QUICK ADD - P1: Minimum friction entry */}

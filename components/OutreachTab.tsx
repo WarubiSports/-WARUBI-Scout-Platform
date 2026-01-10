@@ -1,14 +1,16 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Player, UserProfile, OutreachLog, PlayerStatus } from '../types';
-import { 
-    Search, Sparkles, Copy, CheckCircle, MessageCircle, Send, Link, 
-    Clock, Upload, Loader2, X, Trash2, Smartphone, 
-    MousePointer, Zap, ArrowRight, Check, Flame, Ghost, HelpCircle, 
+import {
+    Search, Sparkles, Copy, CheckCircle, MessageCircle, Send, Link,
+    Clock, Upload, Loader2, X, Trash2, Smartphone,
+    MousePointer, Zap, ArrowRight, Check, Flame, Ghost, HelpCircle,
     ChevronDown, LayoutList, Plus, TrendingUp, Info, Trophy, FileText, Camera,
     RotateCcw, Users, Globe, FileUp, Clipboard
 } from 'lucide-react';
-import { generateOutreachMessage, extractPlayersFromBulkData, extractRosterFromPhoto } from '../services/geminiService';
+import { generateOutreachMessage, extractPlayersFromBulkData, extractRosterFromPhoto, AIUsageLimitError } from '../services/geminiService';
+import { CompactErrorBoundary } from './ErrorBoundary';
+import { handleMobileFocus } from '../hooks/useMobileFeatures';
 
 interface OutreachTabProps {
   players: Player[];
@@ -39,6 +41,7 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
   const [extractedProspects, setExtractedProspects] = useState<Partial<Player>[]>([]);
   const [rosterUrl, setRosterUrl] = useState('');
   const [copied, setCopied] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const selectedPlayer = players.find(p => p.id === selectedPlayerId);
@@ -105,7 +108,8 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
     setActiveIntent(intentId);
     setIsLoading(true);
     setDraftedMessage('');
-    
+    setAiError(null);
+
     const intent = INTENTS.find(i => i.id === intentId);
     const smartLink = includeSmartLink ? `app.warubi-sports.com/audit?sid=${user.scoutId || 'demo'}&pid=${selectedPlayer.id}` : undefined;
 
@@ -114,6 +118,11 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
         setDraftedMessage(message);
         setIsTyping(true);
     } catch (e) {
+        // Handle AI usage limit specifically
+        if (e instanceof AIUsageLimitError) {
+            setAiError(e.message);
+        }
+        // Use fallback template
         const smartLink = includeSmartLink ? `app.warubi-sports.com/audit?sid=${user.scoutId || 'demo'}&pid=${selectedPlayer.id}` : '';
         setDraftedMessage(`Hi ${selectedPlayer.name},
 
@@ -224,6 +233,7 @@ ${user.name}`);
 
       <div className="flex flex-1 gap-6 overflow-hidden">
         {/* LEFT: UNIFIED SIDEBAR */}
+        <CompactErrorBoundary name="Discovery Pool">
         <div className="w-1/3 bg-scout-800 rounded-[2rem] border border-scout-700 flex flex-col overflow-hidden shadow-2xl shrink-0">
             <div className="p-4 border-b border-scout-700 bg-scout-900/50">
                 <div className="flex justify-between items-center mb-4">
@@ -239,7 +249,7 @@ ${user.name}`);
                 {ingestionMode === 'LIST' && (
                     <div className="relative">
                         <Search className="absolute left-3 top-2.5 text-gray-500" size={16} />
-                        <input type="text" placeholder="Search uncontacted..." className="w-full bg-scout-900 border border-scout-700 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-scout-accent transition-all" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                        <input type="text" placeholder="Search uncontacted..." className="w-full bg-scout-900 border border-scout-700 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-scout-accent transition-all" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onFocus={handleMobileFocus} />
                     </div>
                 )}
             </div>
@@ -358,13 +368,14 @@ ${user.name}`);
                             <p className="text-xs text-gray-500 leading-relaxed">Provide a URL to a club roster or tournament page. AI will scan the content for player identities.</p>
                             <div className="relative">
                                 <Globe className="absolute left-3 top-3.5 text-gray-500" size={18} />
-                                <input 
+                                <input
                                     autoFocus
-                                    type="text" 
-                                    placeholder="https://club-soccer.com/u17-roster" 
+                                    type="text"
+                                    placeholder="https://club-soccer.com/u17-roster"
                                     className="w-full bg-scout-900 border-2 border-scout-700 rounded-2xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-blue-400 transition-all"
                                     value={rosterUrl}
                                     onChange={(e) => setRosterUrl(e.target.value)}
+                                    onFocus={handleMobileFocus}
                                 />
                             </div>
                             <button 
@@ -412,8 +423,10 @@ ${user.name}`);
                 )}
             </div>
         </div>
+        </CompactErrorBoundary>
 
         {/* RIGHT: COMMAND CONSOLE */}
+        <CompactErrorBoundary name="Message Console">
         <div className="flex-1 flex flex-col gap-4 overflow-hidden relative">
             {!selectedPlayer ? (
                 <div className="flex-1 bg-scout-800/30 rounded-[3rem] border border-scout-700 border-dashed flex flex-col items-center justify-center text-center p-12 opacity-50">
@@ -506,6 +519,19 @@ ${user.name}`);
                             <div className="text-[9px] font-mono text-gray-700 uppercase tracking-widest hidden lg:block">Outreach v3.0</div>
                         </div>
 
+                        {/* AI LIMIT WARNING */}
+                        {aiError && (
+                            <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-3">
+                                <Sparkles size={16} className="text-amber-400 shrink-0 mt-0.5" />
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-bold text-amber-400 mb-1">AI Credits Depleted</p>
+                                    <p className="text-[10px] text-amber-300/70">{aiError}</p>
+                                    <p className="text-[10px] text-gray-500 mt-1">Using template message instead.</p>
+                                </div>
+                                <button onClick={() => setAiError(null)} className="text-gray-500 hover:text-white"><X size={14} /></button>
+                            </div>
+                        )}
+
                         {/* CONTENT AREA - SCROLLABLE */}
                         <div className="mt-8 flex-1 overflow-y-auto custom-scrollbar">
                             {isLoading ? (
@@ -550,6 +576,7 @@ ${user.name}`);
                 </div>
             )}
         </div>
+        </CompactErrorBoundary>
       </div>
     </div>
   );

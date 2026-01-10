@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import type { ScoutingEvent as DbEvent, ScoutingEventInsert, ScoutingEventUpdate } from '../lib/database.types'
 import type { ScoutingEvent, EventStatus } from '../types'
+import { parseAgenda, parseChecklist, agendaToJson, checklistToJson } from '../lib/guards'
 
 // Local storage key for demo mode
 const DEMO_EVENTS_KEY = 'warubi_demo_events'
@@ -46,8 +47,8 @@ function eventToDb(event: ScoutingEvent, scoutId: string): ScoutingEventInsert {
     fee: event.fee || null,
     registered_count: event.registeredCount || 0,
     marketing_copy: event.marketingCopy || null,
-    agenda: event.agenda ? (event.agenda as any) : null,
-    checklist: event.checklist ? (event.checklist as any) : null,
+    agenda: agendaToJson(event.agenda),
+    checklist: checklistToJson(event.checklist),
   }
 }
 
@@ -64,8 +65,8 @@ function eventFromDb(dbEvent: DbEvent, scoutId?: string): ScoutingEvent {
     type: dbEvent.event_type as ScoutingEvent['type'],
     fee: dbEvent.fee || '',
     marketingCopy: dbEvent.marketing_copy || undefined,
-    agenda: dbEvent.agenda as string[] | undefined,
-    checklist: dbEvent.checklist as { task: string; completed: boolean }[] | undefined,
+    agenda: parseAgenda(dbEvent.agenda) ?? undefined,
+    checklist: parseChecklist(dbEvent.checklist) ?? undefined,
     registeredCount: dbEvent.registered_count || 0,
     hostName: dbEvent.host_name || undefined,
   }
@@ -228,8 +229,8 @@ export function useEvents(scoutId: string | undefined, forceDemoMode: boolean = 
           if (updates.status !== undefined) dbUpdates.status = statusToDb(updates.status)
           if (updates.fee !== undefined) dbUpdates.fee = updates.fee
           if (updates.marketingCopy !== undefined) dbUpdates.marketing_copy = updates.marketingCopy
-          if (updates.agenda !== undefined) dbUpdates.agenda = updates.agenda as any
-          if (updates.checklist !== undefined) dbUpdates.checklist = updates.checklist as any
+          if (updates.agenda !== undefined) dbUpdates.agenda = agendaToJson(updates.agenda)
+          if (updates.checklist !== undefined) dbUpdates.checklist = checklistToJson(updates.checklist)
           if (updates.registeredCount !== undefined) dbUpdates.registered_count = updates.registeredCount
           if (updates.hostName !== undefined) dbUpdates.host_name = updates.hostName
 

@@ -106,7 +106,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
         if (score >= 65) {
             return `Solid fit for ${college || 'D2/NAIA'}. Good development case.`;
         }
-        return player.evaluation?.summary?.split('.')[0] + '.' || 'Needs more evaluation.';
+        return player.evaluation?.summary ? player.evaluation.summary.split('.')[0] + '.' : 'Needs more evaluation.';
     };
 
     // Determine the primary action

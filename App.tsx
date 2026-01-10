@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { Toaster } from 'sonner';
 import { AppView, UserProfile, Player, ScoutingEvent, NewsItem, AppNotification, PlayerStatus } from './types';
 import { INITIAL_NEWS_ITEMS, INITIAL_TICKER_ITEMS, SCOUT_POINTS } from './constants';
 import Login from './components/Login';
@@ -321,6 +322,7 @@ const App: React.FC = () => {
 
   return (
     <>
+      <Toaster position="top-right" richColors closeButton />
       {view === AppView.LOGIN && (
         <Login onSkip={handleSkipLogin} />
       )}

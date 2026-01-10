@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { ScoutingEvent, UserProfile, EventStatus } from '../types';
 import { generateEventPlan } from '../services/geminiService';
-import { 
-  Calendar, MapPin, Sparkles, Plus, Copy, CheckCircle, 
+import { haptic, handleMobileFocus } from '../hooks/useMobileFeatures';
+import { parseEventType } from '../lib/guards';
+import {
+  Calendar, MapPin, Sparkles, Plus, Copy, CheckCircle,
   Share2, Users, FileText, CheckSquare, Loader2, ArrowRight,
   ClipboardList, X, ShieldCheck, Lock, Eye,
-  HelpCircle, Check, QrCode, ChevronRight, Navigation, History, CalendarPlus, Ticket, Clock, Camera
+  HelpCircle, Check, QrCode, ChevronRight, Navigation, History, CalendarPlus, Ticket, Clock, Camera, Edit3
 } from 'lucide-react';
 
 interface EventHubProps {
@@ -262,10 +264,11 @@ const CreateEventForm = ({ formData, setFormData, loading, handleCreate, onCance
 
                 <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Title</label>
-                    <input 
+                    <input
                         value={formData.title}
                         onChange={e => setFormData({...formData, title: e.target.value})}
                         placeholder={formData.isHosting ? "e.g. Winter Talent ID Showcase" : "e.g. State Cup Final"}
+                        onFocus={handleMobileFocus}
                         className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
                     />
                 </div>
@@ -296,6 +299,7 @@ const CreateEventForm = ({ formData, setFormData, loading, handleCreate, onCance
                             value={formData.location}
                             onChange={e => setFormData({...formData, location: e.target.value})}
                             placeholder="City, State or Field Name"
+                            onFocus={handleMobileFocus}
                             className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
                         />
                     </div>
@@ -346,6 +350,32 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
     const isMine = event.role === 'HOST' || event.isMine;
     const isAttending = isMine || events.some((e: any) => e.id === event.id || (e.title === event.title && e.date === event.date));
     const [mobileTab, setMobileTab] = useState<'overview' | 'agenda' | 'tasks'>('overview');
+    const [isEditing, setIsEditing] = useState(false);
+    const [editData, setEditData] = useState({
+        title: event.title,
+        date: event.date,
+        endDate: event.endDate || '',
+        location: event.location,
+        type: event.type,
+        fee: event.fee
+    });
+
+    const handleSaveEdit = () => {
+        onUpdateEvent({ ...event, ...editData });
+        setIsEditing(false);
+    };
+
+    const handleCancelEdit = () => {
+        setEditData({
+            title: event.title,
+            date: event.date,
+            endDate: event.endDate || '',
+            location: event.location,
+            type: event.type,
+            fee: event.fee
+        });
+        setIsEditing(false);
+    };
 
     const toggleChecklist = (index: number) => {
         if (!event.checklist) return;
@@ -371,18 +401,95 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                           <div className="mb-6">
                               <div className="flex justify-between items-start">
                                   <StatusPill status={event.status} />
-                                  {!isMine && isAttending && (
-                                      <span className="text-[10px] font-bold bg-green-900/30 text-green-400 px-2 py-1 rounded border border-green-500/30 flex items-center gap-1">
-                                          <Check size={10}/> Attending
-                                      </span>
-                                  )}
+                                  <div className="flex items-center gap-2">
+                                      {!isMine && isAttending && (
+                                          <span className="text-[10px] font-bold bg-green-900/30 text-green-400 px-2 py-1 rounded border border-green-500/30 flex items-center gap-1">
+                                              <Check size={10}/> Attending
+                                          </span>
+                                      )}
+                                      {(isMine || isAttending) && !isEditing && (
+                                          <button
+                                              onClick={() => setIsEditing(true)}
+                                              className="text-[10px] font-bold bg-scout-700 text-gray-300 px-2 py-1 rounded border border-scout-600 hover:bg-scout-600 flex items-center gap-1"
+                                          >
+                                              <Edit3 size={10}/> Edit
+                                          </button>
+                                      )}
+                                  </div>
                               </div>
-                              <h2 className="text-2xl font-bold text-white mt-2 mb-1">{event.title}</h2>
-                              <div className="space-y-2 text-sm text-gray-400 mt-4">
-                                  <div className="flex items-center gap-2"><Calendar size={14}/> {event.date}{event.endDate && event.endDate !== event.date ? ` - ${event.endDate}` : ''}</div>
-                                  <div className="flex items-center gap-2"><MapPin size={14}/> {event.location}</div>
-                                  <div className="flex items-center gap-2"><Sparkles size={14}/> {event.type} • {event.fee}</div>
-                              </div>
+                              {isEditing ? (
+                                  <div className="mt-3 space-y-3">
+                                      <input
+                                          value={editData.title}
+                                          onChange={e => setEditData({...editData, title: e.target.value})}
+                                          className="w-full bg-scout-900 border border-scout-600 rounded-lg px-3 py-2 text-white text-lg font-bold focus:border-scout-accent outline-none"
+                                          placeholder="Event Title"
+                                      />
+                                      <div className="grid grid-cols-2 gap-2">
+                                          <input
+                                              type="date"
+                                              value={editData.date}
+                                              onChange={e => setEditData({...editData, date: e.target.value})}
+                                              className="bg-scout-900 border border-scout-600 rounded-lg px-3 py-2 text-white text-sm focus:border-scout-accent outline-none"
+                                          />
+                                          <input
+                                              type="date"
+                                              value={editData.endDate}
+                                              onChange={e => setEditData({...editData, endDate: e.target.value})}
+                                              className="bg-scout-900 border border-scout-600 rounded-lg px-3 py-2 text-white text-sm focus:border-scout-accent outline-none"
+                                              placeholder="End Date"
+                                          />
+                                      </div>
+                                      <input
+                                          value={editData.location}
+                                          onChange={e => setEditData({...editData, location: e.target.value})}
+                                          className="w-full bg-scout-900 border border-scout-600 rounded-lg px-3 py-2 text-white text-sm focus:border-scout-accent outline-none"
+                                          placeholder="Location"
+                                      />
+                                      <div className="grid grid-cols-2 gap-2">
+                                          <select
+                                              value={editData.type}
+                                              onChange={e => setEditData({...editData, type: e.target.value})}
+                                              className="bg-scout-900 border border-scout-600 rounded-lg px-3 py-2 text-white text-sm focus:border-scout-accent outline-none"
+                                          >
+                                              <option value="ID Day">ID Day</option>
+                                              <option value="Showcase">Showcase</option>
+                                              <option value="Camp">Camp</option>
+                                              <option value="Tournament">Tournament</option>
+                                              <option value="League Match">League Match</option>
+                                          </select>
+                                          <input
+                                              value={editData.fee}
+                                              onChange={e => setEditData({...editData, fee: e.target.value})}
+                                              className="bg-scout-900 border border-scout-600 rounded-lg px-3 py-2 text-white text-sm focus:border-scout-accent outline-none"
+                                              placeholder="Fee (e.g. Free, $50)"
+                                          />
+                                      </div>
+                                      <div className="flex gap-2 pt-2">
+                                          <button
+                                              onClick={handleSaveEdit}
+                                              className="flex-1 bg-scout-accent hover:bg-emerald-600 text-scout-900 font-bold py-2 rounded-lg text-sm flex items-center justify-center gap-1"
+                                          >
+                                              <Check size={14}/> Save
+                                          </button>
+                                          <button
+                                              onClick={handleCancelEdit}
+                                              className="flex-1 bg-scout-700 hover:bg-scout-600 text-white font-bold py-2 rounded-lg text-sm"
+                                          >
+                                              Cancel
+                                          </button>
+                                      </div>
+                                  </div>
+                              ) : (
+                                  <>
+                                      <h2 className="text-2xl font-bold text-white mt-2 mb-1">{event.title}</h2>
+                                      <div className="space-y-2 text-sm text-gray-400 mt-4">
+                                          <div className="flex items-center gap-2"><Calendar size={14}/> {event.date}{event.endDate && event.endDate !== event.date ? ` - ${event.endDate}` : ''}</div>
+                                          <div className="flex items-center gap-2"><MapPin size={14}/> {event.location}</div>
+                                          <div className="flex items-center gap-2"><Sparkles size={14}/> {event.type} • {event.fee}</div>
+                                      </div>
+                                  </>
+                              )}
                           </div>
 
                           {isMine ? (
@@ -686,7 +793,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
         location: formData.location,
         date: formData.date,
         endDate: formData.endDate || undefined,
-        type: formData.type as any,
+        type: parseEventType(formData.type),
         fee: formData.fee,
         registeredCount: 0,
         marketingCopy: '',
@@ -839,8 +946,8 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
                 {/* Mobile Tab Toggle */}
                 {isMobile && (
                     <div className="flex border-b border-scout-700 bg-scout-900 sticky top-0 z-20">
-                        <button onClick={() => setMobileTab('schedule')} className={`flex-1 py-4 text-xs font-black uppercase tracking-widest ${mobileTab === 'schedule' ? 'text-scout-accent border-b-2 border-scout-accent' : 'text-gray-500'}`}>My Schedule</button>
-                        <button onClick={() => setMobileTab('discover')} className={`flex-1 py-4 text-xs font-black uppercase tracking-widest ${mobileTab === 'discover' ? 'text-scout-accent border-b-2 border-scout-accent' : 'text-gray-500'}`}>Opportunities</button>
+                        <button onClick={() => { haptic.light(); setMobileTab('schedule'); }} className={`flex-1 py-4 text-xs font-black uppercase tracking-widest active:scale-95 transition-transform ${mobileTab === 'schedule' ? 'text-scout-accent border-b-2 border-scout-accent' : 'text-gray-500'}`}>My Schedule</button>
+                        <button onClick={() => { haptic.light(); setMobileTab('discover'); }} className={`flex-1 py-4 text-xs font-black uppercase tracking-widest active:scale-95 transition-transform ${mobileTab === 'discover' ? 'text-scout-accent border-b-2 border-scout-accent' : 'text-gray-500'}`}>Opportunities</button>
                     </div>
                 )}
 
@@ -941,8 +1048,8 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
                 
                 {/* Mobile FAB */}
                 {isMobile && (
-                    <button 
-                        onClick={() => setView('create')}
+                    <button
+                        onClick={() => { haptic.medium(); setView('create'); }}
                         className="fixed bottom-24 right-6 w-14 h-14 bg-scout-accent rounded-full flex items-center justify-center text-scout-900 shadow-2xl border-4 border-scout-900 active:scale-90 transition-transform z-30"
                     >
                         <CalendarPlus size={28} />

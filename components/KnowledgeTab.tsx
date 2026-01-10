@@ -387,14 +387,14 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
             <div className="bg-scout-800 rounded-[2.5rem] border border-scout-700 p-8 shadow-xl">
                 <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic mb-6">Link Customizer</h2>
                 <div className="grid md:grid-cols-3 gap-4 mb-10">
-                    {[
+                    {([
                         { id: 'pro', label: 'The Pro Hook', desc: 'Focus on German trials', icon: <Trophy size={18} /> },
                         { id: 'ncaa', label: 'The College Hook', desc: 'Focus on Scholarships', icon: <GraduationCap size={18} /> },
                         { id: 'roi', label: 'The ROI Hook', desc: 'Focus on Math/Savings', icon: <Calculator size={18} /> }
-                    ].map(h => (
+                    ] as const).map(h => (
                         <button
                             key={h.id}
-                            onClick={() => setEvalHook(h.id as any)}
+                            onClick={() => setEvalHook(h.id)}
                             className={`p-6 rounded-2xl border-2 text-left transition-all ${evalHook === h.id ? 'bg-scout-accent/10 border-scout-accent' : 'bg-scout-900 border-scout-700 hover:border-scout-600'}`}
                         >
                             <div className={`mb-3 ${evalHook === h.id ? 'text-scout-accent' : 'text-gray-500'}`}>{h.icon}</div>
@@ -535,7 +535,7 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
                                             <div className="bg-scout-800 px-2 py-1 rounded text-[8px] font-black text-gray-500 uppercase">{p.evaluation?.scholarshipTier}</div>
                                         </div>
                                         <h4 className="text-lg font-black text-white uppercase tracking-tight group-hover:text-scout-accent transition-colors truncate">{p.name}</h4>
-                                        <p className="text-[10px] text-gray-500 mt-2 line-clamp-2 italic font-mono">"{p.evaluation?.summary}"</p>
+                                        <p className="text-[10px] text-gray-500 mt-2 line-clamp-2 italic font-mono">"{p.evaluation?.summary || 'Awaiting evaluation.'}"</p>
                                     </button>
                                 ))}
                             </div>
@@ -600,7 +600,7 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
                                     <div className="text-[10px] text-gray-500 font-black uppercase tracking-widest mt-1">Benchmark Score</div>
                                 </div>
                             </div>
-                            <div className="mt-8 md:mt-10 p-6 md:p-8 bg-black/30 rounded-3xl border border-white/5 italic text-gray-300 leading-relaxed text-sm md:text-base font-mono">"{selectedRefPlayer.evaluation?.summary}"</div>
+                            <div className="mt-8 md:mt-10 p-6 md:p-8 bg-black/30 rounded-3xl border border-white/5 italic text-gray-300 leading-relaxed text-sm md:text-base font-mono">"{selectedRefPlayer.evaluation?.summary || 'Awaiting evaluation.'}"</div>
                         </div>
 
                         <div className="grid md:grid-cols-2 gap-8 font-mono">

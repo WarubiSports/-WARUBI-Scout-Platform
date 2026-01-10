@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { UserProfile, Player, DashboardTab, ScoutingEvent, PlayerStatus, AppNotification, StrategyTask } from '../types';
 import PlayerCard from './PlayerCard';
 import EventHub from './EventHub';
@@ -12,8 +12,13 @@ import SidelineBeam from './SidelineBeam';
 import TutorialOverlay from './TutorialOverlay';
 import Confetti from './Confetti';
 import StrategyPanel from './StrategyPanel';
+import AIQuotaDisplay from './AIQuotaDisplay';
+import { ConnectionStatus } from './MobileEnhancements';
+import { ErrorBoundary } from './ErrorBoundary';
+import GlobalSearch from './GlobalSearch';
+import { haptic, useSwipeGesture } from '../hooks/useMobileFeatures';
 import { generateDailyStrategy } from '../services/geminiService';
-import { Users, CalendarDays, UserCircle, MessageSquare, Newspaper, Zap, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, Radio, ArrowRight, ArrowLeft, Target, Bell, Send } from 'lucide-react';
+import { Users, CalendarDays, UserCircle, MessageSquare, Newspaper, Zap, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, Radio, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp } from 'lucide-react';
 
 interface DashboardProps {
     user: UserProfile;
@@ -63,6 +68,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     const [draggedOverStatus, setDraggedOverStatus] = useState<PlayerStatus | null>(null);
     const [listSearch, setListSearch] = useState('');
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
 
     useEffect(() => {
         const handleResize = () => {
@@ -75,6 +81,18 @@ const Dashboard: React.FC<DashboardProps> = ({
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
+    // Global search shortcut (Cmd+K / Ctrl+K)
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                setIsSearchOpen(prev => !prev);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
+
     const spotlights = players.filter(p => p.status === PlayerStatus.PROSPECT && (p.activityStatus === 'spotlight' || p.activityStatus === 'signal'));
     const shadowCount = players.filter(p => p.status === PlayerStatus.PROSPECT).length;
     const [reviewIdx, setReviewIdx] = useState(0);
@@ -85,7 +103,14 @@ const Dashboard: React.FC<DashboardProps> = ({
     }, [players, events]);
 
     const handleStatusChange = (id: string, newStatus: PlayerStatus) => {
-        if (newStatus === PlayerStatus.PLACED) setShowCelebration(true);
+        if (newStatus === PlayerStatus.PLACED) {
+            setShowCelebration(true);
+            haptic.success();
+        } else if (newStatus === PlayerStatus.ARCHIVED) {
+            haptic.medium();
+        } else {
+            haptic.light();
+        }
         if (onStatusChange) onStatusChange(id, newStatus);
     };
 
@@ -118,10 +143,106 @@ const Dashboard: React.FC<DashboardProps> = ({
         if (playerId) handleStatusChange(playerId, status);
     };
 
+    // Swipeable card wrapper for mobile stack view
+    const SwipeableStackCard = ({ player, onArchive, onPromote }: { player: Player; onArchive: () => void; onPromote: () => void }) => {
+        const [offset, setOffset] = useState(0);
+        const [isDragging, setIsDragging] = useState(false);
+        const startX = useRef(0);
+        const startY = useRef(0);
+        const isHorizontalSwipe = useRef(false);
+        const threshold = 100;
+
+        const handleTouchStart = (e: React.TouchEvent) => {
+            startX.current = e.touches[0].clientX;
+            startY.current = e.touches[0].clientY;
+            isHorizontalSwipe.current = false;
+            setIsDragging(true);
+        };
+
+        const handleTouchMove = (e: React.TouchEvent) => {
+            if (!isDragging) return;
+            const currentX = e.touches[0].clientX;
+            const currentY = e.touches[0].clientY;
+            const diffX = currentX - startX.current;
+            const diffY = currentY - startY.current;
+
+            if (!isHorizontalSwipe.current && (Math.abs(diffX) > 10 || Math.abs(diffY) > 10)) {
+                isHorizontalSwipe.current = Math.abs(diffX) > Math.abs(diffY);
+            }
+
+            if (isHorizontalSwipe.current) {
+                const newOffset = diffX * 0.6;
+                const maxOffset = threshold * 1.2;
+                setOffset(Math.max(-maxOffset, Math.min(maxOffset, newOffset)));
+
+                if (Math.abs(newOffset) >= threshold && Math.abs(offset) < threshold) {
+                    haptic.light();
+                }
+            }
+        };
+
+        const handleTouchEnd = () => {
+            if (!isDragging) return;
+            setIsDragging(false);
+
+            if (offset >= threshold) {
+                haptic.success();
+                onPromote();
+            } else if (offset <= -threshold) {
+                haptic.medium();
+                onArchive();
+            }
+            setOffset(0);
+        };
+
+        const swipeProgress = Math.min(Math.abs(offset) / threshold, 1);
+
+        return (
+            <div className="relative overflow-hidden rounded-3xl">
+                {/* Background actions */}
+                <div className="absolute inset-0 flex">
+                    <div
+                        className="flex-1 bg-scout-accent flex items-center justify-start pl-8 transition-opacity"
+                        style={{ opacity: offset > 0 ? swipeProgress : 0 }}
+                    >
+                        <div className="flex items-center gap-2 text-scout-900">
+                            <TrendingUp size={24} />
+                            <span className="font-black text-sm uppercase">Promote</span>
+                        </div>
+                    </div>
+                    <div
+                        className="flex-1 bg-gray-600 flex items-center justify-end pr-8 transition-opacity"
+                        style={{ opacity: offset < 0 ? swipeProgress : 0 }}
+                    >
+                        <div className="flex items-center gap-2 text-white">
+                            <span className="font-black text-sm uppercase">Archive</span>
+                            <Archive size={24} />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Card */}
+                <div
+                    className={`relative bg-scout-800 rounded-3xl transition-transform ${isDragging ? '' : 'duration-300'}`}
+                    style={{ transform: `translateX(${offset}px)` }}
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                >
+                    <PlayerCard player={player} onStatusChange={handleStatusChange} onOutreach={jumpToOutreach} onEdit={handleEditPlayer} />
+                </div>
+            </div>
+        );
+    };
+
     const PipelineStack = () => {
         const activePlayers = players.filter(p => p.status !== PlayerStatus.PROSPECT && p.status !== PlayerStatus.ARCHIVED);
         const [stackIdx, setStackIdx] = useState(0);
         const currentPlayer = activePlayers[stackIdx];
+
+        const goToNext = useCallback(() => {
+            setStackIdx(prev => Math.min(activePlayers.length - 1, prev + 1));
+        }, [activePlayers.length]);
 
         if (activePlayers.length === 0) return (
             <div className="flex flex-col items-center justify-center py-20 opacity-40">
@@ -130,22 +251,58 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
         );
 
+        const handleArchive = () => {
+            if (currentPlayer) {
+                handleStatusChange(currentPlayer.id, PlayerStatus.ARCHIVED);
+                // Stay on same index or go back if at end
+                if (stackIdx >= activePlayers.length - 1) {
+                    setStackIdx(Math.max(0, stackIdx - 1));
+                }
+            }
+        };
+
+        const handlePromote = () => {
+            if (currentPlayer) {
+                // Move to next stage
+                const stages = [PlayerStatus.LEAD, PlayerStatus.INTERESTED, PlayerStatus.FINAL_REVIEW, PlayerStatus.PLACED];
+                const currentIndex = stages.indexOf(currentPlayer.status);
+                if (currentIndex < stages.length - 1) {
+                    handleStatusChange(currentPlayer.id, stages[currentIndex + 1]);
+                }
+            }
+        };
+
         return (
-            <div className="space-y-8">
+            <div className="space-y-6">
                 <div className="flex justify-between items-center px-2">
                     <h3 className="text-xs font-black uppercase text-scout-accent tracking-[0.2em]">Active Deck ({stackIdx + 1}/{activePlayers.length})</h3>
                     <div className="flex gap-2">
-                        <button onClick={() => setStackIdx(prev => Math.max(0, prev - 1))} className="p-2 bg-scout-800 rounded-lg text-gray-500"><ArrowLeft size={16} /></button>
-                        <button onClick={() => setStackIdx(prev => Math.min(activePlayers.length - 1, prev + 1))} className="p-2 bg-scout-800 rounded-lg text-gray-500"><ArrowRight size={16} /></button>
+                        <button onClick={() => { haptic.light(); setStackIdx(prev => Math.max(0, prev - 1)); }} className="p-2 bg-scout-800 rounded-lg text-gray-500 active:scale-95 transition-transform"><ArrowLeft size={16} /></button>
+                        <button onClick={() => { haptic.light(); setStackIdx(prev => Math.min(activePlayers.length - 1, prev + 1)); }} className="p-2 bg-scout-800 rounded-lg text-gray-500 active:scale-95 transition-transform"><ArrowRight size={16} /></button>
                     </div>
                 </div>
-                <div className="relative h-[480px]">
+
+                {/* Swipe hint */}
+                <div className="flex justify-center gap-6 text-[10px] text-gray-600 uppercase tracking-wider">
+                    <span className="flex items-center gap-1"><ArrowLeft size={12} /> Swipe to archive</span>
+                    <span className="flex items-center gap-1">Swipe to promote <ArrowRight size={12} /></span>
+                </div>
+
+                <div className="relative">
                     {currentPlayer && (
                         <div className="animate-fade-in">
-                            <PlayerCard player={currentPlayer} onStatusChange={handleStatusChange} onOutreach={jumpToOutreach} onEdit={handleEditPlayer} />
+                            <SwipeableStackCard
+                                player={currentPlayer}
+                                onArchive={handleArchive}
+                                onPromote={handlePromote}
+                            />
                             <div className="mt-6 grid grid-cols-2 gap-4">
-                                <button onClick={() => handleStatusChange(currentPlayer.id, PlayerStatus.ARCHIVED)} className="py-4 bg-scout-800 text-gray-400 font-black rounded-2xl border border-white/5 uppercase text-[10px] tracking-widest">Archive</button>
-                                <button onClick={() => handleStatusChange(currentPlayer.id, PlayerStatus.PLACED)} className="py-4 bg-scout-accent text-scout-900 font-black rounded-2xl shadow-glow uppercase text-[10px] tracking-widest">Mark Placed</button>
+                                <button onClick={handleArchive} className="py-4 bg-scout-800 text-gray-400 font-black rounded-2xl border border-white/5 uppercase text-[10px] tracking-widest active:scale-95 transition-transform flex items-center justify-center gap-2">
+                                    <Archive size={16} /> Archive
+                                </button>
+                                <button onClick={() => handleStatusChange(currentPlayer.id, PlayerStatus.PLACED)} className="py-4 bg-scout-accent text-scout-900 font-black rounded-2xl shadow-glow uppercase text-[10px] tracking-widest active:scale-95 transition-transform flex items-center justify-center gap-2">
+                                    <Trophy size={16} /> Mark Placed
+                                </button>
                             </div>
                         </div>
                     )}
@@ -200,6 +357,22 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     return (
         <div className="flex h-screen bg-[#05080f] text-white overflow-hidden relative">
+            <ConnectionStatus />
+            <GlobalSearch
+                isOpen={isSearchOpen}
+                onClose={() => setIsSearchOpen(false)}
+                players={players}
+                events={events}
+                onNavigate={setActiveTab}
+                onSelectPlayer={(player) => {
+                    setEditingPlayer(player);
+                    setIsSubmissionOpen(true);
+                }}
+                onSelectEvent={(event) => {
+                    setActiveTab(DashboardTab.EVENTS);
+                }}
+                onOpenAddPlayer={() => setIsSubmissionOpen(true)}
+            />
             {showCelebration && <Confetti onComplete={() => setShowCelebration(false)} />}
 
             <aside className="w-72 bg-scout-800 border-r border-scout-700 hidden md:flex flex-col shrink-0">
@@ -215,6 +388,9 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <button onClick={() => setActiveTab(DashboardTab.KNOWLEDGE)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.KNOWLEDGE ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><Zap size={20} /> Training</button>
                 </nav>
                 <StrategyPanel persona={user.scoutPersona || 'The Scout'} tasks={strategyTasks} onAction={(link) => setActiveTab(DashboardTab.OUTREACH)} />
+                <div className="px-4 pb-2">
+                    <AIQuotaDisplay />
+                </div>
                 <div className="p-6 border-t border-scout-700 bg-scout-900/30">
                     <div onClick={() => setActiveTab(DashboardTab.PROFILE)} className="flex items-center gap-4 p-3 bg-scout-800 rounded-2xl border border-scout-700 cursor-pointer hover:border-scout-accent transition-colors">
                         <div className="w-12 h-12 rounded-xl bg-scout-accent flex items-center justify-center font-black text-scout-900 text-xl">{user.name.charAt(0)}</div>
@@ -225,6 +401,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
             <main className={`flex-1 ${activeTab === DashboardTab.OUTREACH ? 'overflow-hidden p-4' : 'overflow-auto p-4 md:p-10 pb-32 custom-scrollbar'}`}>
                 {activeTab === DashboardTab.PLAYERS && (
+                    <ErrorBoundary name="Pipeline">
                     <div className="space-y-8 animate-fade-in">
                         {/* P2: HOT LEAD BANNER - Shows when someone just engaged */}
                         {spotlights.filter(p => p.activityStatus === 'signal' || p.activityStatus === 'spotlight').length > 0 && (
@@ -387,13 +564,34 @@ const Dashboard: React.FC<DashboardProps> = ({
                             <PipelineStack />
                         )}
                     </div>
+                    </ErrorBoundary>
                 )}
 
-                {activeTab === DashboardTab.OUTREACH && <OutreachTab players={players} user={user} initialPlayerId={outreachTargetId} onMessageSent={onMessageSent || (() => { })} onAddPlayers={(pls) => pls.forEach(p => onAddPlayer(p))} onStatusChange={handleStatusChange} />}
-                {activeTab === DashboardTab.EVENTS && <EventHub events={events} user={user} onAddEvent={onAddEvent} onUpdateEvent={onUpdateEvent} />}
-                {activeTab === DashboardTab.NEWS && <NewsTab newsItems={newsItems} tickerItems={tickerItems} user={user} scoutScore={scoutScore} />}
-                {activeTab === DashboardTab.PROFILE && <ProfileTab user={user} players={players} events={events} onUpdateUser={onUpdateProfile} onNavigate={setActiveTab} scoutScore={scoutScore} onOpenBeam={() => setIsBeamOpen(true)} />}
-                {activeTab === DashboardTab.KNOWLEDGE && <KnowledgeTab user={user} />}
+                {activeTab === DashboardTab.OUTREACH && (
+                    <ErrorBoundary name="Outreach">
+                        <OutreachTab players={players} user={user} initialPlayerId={outreachTargetId} onMessageSent={onMessageSent || (() => { })} onAddPlayers={(pls) => pls.forEach(p => onAddPlayer(p))} onStatusChange={handleStatusChange} />
+                    </ErrorBoundary>
+                )}
+                {activeTab === DashboardTab.EVENTS && (
+                    <ErrorBoundary name="Events">
+                        <EventHub events={events} user={user} onAddEvent={onAddEvent} onUpdateEvent={onUpdateEvent} />
+                    </ErrorBoundary>
+                )}
+                {activeTab === DashboardTab.NEWS && (
+                    <ErrorBoundary name="News">
+                        <NewsTab newsItems={newsItems} tickerItems={tickerItems} user={user} scoutScore={scoutScore} />
+                    </ErrorBoundary>
+                )}
+                {activeTab === DashboardTab.PROFILE && (
+                    <ErrorBoundary name="Profile">
+                        <ProfileTab user={user} players={players} events={events} onUpdateUser={onUpdateProfile} onNavigate={setActiveTab} scoutScore={scoutScore} onOpenBeam={() => setIsBeamOpen(true)} />
+                    </ErrorBoundary>
+                )}
+                {activeTab === DashboardTab.KNOWLEDGE && (
+                    <ErrorBoundary name="Knowledge">
+                        <KnowledgeTab user={user} />
+                    </ErrorBoundary>
+                )}
 
                 {isSubmissionOpen && <PlayerSubmission onClose={handleCloseSubmission} onAddPlayer={onAddPlayer} onUpdatePlayer={onUpdatePlayer} existingPlayers={players} editingPlayer={editingPlayer} />}
                 {isBeamOpen && <SidelineBeam user={user} onClose={() => setIsBeamOpen(false)} />}
@@ -401,24 +599,24 @@ const Dashboard: React.FC<DashboardProps> = ({
 
             <nav className="md:hidden fixed bottom-0 w-full bg-[#05080f]/95 backdrop-blur-2xl border-t border-scout-700 z-[110] px-2 pt-2 pb-6">
                 <div className="flex justify-around items-end max-w-md mx-auto">
-                    <button onClick={() => setActiveTab(DashboardTab.PLAYERS)} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${activeTab === DashboardTab.PLAYERS ? 'text-scout-accent' : 'text-gray-600'}`}>
+                    <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.PLAYERS); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.PLAYERS ? 'text-scout-accent' : 'text-gray-600'}`}>
                         <Users size={24} />
                         <span className="text-[9px] font-black uppercase">Pipeline</span>
                     </button>
-                    <button onClick={() => setActiveTab(DashboardTab.EVENTS)} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${activeTab === DashboardTab.EVENTS ? 'text-scout-accent' : 'text-gray-600'}`}>
+                    <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.EVENTS); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.EVENTS ? 'text-scout-accent' : 'text-gray-600'}`}>
                         <CalendarDays size={24} />
                         <span className="text-[9px] font-black uppercase">Events</span>
                     </button>
                     <div className="-mt-8 bg-[#05080f] p-2 rounded-full border border-scout-700/50 shadow-2xl">
-                        <button onClick={() => setIsSubmissionOpen(true)} className="w-14 h-14 bg-scout-accent text-scout-900 rounded-full flex items-center justify-center shadow-glow border-2 border-scout-accent/50 active:scale-95 transition-transform">
+                        <button onClick={() => { haptic.medium(); setIsSubmissionOpen(true); }} className="w-14 h-14 bg-scout-accent text-scout-900 rounded-full flex items-center justify-center shadow-glow border-2 border-scout-accent/50 active:scale-90 transition-transform">
                             <Plus size={28} />
                         </button>
                     </div>
-                    <button onClick={() => setActiveTab(DashboardTab.OUTREACH)} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${activeTab === DashboardTab.OUTREACH ? 'text-scout-accent' : 'text-gray-600'}`}>
+                    <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.OUTREACH); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.OUTREACH ? 'text-scout-accent' : 'text-gray-600'}`}>
                         <MessageSquare size={24} />
                         <span className="text-[9px] font-black uppercase">Outreach</span>
                     </button>
-                    <button onClick={() => setActiveTab(DashboardTab.KNOWLEDGE)} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${activeTab === DashboardTab.KNOWLEDGE ? 'text-scout-accent' : 'text-gray-600'}`}>
+                    <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.KNOWLEDGE); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.KNOWLEDGE ? 'text-scout-accent' : 'text-gray-600'}`}>
                         <Zap size={24} />
                         <span className="text-[9px] font-black uppercase">Training</span>
                     </button>

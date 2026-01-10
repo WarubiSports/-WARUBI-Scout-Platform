@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import type { ScoutProspect, ScoutProspectInsert, ScoutProspectUpdate } from '../lib/database.types'
 import { PlayerStatus } from '../types'
 import type { Player, PlayerEvaluation, OutreachLog } from '../types'
+import { parseEvaluation, evaluationToJson } from '../lib/guards'
 
 // Local storage key for demo mode
 const DEMO_PROSPECTS_KEY = 'warubi_demo_prospects'
@@ -35,7 +36,7 @@ function playerToProspect(player: Player, scoutId: string): ScoutProspectInsert 
     technical: player.technical || null,
     tactical: player.tactical || null,
     coachable: player.coachable || null,
-    evaluation: player.evaluation as any,
+    evaluation: evaluationToJson(player.evaluation),
     status: statusToDb(player.status),
     activity_status: player.activityStatus || 'undiscovered',
     interested_program: player.interestedProgram || null,
@@ -77,7 +78,7 @@ function prospectToPlayer(prospect: ScoutProspect, outreachLogs: OutreachLog[] =
     teamLevel: prospect.team_level || undefined,
     interestedProgram: prospect.interested_program || undefined,
     placedLocation: prospect.placed_location || undefined,
-    evaluation: prospect.evaluation as PlayerEvaluation | null,
+    evaluation: parseEvaluation(prospect.evaluation),
     outreachLogs: outreachLogs,
     notes: prospect.notes || undefined,
     submittedAt: prospect.submitted_at,
@@ -326,7 +327,7 @@ export function useProspects(scoutId: string | undefined, forceDemoMode: boolean
           if (updates.technical !== undefined) dbUpdates.technical = updates.technical
           if (updates.tactical !== undefined) dbUpdates.tactical = updates.tactical
           if (updates.coachable !== undefined) dbUpdates.coachable = updates.coachable
-          if (updates.evaluation !== undefined) dbUpdates.evaluation = updates.evaluation as any
+          if (updates.evaluation !== undefined) dbUpdates.evaluation = evaluationToJson(updates.evaluation)
           if (updates.status !== undefined) dbUpdates.status = statusToDb(updates.status)
           if (updates.activityStatus !== undefined) dbUpdates.activity_status = updates.activityStatus
           if (updates.interestedProgram !== undefined) dbUpdates.interested_program = updates.interestedProgram
