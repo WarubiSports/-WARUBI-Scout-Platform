@@ -345,21 +345,72 @@ export const askScoutAI = async (question: string): Promise<string> => {
 
 export const generateOutreachMessage = async (scoutName: string, player: Player, templateType: string, assessmentLink?: string): Promise<string> => {
     const ai = getAiClient();
-    const prompt = `You are an elite soccer scout. Write a single, concise, professional ${templateType} message to player ${player.name} from scout ${scoutName}.
-    
-    Rules:
-    1. Tone: Professional, authoritative, yet encouraging.
-    2. Context: ${player.position} player, ${player.age} years old.
-    3. Call to Action: ${assessmentLink ? `Naturally integrate this mandatory link for their performance profile: ${assessmentLink}` : 'Do not include any links. Focus on setting up a discovery call.'}
-    4. Format: Return ONLY the message body. No subject line, no conversational filler like "Here is your message", and NO multiple options. One perfect message.
-    5. Platform: The message will be sent via WhatsApp or Email. Use line breaks for readability.`;
-    
+
+    // Template-specific context
+    const templateContext: Record<string, string> = {
+        'First Spark': `This is the FIRST contact with the player. Introduce yourself, explain who Warubi Scout is (an elite scouting network connected to FC Köln's International Talent Program and 200+ US college programs), why you noticed them, and what opportunities exist. Create urgency but be genuine.`,
+        'Invite to ID': `Invite them to an upcoming ID Day or Showcase event. Explain what happens at these events (professional evaluation, video footage, direct exposure to coaches). Include specific benefits of attending.`,
+        'Request Video': `Ask them to submit highlight footage. Explain why video is essential for the evaluation process and what coaches look for. Be specific about what to include (game footage, position-specific clips).`,
+        'Follow-up': `This is a follow-up after no response. Reference your previous outreach, add new value (recent placement news, upcoming deadline, limited spots). Create gentle urgency without being pushy.`
+    };
+
+    const prompt = `You are ${scoutName}, an elite soccer scout for Warubi Sports, which connects talented players to FC Köln's International Talent Program in Germany and 200+ college programs in the US.
+
+Write a compelling ${templateType} message to ${player.name}.
+
+PLAYER CONTEXT:
+- Position: ${player.position || 'Unknown'}
+- Age: ${player.age || 'Unknown'} years old
+- Club: ${player.club || 'Unknown'}
+${player.evaluation ? `- Scout Score: ${player.evaluation.score}/100` : ''}
+
+MESSAGE TYPE: ${templateContext[templateType] || 'Professional introduction and next steps.'}
+
+REQUIREMENTS:
+1. LENGTH: 4-6 sentences minimum. This needs to be substantive enough to build trust.
+2. PERSONALIZATION: Reference their position specifically (what scouts look for in a ${player.position}).
+3. CREDIBILITY: Mention Warubi's track record (200+ annual placements, FC Köln partnership, NCAA network).
+4. VALUE: Explain what's in it for THEM (free evaluation, exposure, pathway options).
+5. ${assessmentLink ? `CALL TO ACTION: Include this link naturally for their free talent assessment: ${assessmentLink}` : 'CALL TO ACTION: Suggest a quick call or ask them to reply with questions.'}
+6. FORMAT: Use line breaks for WhatsApp/text readability. Start with a personalized greeting.
+
+Return ONLY the message body. No "Here's your message" intro. One polished message ready to send.`;
+
     try {
         const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
-        return response.text?.trim() || `Hi ${player.name}, this is ${scoutName}. I've been watching your progress and would like to discuss some potential pathways for you. ${assessmentLink ? `Please start by filling out your profile here: ${assessmentLink}` : ''}`;
+        return response.text?.trim() || generateFallbackMessage(scoutName, player, templateType, assessmentLink);
     } catch (e) {
-        return `Hi ${player.name}, I'm ${scoutName} with Warubi Scout. Let's discuss your football future.`;
+        return generateFallbackMessage(scoutName, player, templateType, assessmentLink);
     }
+};
+
+const generateFallbackMessage = (scoutName: string, player: Player, templateType: string, assessmentLink?: string): string => {
+    const position = player.position || 'player';
+    const name = player.name || 'there';
+
+    if (templateType === 'First Spark') {
+        return `Hi ${name},
+
+I'm ${scoutName} with Warubi Sports. I work with FC Köln's International Talent Program and over 200 college programs across the US.
+
+I came across your profile and wanted to reach out about some opportunities that might be a great fit for a ${position} with your potential. We've helped place over 200 players this year alone into pro development programs and college scholarships.
+
+${assessmentLink ? `Take 2 minutes to complete your free talent assessment here - it helps us match you with the right pathway:\n${assessmentLink}\n` : ''}
+Would love to hear about your goals and see if we can help you get there.
+
+Best,
+${scoutName}
+Warubi Sports`;
+    }
+
+    return `Hi ${name},
+
+I'm ${scoutName} with Warubi Sports. I'd love to connect about your football future and discuss some pathways that could be a great fit.
+
+${assessmentLink ? `Start here: ${assessmentLink}` : 'Let me know if you have a few minutes to chat.'}
+
+Best,
+${scoutName}`;
 };
 
 export const checkPlayerDuplicates = async (candidate: Partial<Player>, existingPlayers: Player[]): Promise<{ id: string; name: string; reason: string; confidence: string }[]> => {

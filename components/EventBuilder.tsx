@@ -9,8 +9,8 @@ interface EventBuilderProps {
 }
 
 const MOCK_EXTERNAL_EVENTS = [
-    { id: 'ext-1', name: 'Surf Cup 2024', date: '2024-07-25', location: 'San Diego, CA', isHosting: false },
-    { id: 'ext-2', name: 'Dallas Cup', date: '2024-04-14', location: 'Dallas, TX', isHosting: false },
+    { id: 'ext-1', name: 'Surf Cup 2025', date: '2025-07-25', location: 'San Diego, CA', isHosting: false },
+    { id: 'ext-2', name: 'Dallas Cup 2025', date: '2025-04-14', location: 'Dallas, TX', isHosting: false },
 ];
 
 const EventBuilder: React.FC<EventBuilderProps> = ({ events, onAddEvent }) => {

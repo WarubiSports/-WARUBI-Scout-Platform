@@ -114,7 +114,17 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
         setDraftedMessage(message);
         setIsTyping(true);
     } catch (e) {
-        setDraftedMessage(`Hi ${selectedPlayer.name}, let's talk about your football future.`);
+        const smartLink = includeSmartLink ? `app.warubi-sports.com/audit?sid=${user.scoutId || 'demo'}&pid=${selectedPlayer.id}` : '';
+        setDraftedMessage(`Hi ${selectedPlayer.name},
+
+I'm ${user.name} with Warubi Sports. I work with FC Köln's International Talent Program and over 200 college programs across the US.
+
+I came across your profile and wanted to reach out about some opportunities for a ${selectedPlayer.position || 'player'} with your potential. We've helped place over 200 players this year into pro development programs and college scholarships.
+
+${smartLink ? `Take 2 minutes to complete your free talent assessment:\n${smartLink}\n` : ''}Would love to hear about your goals.
+
+Best,
+${user.name}`);
     } finally {
         setIsLoading(false);
     }

@@ -644,7 +644,7 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
                                     <button onClick={(e) => handleAskAI(e, "What is the minimum GPA for NCAA D1 Eligibility?")} className="w-full text-left text-[11px] bg-scout-900 hover:bg-scout-700 p-4 rounded-2xl border border-scout-700 text-gray-300 font-bold transition-all leading-snug hover:border-scout-accent/50">"What is the D1 GPA minimum?"</button>
                                 </div>
                             </div>
-                            <div className="p-4 rounded-2xl bg-scout-accent/5 border border-scout-accent/20 text-center font-mono"><p className="text-[9px] text-scout-accent font-black uppercase tracking-wider">Aware of your persona: {user.roles.join(' / ')}</p></div>
+                            <div className="p-4 rounded-2xl bg-scout-accent/5 border border-scout-accent/20 text-center font-mono"><p className="text-[9px] text-scout-accent font-black uppercase tracking-wider">Context: {user.roles.join(' / ')}</p></div>
                         </div>
                     )}
 

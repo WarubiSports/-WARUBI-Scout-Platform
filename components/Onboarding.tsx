@@ -58,7 +58,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         const demoUser: UserProfile = {
             name: "Herbert the Scout",
             roles: ["Regional Scout", "Club Coach"],
-            region: "Texas, USA",
+            region: "Bavaria, Germany",
             weeklyTasks: ["Review new leads", "Finalize showcase roster"],
             scoutPersona: "The Specialist",
             scoutId: "scout-demo-123",
@@ -128,7 +128,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                                 <input 
                                     value={region} onChange={e => setRegion(e.target.value)}
                                     className="bg-transparent w-full text-white font-bold outline-none placeholder-gray-600" 
-                                    placeholder="Scouting Region (e.g. Texas, USA)"
+                                    placeholder="Scouting Region (e.g. Bavaria, Germany)"
                                 />
                             </div>
                         </div>
@@ -189,7 +189,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                                 <div className="w-10 h-10 bg-scout-800 rounded-lg flex items-center justify-center text-blue-400"><ShieldCheck size={24}/></div>
                                 <div>
                                     <h4 className="text-white font-bold text-sm">Smart Apply Link</h4>
-                                    <p className="text-[10px] text-gray-500 uppercase font-black">warubi.com/apply/scout-123</p>
+                                    <p className="text-[10px] text-gray-500 uppercase font-black">warubi.com/apply/<span className="text-scout-accent">your-unique-id</span></p>
                                 </div>
                             </div>
                             <ul className="space-y-3">
