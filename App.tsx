@@ -401,6 +401,7 @@ const App: React.FC = () => {
             notifications={notifications}
             onUpdateEvent={handleUpdateEvent}
             onUpdatePlayer={handleUpdatePlayer}
+            onAddEvent={handleAddEvent}
             onAddNotification={handleAddNotification}
             onMarkAllRead={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
             onLogout={handleLogout}

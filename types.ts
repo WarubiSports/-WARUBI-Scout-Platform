@@ -123,15 +123,17 @@ export interface ScoutingEvent {
   status: EventStatus;
   title: string;
   date: string;
+  time?: string;
   endDate?: string; // For multi-day events
   location: string;
-  type: 'ID Day' | 'Showcase' | 'Camp' | 'Tournament';
-  fee: string;
+  type: 'ID Day' | 'ID Camp' | 'Showcase' | 'Camp' | 'Tournament' | 'Training' | 'Tryout';
+  fee?: string | number;
   marketingCopy?: string;
   agenda?: string[];
   checklist?: { task: string; completed: boolean }[];
-  registeredCount: number;
+  registeredCount?: number;
   hostName?: string;
+  isGlobal?: boolean; // Admin-created events visible to all scouts
 }
 
 export interface NewsItem {

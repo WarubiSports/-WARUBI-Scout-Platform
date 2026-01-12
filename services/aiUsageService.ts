@@ -124,6 +124,7 @@ const saveUsageData = (daily: AIUsageRecord, monthly: AIUsageRecord): void => {
 
 /**
  * Check if an operation can be performed within limits
+ * NOTE: Limits disabled for admin/testing - always allows operations
  */
 export const canPerformOperation = (operationType: AIOperationType): {
   allowed: boolean;
@@ -132,33 +133,12 @@ export const canPerformOperation = (operationType: AIOperationType): {
   creditsRemaining: { daily: number; monthly: number };
 } => {
   const cost = OPERATION_COSTS[operationType];
-  const { daily, monthly } = loadUsageData();
 
-  const dailyRemaining = FREE_TIER_LIMITS.dailyCredits - daily.totalCredits;
-  const monthlyRemaining = FREE_TIER_LIMITS.monthlyCredits - monthly.totalCredits;
-
-  if (dailyRemaining < cost) {
-    return {
-      allowed: false,
-      reason: `Daily AI limit reached. Resets at midnight. (${dailyRemaining}/${FREE_TIER_LIMITS.dailyCredits} credits remaining)`,
-      creditsNeeded: cost,
-      creditsRemaining: { daily: dailyRemaining, monthly: monthlyRemaining }
-    };
-  }
-
-  if (monthlyRemaining < cost) {
-    return {
-      allowed: false,
-      reason: `Monthly AI limit reached. Resets on the 1st. (${monthlyRemaining}/${FREE_TIER_LIMITS.monthlyCredits} credits remaining)`,
-      creditsNeeded: cost,
-      creditsRemaining: { daily: dailyRemaining, monthly: monthlyRemaining }
-    };
-  }
-
+  // Limits disabled - always allow
   return {
     allowed: true,
     creditsNeeded: cost,
-    creditsRemaining: { daily: dailyRemaining, monthly: monthlyRemaining }
+    creditsRemaining: { daily: Infinity, monthly: Infinity }
   };
 };
 
