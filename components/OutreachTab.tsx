@@ -237,13 +237,29 @@ ${user.name}`);
     });
   };
 
-  // Move player to "My Players" section (Interested status)
-  const promoteToMyPlayers = () => {
-      if (selectedPlayer && onStatusChange) {
-          onStatusChange(selectedPlayer.id, PlayerStatus.INTERESTED);
-          setSelectedPlayerId(null);
-          setDraftedMessage('');
-          setActiveIntent(null);
+  // Move player to "My Players" section (Interested status) with rewarding feedback
+  const promoteToMyPlayers = (playerId?: string, playerName?: string) => {
+      const targetId = playerId || selectedPlayer?.id;
+      const targetName = playerName || selectedPlayer?.name || 'Player';
+
+      if (targetId && onStatusChange) {
+          // Trigger haptic feedback
+          haptic.success();
+
+          // Show rewarding toast notification
+          toast.success(`${targetName} moved to My Players! 🎯`, {
+              description: 'Player is now in your active pipeline',
+              duration: 3000,
+          });
+
+          onStatusChange(targetId, PlayerStatus.INTERESTED);
+
+          // Clear selection if it was the selected player
+          if (targetId === selectedPlayer?.id) {
+              setSelectedPlayerId(null);
+              setDraftedMessage('');
+              setActiveIntent(null);
+          }
       }
   };
 
@@ -326,9 +342,11 @@ ${user.name}`);
                         <Users className="text-scout-highlight" size={18} />
                         <h3 className="font-black text-white uppercase tracking-tighter italic">Scouting Pool</h3>
                     </div>
-                    <div className="flex bg-scout-800 p-1 rounded-xl border border-scout-700">
-                        <button onClick={() => setIngestionMode('LIST')} className={`p-2 rounded-lg transition-all ${ingestionMode === 'LIST' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><LayoutList size={16} /></button>
-                        <button onClick={() => setIngestionMode('DROPZONE')} className={`p-2 rounded-lg transition-all ${ingestionMode !== 'LIST' ? 'bg-scout-accent text-scout-900' : 'text-gray-500 hover:text-gray-300'}`}><Plus size={16} /></button>
+                    <div className="flex gap-2">
+                        <button onClick={() => setIngestionMode('LIST')} className={`p-2 rounded-xl transition-all ${ingestionMode === 'LIST' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><LayoutList size={16} /></button>
+                        <button onClick={() => setIngestionMode('DROPZONE')} className={`px-4 py-2 rounded-xl transition-all font-black text-[10px] uppercase tracking-wide flex items-center gap-2 ${ingestionMode !== 'LIST' ? 'bg-scout-accent text-scout-900 shadow-glow' : 'bg-scout-accent text-scout-900 hover:bg-emerald-400 shadow-glow animate-pulse'}`}>
+                            <Plus size={14} /> Bulk Add
+                        </button>
                     </div>
                 </div>
                 {ingestionMode === 'LIST' && (
@@ -356,11 +374,11 @@ ${user.name}`);
                                             <p className="text-[9px] text-scout-accent font-black uppercase">Verified • View Report</p>
                                         </div>
                                         <button
-                                            onClick={(e) => { e.stopPropagation(); onStatusChange?.(p.id, PlayerStatus.INTERESTED); }}
-                                            className="opacity-0 group-hover:opacity-100 p-2 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-110"
+                                            onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
+                                            className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
                                             title="Move to My Players"
                                         >
-                                            <ArrowRight size={14} />
+                                            <span>→ My Players</span>
                                         </button>
                                     </div>
                                 ))}
@@ -381,11 +399,11 @@ ${user.name}`);
                                             <p className="text-[9px] text-orange-400 font-black uppercase">Interacting • Live</p>
                                         </div>
                                         <button
-                                            onClick={(e) => { e.stopPropagation(); onStatusChange?.(p.id, PlayerStatus.INTERESTED); }}
-                                            className="opacity-0 group-hover:opacity-100 p-2 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-110"
+                                            onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
+                                            className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
                                             title="Move to My Players"
                                         >
-                                            <ArrowRight size={14} />
+                                            <span>→ My Players</span>
                                         </button>
                                     </div>
                                 ))}
@@ -406,11 +424,11 @@ ${user.name}`);
                                             <p className="text-[9px] text-gray-500 uppercase font-black">Waiting for Click</p>
                                         </div>
                                         <button
-                                            onClick={(e) => { e.stopPropagation(); onStatusChange?.(p.id, PlayerStatus.INTERESTED); }}
-                                            className="opacity-0 group-hover:opacity-100 p-2 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-110"
+                                            onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
+                                            className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
                                             title="Move to My Players"
                                         >
-                                            <ArrowRight size={14} />
+                                            <span>→ My Players</span>
                                         </button>
                                     </div>
                                 ))}
@@ -430,11 +448,11 @@ ${user.name}`);
                                         <p className="text-[9px] text-gray-500 font-black uppercase">{p.position} • {p.age}yo</p>
                                     </div>
                                     <button
-                                        onClick={(e) => { e.stopPropagation(); onStatusChange?.(p.id, PlayerStatus.INTERESTED); }}
-                                        className="opacity-0 group-hover:opacity-100 p-2 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-110"
+                                        onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
+                                        className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
                                         title="Move to My Players"
                                     >
-                                        <ArrowRight size={14} />
+                                        <span>→ My Players</span>
                                     </button>
                                 </div>
                             ))}
@@ -455,11 +473,11 @@ ${user.name}`);
                                                 <p className="text-[9px] text-blue-400 font-black uppercase">{p.position} • Awaiting Response</p>
                                             </div>
                                             <button
-                                                onClick={(e) => { e.stopPropagation(); onStatusChange?.(p.id, PlayerStatus.INTERESTED); }}
-                                                className="opacity-0 group-hover:opacity-100 p-2 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-110"
+                                                onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
+                                                className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
                                                 title="Move to My Players"
                                             >
-                                                <ArrowRight size={14} />
+                                                <span>→ My Players</span>
                                             </button>
                                         </div>
                                     ))}
@@ -468,50 +486,67 @@ ${user.name}`);
                         )}
                     </div>
                 ) : ingestionMode === 'DROPZONE' ? (
-                    <div className="p-6 h-full flex flex-col animate-fade-in space-y-6">
-                        <div
-                            onClick={() => fileInputRef.current?.click()}
-                            onDragOver={handleDragOver}
-                            onDragEnter={handleDragEnter}
-                            onDragLeave={handleDragLeave}
-                            onDrop={handleDrop}
-                            className={`w-full py-12 border-2 border-dashed rounded-[2rem] flex flex-col items-center justify-center gap-4 transition-all cursor-pointer group ${
-                                isDragging
-                                    ? 'border-scout-accent bg-scout-accent/10 scale-[1.02]'
-                                    : 'border-scout-700 hover:border-scout-accent hover:bg-scout-accent/5'
-                            }`}
-                        >
-                            <div className={`w-12 h-12 bg-scout-900 rounded-2xl flex items-center justify-center transition-all ${
-                                isDragging ? 'text-scout-accent' : 'text-gray-500 group-hover:text-scout-accent'
-                            }`}>
-                                <FileUp size={24} />
+                    <div className="p-6 h-full flex flex-col animate-fade-in">
+                        {/* Header */}
+                        <div className="text-center mb-6">
+                            <div className="inline-flex items-center gap-2 bg-scout-accent/10 border border-scout-accent/30 rounded-full px-4 py-2 mb-3">
+                                <Sparkles size={14} className="text-scout-accent" />
+                                <span className="text-[10px] font-black text-scout-accent uppercase tracking-widest">AI-Powered Import</span>
                             </div>
-                            <div className="text-center">
-                                <p className="text-white font-black uppercase text-xs tracking-widest">
-                                    {isDragging ? 'Drop File Here' : 'Upload Roster File'}
-                                </p>
-                                <p className="text-[10px] text-gray-500 mt-1">
-                                    {isDragging ? 'Release to upload' : 'Drag & drop or click • Image, PDF, or CSV'}
-                                </p>
-                            </div>
+                            <h3 className="text-xl font-black text-white uppercase tracking-tight italic">Add Multiple Players</h3>
+                            <p className="text-xs text-gray-500 mt-1">Import entire rosters in seconds</p>
                         </div>
 
-                        <div 
-                            onClick={() => setIngestionMode('LINK')}
-                            className="w-full py-12 border-2 border-dashed border-scout-700 rounded-[2rem] flex flex-col items-center justify-center gap-4 hover:border-blue-400 hover:bg-blue-400/5 transition-all cursor-pointer group"
-                        >
-                            <div className="w-12 h-12 bg-scout-900 rounded-2xl flex items-center justify-center text-gray-500 group-hover:text-blue-400 transition-all">
-                                <Globe size={24} />
+                        <div className="space-y-4 flex-1">
+                            {/* Upload File - Primary Option */}
+                            <div
+                                onClick={() => fileInputRef.current?.click()}
+                                onDragOver={handleDragOver}
+                                onDragEnter={handleDragEnter}
+                                onDragLeave={handleDragLeave}
+                                onDrop={handleDrop}
+                                className={`w-full py-10 border-2 rounded-[2rem] flex flex-col items-center justify-center gap-4 transition-all cursor-pointer group ${
+                                    isDragging
+                                        ? 'border-scout-accent bg-scout-accent/20 scale-[1.02] shadow-glow'
+                                        : 'border-scout-accent/50 bg-scout-accent/5 hover:border-scout-accent hover:bg-scout-accent/10 hover:shadow-glow'
+                                }`}
+                            >
+                                <div className={`w-16 h-16 bg-scout-accent/20 rounded-2xl flex items-center justify-center transition-all border-2 border-scout-accent/30 ${
+                                    isDragging ? 'text-scout-accent scale-110' : 'text-scout-accent group-hover:scale-110'
+                                }`}>
+                                    <FileUp size={32} />
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-scout-accent font-black uppercase text-sm tracking-widest">
+                                        {isDragging ? 'Drop File Here' : 'Upload Roster'}
+                                    </p>
+                                    <p className="text-xs text-gray-400 mt-2 max-w-[200px]">
+                                        {isDragging ? 'Release to upload' : 'Drop a roster photo, PDF, or CSV file'}
+                                    </p>
+                                    <p className="text-[10px] text-scout-accent/60 mt-2 font-bold">
+                                        AI extracts all player data automatically
+                                    </p>
+                                </div>
                             </div>
-                            <div className="text-center">
-                                <p className="text-white font-black uppercase text-xs tracking-widest">Paste Roster Link</p>
-                                <p className="text-[10px] text-gray-500 mt-1">AI will extract from URL</p>
+
+                            {/* Paste Link - Secondary Option */}
+                            <div
+                                onClick={() => setIngestionMode('LINK')}
+                                className="w-full py-8 border-2 border-dashed border-scout-700 rounded-[2rem] flex flex-col items-center justify-center gap-3 hover:border-blue-400 hover:bg-blue-400/5 transition-all cursor-pointer group"
+                            >
+                                <div className="w-12 h-12 bg-scout-900 rounded-2xl flex items-center justify-center text-gray-500 group-hover:text-blue-400 transition-all border border-scout-700 group-hover:border-blue-400/50">
+                                    <Globe size={24} />
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-white font-black uppercase text-xs tracking-widest group-hover:text-blue-400 transition-colors">Or Paste a Roster URL</p>
+                                    <p className="text-[10px] text-gray-500 mt-1">Club website, tournament roster, etc.</p>
+                                </div>
                             </div>
                         </div>
 
                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.pdf,.csv,.txt" onChange={handleFileUpload} />
-                        
-                        <button onClick={() => setIngestionMode('LIST')} className="w-full py-4 text-gray-500 hover:text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
+
+                        <button onClick={() => setIngestionMode('LIST')} className="w-full py-4 text-gray-500 hover:text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 mt-4">
                              <LayoutList size={14}/> Back to Pool
                         </button>
                     </div>
@@ -606,10 +641,10 @@ ${user.name}`);
                                  </div>
                              </div>
                              <button
-                                onClick={promoteToMyPlayers}
-                                className="px-6 py-2 bg-scout-accent hover:bg-emerald-600 text-scout-900 font-black rounded-xl shadow-glow relative z-10 transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest"
+                                onClick={() => promoteToMyPlayers()}
+                                className="px-6 py-2 bg-scout-accent hover:bg-emerald-600 text-scout-900 font-black rounded-xl shadow-glow relative z-10 transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest hover:scale-105"
                              >
-                                <Trophy size={14}/> Move to My Players
+                                <Trophy size={14}/> → My Players
                              </button>
                         </div>
                     )}

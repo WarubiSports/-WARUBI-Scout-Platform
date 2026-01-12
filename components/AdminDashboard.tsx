@@ -18,6 +18,7 @@ interface AdminDashboardProps {
     events: ScoutingEvent[];
     onUpdateEvent: (event: ScoutingEvent) => void;
     onUpdatePlayer: (player: Player) => void;
+    onAddEvent?: (event: ScoutingEvent) => void;
     onLogout: () => void;
     onSwitchToScoutView?: () => void;
     onImpersonate?: (scout: UserProfile) => void;
@@ -43,6 +44,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     events,
     onUpdateEvent,
     onUpdatePlayer,
+    onAddEvent,
     onLogout,
     onSwitchToScoutView,
     onImpersonate,
@@ -55,7 +57,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     onAddNotification,
     onMarkAllRead
 }) => {
-    const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'APPROVALS' | 'TALENT' | 'SCOUTS' | 'ACCESS' | 'NEWS' | 'BUGS'>('OVERVIEW');
+    const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'APPROVALS' | 'TALENT' | 'SCOUTS' | 'ACCESS' | 'NEWS' | 'EVENTS' | 'BUGS'>('OVERVIEW');
     const [searchQuery, setSearchQuery] = useState('');
 
     // Real scout data from Supabase
@@ -827,6 +829,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <Newspaper size={20} /> Newsroom
                     </button>
                     <button
+                        onClick={() => setActiveTab('EVENTS')}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'EVENTS' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                    >
+                        <Calendar size={20} /> Global Events
+                    </button>
+                    <button
                         onClick={() => setActiveTab('BUGS')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'BUGS' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
                     >
@@ -1037,6 +1045,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 )}
 
                 {activeTab === 'NEWS' && <NewsRoomTab />}
+
+                {activeTab === 'EVENTS' && <GlobalEventsTab />}
 
                 {activeTab === 'BUGS' && (
                     <div className="space-y-6 animate-fade-in">
