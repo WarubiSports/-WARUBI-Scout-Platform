@@ -11,7 +11,9 @@ import {
   Search,
   Shield,
   Clock,
-  RefreshCw
+  RefreshCw,
+  Copy,
+  Send
 } from 'lucide-react';
 import {
   getAllApprovedScouts,
@@ -108,6 +110,25 @@ const ApprovedScoutsManager: React.FC = () => {
       });
     }
     setSendingInviteId(null);
+  };
+
+  const handleCopyInvite = (scout: ApprovedScout) => {
+    const appUrl = window.location.origin;
+    const message = `Hi${scout.name ? ` ${scout.name.split(' ')[0]}` : ''}! 👋
+
+You've been approved to join WARUBI Scout Platform.
+
+Sign up here: ${appUrl}
+
+Use this email to register: ${scout.email}
+
+See you on the platform! ⚽`;
+
+    navigator.clipboard.writeText(message);
+    toast.success('Invite copied to clipboard!', {
+      description: 'Paste it in WhatsApp or any messenger',
+      duration: 3000,
+    });
   };
 
   const filteredScouts = scouts.filter(
@@ -337,19 +358,29 @@ const ApprovedScoutsManager: React.FC = () => {
               {/* Actions */}
               <div className="flex items-center gap-2">
                 {!scout.has_registered && (
-                  <button
-                    onClick={() => handleSendInvite(scout)}
-                    disabled={sendingInviteId === scout.id}
-                    className="px-3 py-2 bg-scout-accent/10 text-scout-accent rounded-lg hover:bg-scout-accent/20 transition-all disabled:opacity-50 flex items-center gap-1.5 text-xs font-bold"
-                    title="Send magic link invitation"
-                  >
-                    {sendingInviteId === scout.id ? (
-                      <Loader2 size={14} className="animate-spin" />
-                    ) : (
-                      <Mail size={14} />
-                    )}
-                    Send Invite
-                  </button>
+                  <>
+                    <button
+                      onClick={() => handleCopyInvite(scout)}
+                      className="px-3 py-2 bg-blue-500/10 text-blue-400 rounded-lg hover:bg-blue-500/20 transition-all flex items-center gap-1.5 text-xs font-bold"
+                      title="Copy invite message for WhatsApp"
+                    >
+                      <Copy size={14} />
+                      Copy
+                    </button>
+                    <button
+                      onClick={() => handleSendInvite(scout)}
+                      disabled={sendingInviteId === scout.id}
+                      className="px-3 py-2 bg-scout-accent/10 text-scout-accent rounded-lg hover:bg-scout-accent/20 transition-all disabled:opacity-50 flex items-center gap-1.5 text-xs font-bold"
+                      title="Send magic link via email"
+                    >
+                      {sendingInviteId === scout.id ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Send size={14} />
+                      )}
+                      Email
+                    </button>
+                  </>
                 )}
                 <button
                   onClick={() => handleRemoveScout(scout.id)}
