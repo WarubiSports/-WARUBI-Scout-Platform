@@ -143,7 +143,7 @@ export interface Database {
           tactical: number | null
           coachable: number | null
           evaluation: Json | null
-          status: 'prospect' | 'lead' | 'interested' | 'final_review' | 'offered' | 'placed' | 'archived'
+          status: 'lead' | 'contacted' | 'interested' | 'offered' | 'placed' | 'archived'
           activity_status: 'undiscovered' | 'spark' | 'signal' | 'spotlight'
           interested_program: string | null
           placed_location: string | null

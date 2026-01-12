@@ -1,5 +1,5 @@
 
-import { KnowledgeItem, PathwayDef, ToolDef } from './types';
+import { KnowledgeItem, PathwayDef, ToolDef, Player, PlayerStatus } from './types';
 
 export const SCOUT_POINTS = {
   PLAYER_LOG: 10,
@@ -131,13 +131,13 @@ export const WARUBI_PATHWAYS: PathwayDef[] = [
         id: 'europe',
         title: 'Development in Europe',
         shortDesc: 'The elite route. FC Köln ITP & Pro Trials.',
-        icon: 'Globe', 
+        icon: 'Globe',
         color: 'text-red-500 border-red-500/30 bg-red-500/10',
         idealProfile: [
-            'Tier 1 or High Tier 2 Talent',
-            'Obsessed with becoming a pro',
-            'Financially capable of investment for ROI',
-            'Technically superior to US peers'
+            'Tier 1, 2, or 3 Talent',
+            'Age 16+ (High School, Gap Year, or College)',
+            'Self-aware about current level & committed to growth',
+            'Financially capable of investment for ROI'
         ],
         redFlags: [
             'Homesick easily',

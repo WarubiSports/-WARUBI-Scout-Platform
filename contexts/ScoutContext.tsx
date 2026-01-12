@@ -31,17 +31,32 @@ export function ScoutProvider({ children, userId }: ScoutProviderProps) {
 
   // Load scout on mount or when userId changes
   useEffect(() => {
-    // Add timeout to prevent infinite loading
-    const timeoutId = setTimeout(() => {
-      console.warn('Scout loading timed out, proceeding without scout data')
+    let isMounted = true
+
+    // Only set timeout if we actually need to load (have a userId)
+    if (!userId) {
       setLoading(false)
+      return
+    }
+
+    // Timeout as fallback - 5 seconds should be enough
+    const timeoutId = setTimeout(() => {
+      if (isMounted) {
+        console.warn('Scout loading timed out, proceeding without scout data')
+        setLoading(false)
+      }
     }, 5000)
 
     loadScout().finally(() => {
-      clearTimeout(timeoutId)
+      if (isMounted) {
+        clearTimeout(timeoutId)
+      }
     })
 
-    return () => clearTimeout(timeoutId)
+    return () => {
+      isMounted = false
+      clearTimeout(timeoutId)
+    }
   }, [userId])
 
   const loadScout = async () => {
@@ -55,16 +70,69 @@ export function ScoutProvider({ children, userId }: ScoutProviderProps) {
 
       // Only query if we have a userId (authenticated user)
       if (!userId) {
+        console.log('ScoutContext: No userId, skipping load')
         setLoading(false)
         return
       }
 
-      const { data, error } = await supabase
-        .from('scouts')
-        .select('*')
-        .eq('user_id', userId)
-        .limit(1)
-        .maybeSingle()
+      console.log('ScoutContext: Loading scout for userId:', userId)
+
+      // Try fetch with user's session token
+      let data = null
+      let error = null
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+      // Get the session token directly from localStorage (Supabase stores it there)
+      let accessToken = null
+      try {
+        const storageKey = `sb-${supabaseUrl?.split('//')[1]?.split('.')[0]}-auth-token`
+        const storedSession = localStorage.getItem(storageKey)
+        if (storedSession) {
+          const parsed = JSON.parse(storedSession)
+          accessToken = parsed?.access_token
+          console.log('ScoutContext: Got token from localStorage')
+        }
+      } catch (e) {
+        console.warn('ScoutContext: Failed to get token from localStorage')
+      }
+
+      if (supabaseUrl && supabaseKey && accessToken) {
+        try {
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 4000)
+
+          const response = await fetch(
+            `${supabaseUrl}/rest/v1/scouts?user_id=eq.${userId}&limit=1`,
+            {
+              headers: {
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=representation'
+              },
+              signal: controller.signal
+            }
+          )
+          clearTimeout(timeoutId)
+
+          if (response.ok) {
+            const results = await response.json()
+            data = results[0] || null
+            console.log('ScoutContext: Fetch succeeded, data:', data ? 'found' : 'none')
+          } else {
+            error = { message: `HTTP ${response.status}` }
+          }
+        } catch (e) {
+          console.warn('ScoutContext: Fetch failed:', e)
+          error = { message: e instanceof Error ? e.message : 'Fetch error' }
+        }
+      } else {
+        console.warn('ScoutContext: Missing credentials or session')
+      }
+
+      console.log('ScoutContext: Query result:', { data: data ? 'found' : 'null', error: error?.message })
 
       if (error) {
         console.warn('Supabase error:', error.message)

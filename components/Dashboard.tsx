@@ -17,7 +17,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import GlobalSearch from './GlobalSearch';
 import { haptic, useSwipeGesture } from '../hooks/useMobileFeatures';
 import { generateDailyStrategy } from '../services/geminiService';
-import { Users, CalendarDays, UserCircle, MessageSquare, Zap, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, Bug, LogOut } from 'lucide-react';
+import { Users, CalendarDays, UserCircle, MessageSquare, Zap, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, MessageSquarePlus, LogOut } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
 
 interface DashboardProps {
@@ -31,6 +31,7 @@ interface DashboardProps {
     onAddEvent: (event: ScoutingEvent) => void;
     onUpdateEvent: (event: ScoutingEvent) => void;
     onUpdatePlayer: (player: Player) => void;
+    onDeletePlayer?: (id: string) => void;
     onAddNotification: (notification: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) => void;
     onMarkAllRead: () => void;
     onMessageSent?: (id: string, log: any) => void;
@@ -50,6 +51,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     onAddEvent,
     onUpdateEvent,
     onUpdatePlayer,
+    onDeletePlayer,
     onAddNotification,
     onMarkAllRead,
     onMessageSent,
@@ -231,7 +233,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
                 >
-                    <PlayerCard player={player} onStatusChange={handleStatusChange} onOutreach={jumpToOutreach} onEdit={handleEditPlayer} />
+                    <PlayerCard player={player} onStatusChange={handleStatusChange} onOutreach={jumpToOutreach} onEdit={handleEditPlayer} onDelete={onDeletePlayer} />
                 </div>
             </div>
         );
@@ -387,7 +389,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             />
             {showCelebration && <Confetti onComplete={() => setShowCelebration(false)} />}
 
-            <aside className="w-72 bg-scout-800 border-r border-scout-700 hidden md:flex flex-col shrink-0">
+            <aside className="w-72 bg-scout-800 border-r border-scout-700 hidden md:flex flex-col shrink-0 overflow-y-auto">
                 <div className="p-8 border-b border-scout-700">
                     <h1 className="text-2xl font-black tracking-tighter text-white uppercase italic">Warubi<span className="text-scout-accent">Scout</span></h1>
                 </div>
@@ -402,10 +404,10 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <AIQuotaDisplay />
                     <button
                         onClick={() => setIsBugReportOpen(true)}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-500 hover:text-gray-300 hover:bg-scout-700/30 rounded-lg transition-colors"
+                        className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-scout-accent hover:text-white bg-scout-accent/10 hover:bg-scout-accent/20 border border-scout-accent/30 hover:border-scout-accent/50 rounded-xl transition-all"
                     >
-                        <Bug size={14} />
-                        Report a Bug
+                        <MessageSquarePlus size={16} />
+                        <span>Feedback & Ideas</span>
                     </button>
                 </div>
                 <div className="p-6 border-t border-scout-700 bg-scout-900/30 space-y-3">
@@ -580,7 +582,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                     <div key={status} onDragOver={(e) => onDragOver(e, status)} onDrop={(e) => onDrop(e, status)} className={`flex-1 min-w-[340px] flex flex-col bg-scout-800/20 rounded-[3rem] border ${draggedOverStatus === status ? 'border-scout-accent bg-scout-accent/5 shadow-glow' : 'border-scout-700/50'}`}>
                                         <div className="p-8 border-b border-scout-700/50 bg-scout-900/20 backdrop-blur-md flex justify-between items-center rounded-t-[3rem]"><h3 className="font-black uppercase text-[10px] tracking-[0.3em] opacity-50">{status}</h3><span className="text-[10px] bg-scout-900 border border-scout-700 px-3 py-1 rounded-full text-gray-500 font-black">{players.filter(p => p.status === status).length}</span></div>
                                         <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1 max-h-[calc(100vh-450px)]">
-                                            {players.filter(p => p.status === status).map(p => <PlayerCard key={p.id} player={p} onStatusChange={handleStatusChange} onOutreach={jumpToOutreach} onEdit={handleEditPlayer} />)}
+                                            {players.filter(p => p.status === status).map(p => <PlayerCard key={p.id} player={p} onStatusChange={handleStatusChange} onOutreach={jumpToOutreach} onEdit={handleEditPlayer} onDelete={onDeletePlayer} />)}
                                         </div>
                                     </div>
                                 ))}

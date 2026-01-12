@@ -845,19 +845,29 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
       setAttendingEvent(eventToMark);
   };
 
-  const confirmAttendance = () => {
-      if (!attendingEvent) return;
+  const confirmAttendance = async () => {
+      console.log('[confirmAttendance] Button clicked, attendingEvent:', attendingEvent?.title);
+      if (!attendingEvent) {
+          console.error('[confirmAttendance] No attendingEvent set');
+          return;
+      }
 
       const newEvent: ScoutingEvent = {
           ...attendingEvent,
-          id: `${attendingEvent.id}-${Date.now()}`, 
+          id: `event-${Date.now()}`,
           isMine: false,
           role: 'ATTENDEE',
           status: 'Published'
       };
-      
-      onAddEvent(newEvent);
-      setAttendingEvent(null);
+
+      console.log('[confirmAttendance] Calling onAddEvent with:', newEvent);
+      try {
+          await onAddEvent(newEvent);
+          console.log('[confirmAttendance] onAddEvent completed');
+          setAttendingEvent(null);
+      } catch (error) {
+          console.error('[confirmAttendance] Failed to add event:', error);
+      }
   };
 
   const copyToClipboard = (text: string, id: string) => {

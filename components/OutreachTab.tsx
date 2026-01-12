@@ -42,9 +42,80 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
   const [rosterUrl, setRosterUrl] = useState('');
   const [copied, setCopied] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle drag and drop
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    // Process the dropped file
+    setIngestionMode('PROCESSING');
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64Data = event.target?.result?.toString().split(',')[1];
+      if (!base64Data) return;
+
+      try {
+        let prospects: Partial<Player>[] = [];
+        if (file.type.startsWith('image/')) {
+          prospects = await extractRosterFromPhoto(base64Data, file.type);
+        } else {
+          // If it's CSV or text, we can pass it as a bulk string to Gemini
+          const text = atob(base64Data);
+          prospects = await extractPlayersFromBulkData(text, false);
+        }
+        setExtractedProspects(prospects);
+        setIngestionMode('REVIEW');
+      } catch (error) {
+        console.error("Extraction failed", error);
+        setIngestionMode('DROPZONE');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
   
   const selectedPlayer = players.find(p => p.id === selectedPlayerId);
+
+  // Prevent browser from opening files when dropped outside dropzone
+  useEffect(() => {
+    const preventDefaults = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    // Add listeners to prevent default drag behavior
+    window.addEventListener('dragover', preventDefaults);
+    window.addEventListener('drop', preventDefaults);
+
+    return () => {
+      window.removeEventListener('dragover', preventDefaults);
+      window.removeEventListener('drop', preventDefaults);
+    };
+  }, []);
 
   // Grouping for the Sidebar - leads with different activity levels
   const leadPool = players.filter(p => p.status === PlayerStatus.LEAD);
@@ -329,16 +400,30 @@ ${user.name}`);
                     </div>
                 ) : ingestionMode === 'DROPZONE' ? (
                     <div className="p-6 h-full flex flex-col animate-fade-in space-y-6">
-                        <div 
+                        <div
                             onClick={() => fileInputRef.current?.click()}
-                            className="w-full py-12 border-2 border-dashed border-scout-700 rounded-[2rem] flex flex-col items-center justify-center gap-4 hover:border-scout-accent hover:bg-scout-accent/5 transition-all cursor-pointer group"
+                            onDragOver={handleDragOver}
+                            onDragEnter={handleDragEnter}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleDrop}
+                            className={`w-full py-12 border-2 border-dashed rounded-[2rem] flex flex-col items-center justify-center gap-4 transition-all cursor-pointer group ${
+                                isDragging
+                                    ? 'border-scout-accent bg-scout-accent/10 scale-[1.02]'
+                                    : 'border-scout-700 hover:border-scout-accent hover:bg-scout-accent/5'
+                            }`}
                         >
-                            <div className="w-12 h-12 bg-scout-900 rounded-2xl flex items-center justify-center text-gray-500 group-hover:text-scout-accent transition-all">
+                            <div className={`w-12 h-12 bg-scout-900 rounded-2xl flex items-center justify-center transition-all ${
+                                isDragging ? 'text-scout-accent' : 'text-gray-500 group-hover:text-scout-accent'
+                            }`}>
                                 <FileUp size={24} />
                             </div>
                             <div className="text-center">
-                                <p className="text-white font-black uppercase text-xs tracking-widest">Upload Roster File</p>
-                                <p className="text-[10px] text-gray-500 mt-1">Image, PDF, or CSV</p>
+                                <p className="text-white font-black uppercase text-xs tracking-widest">
+                                    {isDragging ? 'Drop File Here' : 'Upload Roster File'}
+                                </p>
+                                <p className="text-[10px] text-gray-500 mt-1">
+                                    {isDragging ? 'Release to upload' : 'Drag & drop or click • Image, PDF, or CSV'}
+                                </p>
                             </div>
                         </div>
 
@@ -478,6 +563,13 @@ ${user.name}`);
                                     </div>
                                 </div>
                             </div>
+                            <button
+                                onClick={() => setSelectedPlayerId(null)}
+                                className="p-2 text-gray-500 hover:text-white hover:bg-scout-700 rounded-xl transition-colors"
+                                title="Close"
+                            >
+                                <X size={20} />
+                            </button>
                         </div>
                     </div>
 

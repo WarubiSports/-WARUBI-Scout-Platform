@@ -4,9 +4,9 @@ import {
     X, CheckCircle, Loader2, User, Activity, GraduationCap, Sparkles, Mail, Phone, Save,
     ChevronRight, Wand2, ArrowLeft, ShieldCheck, Award, Target, Users, Smartphone, Keyboard,
     Ruler, Weight, Calendar, Globe, Footprints, Video, Plus, MessageSquare, ChevronLeft, SmartphoneIcon,
-    Flame, Zap, Brain
+    Flame, Zap, Brain, FileUp, Link, ArrowRight, Check, Trash2
 } from 'lucide-react';
-import { evaluatePlayer, parsePlayerDetails, checkPlayerDuplicates } from '../services/geminiService';
+import { evaluatePlayer, parsePlayerDetails, checkPlayerDuplicates, extractPlayersFromBulkData } from '../services/geminiService';
 import { Player, PlayerStatus, PlayerEvaluation } from '../types';
 import PlayerCard from './PlayerCard';
 import { handleMobileFocus } from '../hooks/useMobileFeatures';
@@ -19,7 +19,7 @@ interface PlayerSubmissionProps {
     editingPlayer?: Player | null;
 }
 
-type SubmissionMode = 'HUB' | 'SCANNING' | 'BUILD' | 'FIELD';
+type SubmissionMode = 'HUB' | 'SCANNING' | 'BUILD' | 'FIELD' | 'BULK';
 
 const POSITIONS = ["GK", "CB", "LB", "RB", "CDM", "CM", "CAM", "LW", "RW", "ST"];
 const TEAM_LEVELS = ["MLS Next", "ECNL", "GA", "High School Varsity", "NPL", "Regional", "International Academy"];
@@ -30,6 +30,14 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
     const [buildStep, setBuildStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [fieldInput, setFieldInput] = useState('');
+    const [quickAddName, setQuickAddName] = useState('');
+    const [quickAddLoading, setQuickAddLoading] = useState(false);
+
+    // Bulk import state
+    const [rosterUrl, setRosterUrl] = useState('');
+    const [bulkPlayers, setBulkPlayers] = useState<Partial<Player>[]>([]);
+    const [isDragging, setIsDragging] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -160,6 +168,93 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
         }
     };
 
+    // Bulk import handlers
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setLoading(true);
+        try {
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const content = event.target?.result as string;
+                const prospects = await extractPlayersFromBulkData(content, file.type.includes('image'));
+                setBulkPlayers(prospects);
+                setLoading(false);
+            };
+
+            if (file.type.includes('image')) {
+                reader.readAsDataURL(file);
+            } else {
+                reader.readAsText(file);
+            }
+        } catch (error) {
+            console.error('Error processing file:', error);
+            setLoading(false);
+        }
+    };
+
+    const handleRosterUrlExtract = async () => {
+        if (!rosterUrl.trim()) return;
+        setLoading(true);
+        try {
+            const prospects = await extractPlayersFromBulkData(`Extract from this roster URL: ${rosterUrl}`, false);
+            setBulkPlayers(prospects);
+        } catch (error) {
+            console.error('Error extracting from URL:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleAddAllBulk = async () => {
+        setLoading(true);
+
+        try {
+            // Add players sequentially to avoid race conditions
+            for (let idx = 0; idx < bulkPlayers.length; idx++) {
+                const p = bulkPlayers[idx];
+                const player: Player = {
+                    id: `bulk-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    name: p.name || 'Unknown',
+                    age: p.age || 17,
+                    position: p.position || 'CM',
+                    status: PlayerStatus.LEAD,
+                    submittedAt: new Date().toISOString(),
+                    outreachLogs: [],
+                    ...p
+                };
+                await onAddPlayer(player);
+                // Small delay to ensure DB writes don't overlap
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            onClose();
+        } catch (error) {
+            console.error('Error adding bulk players:', error);
+            alert('Error adding some players. Please try again.');
+            setLoading(false);
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = () => {
+        setIsDragging(false);
+    };
+
+    const handleDrop = async (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const file = e.dataTransfer.files[0];
+        if (file) {
+            const fakeEvent = { target: { files: [file] } } as any;
+            handleFileUpload(fakeEvent);
+        }
+    };
+
     const handleFinalSubmit = async () => {
         if (!formData.firstName && !formData.lastName) return;
         if (editingPlayer && onUpdatePlayer) {
@@ -270,15 +365,8 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                                     <input
                                         type="text"
                                         placeholder="Player name"
-                                        value={`${formData.firstName} ${formData.lastName}`.trim()}
-                                        onChange={(e) => {
-                                            const parts = e.target.value.split(' ');
-                                            setFormData(prev => ({
-                                                ...prev,
-                                                firstName: parts[0] || '',
-                                                lastName: parts.slice(1).join(' ')
-                                            }));
-                                        }}
+                                        value={quickAddName}
+                                        onChange={(e) => setQuickAddName(e.target.value)}
                                         className="flex-[2] bg-scout-900 border border-scout-700 rounded-xl px-4 py-3 text-white font-bold placeholder-gray-600 focus:outline-none focus:border-scout-accent transition-colors"
                                     />
                                     <select
@@ -289,20 +377,30 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                                         {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
                                     </select>
                                     <button
-                                        onClick={() => {
-                                            if (!formData.firstName.trim()) return;
+                                        onClick={async () => {
+                                            if (!quickAddName.trim() || quickAddLoading) return;
+                                            setQuickAddLoading(true);
                                             const quickPlayer: Player = {
-                                                ...draftPlayer,
                                                 id: `player-${Date.now()}`,
+                                                name: quickAddName.trim(),
+                                                age: 17,
+                                                position: formData.position,
                                                 status: PlayerStatus.LEAD,
+                                                submittedAt: new Date().toISOString(),
+                                                outreachLogs: [],
                                             };
-                                            onAddPlayer(quickPlayer);
-                                            onClose();
+                                            try {
+                                                await onAddPlayer(quickPlayer);
+                                                onClose();
+                                            } catch (error) {
+                                                console.error('Quick add failed:', error);
+                                                setQuickAddLoading(false);
+                                            }
                                         }}
-                                        disabled={!formData.firstName.trim()}
+                                        disabled={!quickAddName.trim() || quickAddLoading}
                                         className="px-6 py-3 bg-scout-accent text-scout-900 rounded-xl font-black uppercase text-sm flex items-center gap-2 shadow-glow hover:bg-emerald-400 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        <Plus size={18} /> Add
+                                        {quickAddLoading ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} {quickAddLoading ? 'Adding...' : 'Add'}
                                     </button>
                                 </div>
                                 <p className="text-[10px] text-gray-500 mt-3">Add player now, enrich profile later. Score will be calculated when you add more details.</p>
@@ -312,16 +410,21 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                                 <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Or add full details</p>
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-                                <button onClick={() => setMode('FIELD')} className="group flex flex-col items-center p-12 bg-scout-800 border-2 border-scout-accent/30 rounded-[3rem] hover:border-scout-accent transition-all active:scale-95 shadow-2xl">
-                                    <Smartphone size={48} className="text-scout-accent mb-4 group-hover:scale-110" />
-                                    <h4 className="text-white font-black uppercase">Field Mode</h4>
-                                    <p className="text-gray-500 text-xs mt-2 text-center">Fastest entry. One-line data tagger.</p>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+                                <button onClick={() => setMode('FIELD')} className="group flex flex-col items-center p-8 md:p-10 bg-scout-800 border-2 border-scout-accent/30 rounded-[2.5rem] hover:border-scout-accent transition-all active:scale-95 shadow-2xl">
+                                    <Smartphone size={40} className="text-scout-accent mb-3 group-hover:scale-110" />
+                                    <h4 className="text-white font-black uppercase text-sm">Field Mode</h4>
+                                    <p className="text-gray-500 text-[10px] mt-2 text-center">One-line data tagger</p>
                                 </button>
-                                <button onClick={() => setMode('BUILD')} className="group flex flex-col items-center p-12 bg-scout-800 border-2 border-scout-700 rounded-[3rem] hover:border-white transition-all active:scale-95 shadow-2xl">
-                                    <Keyboard size={48} className="text-gray-400 mb-4 group-hover:scale-110" />
-                                    <h4 className="text-white font-black uppercase">Office Mode</h4>
-                                    <p className="text-gray-500 text-xs mt-2 text-center">Comprehensive intelligence build.</p>
+                                <button onClick={() => setMode('BUILD')} className="group flex flex-col items-center p-8 md:p-10 bg-scout-800 border-2 border-scout-700 rounded-[2.5rem] hover:border-white transition-all active:scale-95 shadow-2xl">
+                                    <Keyboard size={40} className="text-gray-400 mb-3 group-hover:scale-110" />
+                                    <h4 className="text-white font-black uppercase text-sm">Office Mode</h4>
+                                    <p className="text-gray-500 text-[10px] mt-2 text-center">Full intelligence build</p>
+                                </button>
+                                <button onClick={() => setMode('BULK')} className="group flex flex-col items-center p-8 md:p-10 bg-scout-800 border-2 border-orange-500/30 rounded-[2.5rem] hover:border-orange-400 transition-all active:scale-95 shadow-2xl">
+                                    <FileUp size={40} className="text-orange-400 mb-3 group-hover:scale-110" />
+                                    <h4 className="text-white font-black uppercase text-sm">Bulk Import</h4>
+                                    <p className="text-gray-500 text-[10px] mt-2 text-center">Roster file or URL</p>
                                 </button>
                             </div>
                         </div>
@@ -339,6 +442,161 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                                     {loading ? <Loader2 className="animate-spin" /> : <><Wand2 size={24} /> Run AI Magic</>}
                                 </button>
                             </div>
+                        </div>
+                    )}
+
+                    {mode === 'BULK' && (
+                        <div className="p-8 md:p-16 animate-fade-in max-w-3xl mx-auto">
+                            <div className="text-center mb-8">
+                                <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Bulk Import</h3>
+                                <p className="text-gray-500 text-sm mt-2">Add multiple players from a roster file or URL</p>
+                            </div>
+
+                            {bulkPlayers.length === 0 ? (
+                                <div className="space-y-6">
+                                    {/* Loading State */}
+                                    {loading ? (
+                                        <div className="border-2 border-orange-400/30 bg-orange-500/5 rounded-3xl p-12 text-center">
+                                            <Loader2 size={48} className="mx-auto text-orange-400 animate-spin mb-4" />
+                                            <p className="text-white font-black uppercase text-sm">
+                                                AI is extracting players...
+                                            </p>
+                                            <p className="text-orange-400 text-xs mt-2 animate-pulse">
+                                                Working hard - please be patient!
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        /* File Upload */
+                                        <div
+                                            onClick={() => fileInputRef.current?.click()}
+                                            onDragOver={handleDragOver}
+                                            onDragLeave={handleDragLeave}
+                                            onDrop={handleDrop}
+                                            className={`cursor-pointer border-2 border-dashed rounded-3xl p-12 text-center transition-all ${
+                                                isDragging
+                                                    ? 'border-orange-400 bg-orange-500/10'
+                                                    : 'border-scout-700 hover:border-orange-400/50'
+                                            }`}
+                                        >
+                                            <FileUp size={48} className="mx-auto text-orange-400 mb-4" />
+                                            <p className="text-white font-black uppercase text-sm">
+                                                {isDragging ? 'Drop File Here' : 'Upload Roster File'}
+                                            </p>
+                                            <p className="text-gray-500 text-xs mt-2">
+                                                Drag & drop or click • Image, PDF, or CSV
+                                            </p>
+                                        </div>
+                                    )}
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        className="hidden"
+                                        accept="image/*,.pdf,.csv,.txt"
+                                        onChange={handleFileUpload}
+                                    />
+
+                                    {!loading && (
+                                        <>
+                                            <div className="text-center">
+                                                <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Or paste a URL</p>
+                                            </div>
+
+                                            {/* URL Input */}
+                                            <div className="bg-scout-800 border border-scout-700 rounded-2xl p-6">
+                                                <div className="flex items-center gap-3 mb-4">
+                                                    <Link size={20} className="text-gray-500" />
+                                                    <span className="text-white font-black uppercase text-xs">Paste Roster Link</span>
+                                                </div>
+                                                <div className="flex gap-3">
+                                                    <input
+                                                        type="url"
+                                                        placeholder="https://club-soccer.com/u17-roster"
+                                                        value={rosterUrl}
+                                                        onChange={(e) => setRosterUrl(e.target.value)}
+                                                        className="flex-1 bg-scout-900 border border-scout-700 rounded-xl px-4 py-3 text-white font-bold placeholder-gray-600 focus:outline-none focus:border-orange-400 transition-colors"
+                                                    />
+                                                    <button
+                                                        onClick={handleRosterUrlExtract}
+                                                        disabled={!rosterUrl.trim()}
+                                                        className="px-6 py-3 bg-orange-500 text-white rounded-xl font-black uppercase text-sm hover:bg-orange-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                                    >
+                                                        <ArrowRight size={18} />
+                                                        Extract
+                                                    </button>
+                                                </div>
+                                                <p className="text-[10px] text-gray-500 mt-3">AI will scan the page for player names and details</p>
+                                            </div>
+
+                                            <button
+                                                onClick={() => setMode('HUB')}
+                                                className="w-full py-4 bg-scout-800 text-gray-400 font-black rounded-2xl hover:text-white transition-colors"
+                                            >
+                                                ← Back
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    {/* Results Preview */}
+                                    <div className="bg-scout-800 border border-scout-700 rounded-2xl p-6">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <Check size={20} className="text-scout-accent" />
+                                                <span className="text-white font-black uppercase text-xs">{bulkPlayers.length} Players Found</span>
+                                            </div>
+                                            <button
+                                                onClick={() => setBulkPlayers([])}
+                                                className="text-gray-500 hover:text-white text-xs font-bold"
+                                            >
+                                                Clear
+                                            </button>
+                                        </div>
+                                        <div className="max-h-64 overflow-y-auto space-y-2 custom-scrollbar">
+                                            {bulkPlayers.map((p, idx) => (
+                                                <div key={idx} className="flex items-center justify-between bg-scout-900 rounded-xl px-4 py-3 group">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 bg-scout-700 rounded-full flex items-center justify-center text-xs font-bold text-white">
+                                                            {p.name?.charAt(0) || '?'}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-white font-bold text-sm">{p.name || 'Unknown'}</p>
+                                                            <p className="text-gray-500 text-[10px]">{p.position || 'CM'} • {p.age || 17}yo</p>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setBulkPlayers(prev => prev.filter((_, i) => i !== idx))}
+                                                        className="p-2 text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                                                        title="Remove player"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-4">
+                                        <button
+                                            onClick={() => setBulkPlayers([])}
+                                            className="flex-1 py-4 bg-scout-800 text-gray-400 font-black rounded-2xl hover:text-white transition-colors"
+                                        >
+                                            Start Over
+                                        </button>
+                                        <button
+                                            onClick={handleAddAllBulk}
+                                            disabled={loading || bulkPlayers.length === 0}
+                                            className="flex-[2] py-4 bg-scout-accent text-scout-900 font-black rounded-2xl shadow-glow hover:bg-emerald-400 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait"
+                                        >
+                                            {loading ? (
+                                                <><Loader2 size={20} className="animate-spin" /> Adding players...</>
+                                            ) : (
+                                                <><Plus size={20} /> Add All {bulkPlayers.length} Players</>
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
 

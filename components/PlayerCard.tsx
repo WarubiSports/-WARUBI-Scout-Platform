@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Player, PlayerStatus } from '../types';
-import { TrendingUp, AlertTriangle, CheckCircle, MessageCircle, MessageSquare, ChevronDown, ChevronUp, MapPin, School, Compass, Send, GripVertical, Flame, Eye, StickyNote, Save, X, History, Clock, Edit2, Loader2, Trophy, Zap, Target, ArrowRight, Timer } from 'lucide-react';
+import { TrendingUp, AlertTriangle, CheckCircle, MessageCircle, MessageSquare, ChevronDown, ChevronUp, MapPin, School, Compass, Send, GripVertical, Flame, Eye, StickyNote, Save, X, History, Clock, Edit2, Loader2, Trophy, Zap, Target, ArrowRight, Timer, Trash2 } from 'lucide-react';
 
 interface PlayerCardProps {
     player: Player;
@@ -9,6 +9,7 @@ interface PlayerCardProps {
     onOutreach?: (player: Player) => void;
     onUpdateNotes?: (id: string, notes: string) => void;
     onEdit?: (player: Player) => void;
+    onDelete?: (id: string) => void;
     isReference?: boolean;
     onDragStart?: (id: string) => void;
     onDragEnd?: () => void;
@@ -20,6 +21,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
     onOutreach,
     onUpdateNotes,
     onEdit,
+    onDelete,
     isReference = false,
     onDragStart,
     onDragEnd
@@ -29,6 +31,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
     const [isExpanded, setIsExpanded] = useState(false);
     const [noteContent, setNoteContent] = useState(player.notes || '');
     const [showNotes, setShowNotes] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     const scoreColor = (score: number) => {
         if (score >= 85) return 'text-scout-accent';
@@ -271,6 +274,15 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                 >
                     <Edit2 size={10} />
                 </button>
+                {onDelete && !isReference && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true); }}
+                        className="flex items-center justify-center gap-1 text-[9px] uppercase font-bold py-1.5 px-3 rounded-lg bg-scout-900/50 text-red-500/70 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        title="Delete player"
+                    >
+                        <Trash2 size={10} />
+                    </button>
+                )}
                 {player.phone && (
                     <a
                         href={`https://wa.me/${player.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${player.name}, this is a scout from Warubi Sports. I noticed your talent and wanted to connect about potential opportunities.`)}`}
@@ -356,6 +368,29 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                             className="bg-scout-700 text-gray-300 text-[10px] font-bold py-1.5 px-3 rounded-lg"
                         >
                             Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* DELETE CONFIRMATION */}
+            {showDeleteConfirm && (
+                <div className="px-3 pb-3 animate-fade-in border-t border-red-500/30 pt-3 bg-red-500/5">
+                    <p className="text-xs text-red-400 mb-3 text-center">
+                        Delete <span className="font-bold">{player.name}</span>? This cannot be undone.
+                    </p>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setShowDeleteConfirm(false)}
+                            className="flex-1 bg-scout-700 text-gray-300 text-[10px] font-bold py-2 rounded-lg"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={() => { onDelete?.(player.id); setShowDeleteConfirm(false); }}
+                            className="flex-1 bg-red-500 text-white text-[10px] font-bold py-2 rounded-lg flex items-center justify-center gap-1 hover:bg-red-600 transition-colors"
+                        >
+                            <Trash2 size={10} /> Delete
                         </button>
                     </div>
                 </div>

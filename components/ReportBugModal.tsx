@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Bug, X, Loader2, CheckCircle, Upload, Image, AlertTriangle, MapPin } from 'lucide-react';
+import { Bug, X, Loader2, CheckCircle, Upload, Image, AlertTriangle, MapPin, Lightbulb, Sparkles, MessageSquare, Send } from 'lucide-react';
 import { createBugReport, uploadScreenshot } from '../services/bugReportService';
 import type { BugReportPriority } from '../types';
 
@@ -7,14 +7,24 @@ interface ReportBugModalProps {
   onClose: () => void;
 }
 
+type FeedbackType = 'bug' | 'feature' | 'idea' | 'other';
+
+const FEEDBACK_TYPES: { value: FeedbackType; label: string; icon: React.ReactNode; color: string; description: string }[] = [
+  { value: 'bug', label: 'Bug', icon: <Bug size={16} />, color: 'bg-red-500', description: 'Something broken' },
+  { value: 'feature', label: 'Feature', icon: <Sparkles size={16} />, color: 'bg-blue-500', description: 'New capability' },
+  { value: 'idea', label: 'Idea', icon: <Lightbulb size={16} />, color: 'bg-yellow-500', description: 'Improvement' },
+  { value: 'other', label: 'Other', icon: <MessageSquare size={16} />, color: 'bg-gray-500', description: 'General feedback' },
+];
+
 const PRIORITY_OPTIONS: { value: BugReportPriority; label: string; color: string }[] = [
-  { value: 'low', label: 'Low', color: 'bg-gray-500' },
-  { value: 'medium', label: 'Medium', color: 'bg-yellow-500' },
-  { value: 'high', label: 'High', color: 'bg-orange-500' },
+  { value: 'low', label: 'Nice to have', color: 'bg-gray-500' },
+  { value: 'medium', label: 'Helpful', color: 'bg-yellow-500' },
+  { value: 'high', label: 'Important', color: 'bg-orange-500' },
   { value: 'critical', label: 'Critical', color: 'bg-red-500' }
 ];
 
 const ReportBugModal: React.FC<ReportBugModalProps> = ({ onClose }) => {
+  const [feedbackType, setFeedbackType] = useState<FeedbackType>('idea');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<BugReportPriority>('medium');
@@ -67,7 +77,7 @@ const ReportBugModal: React.FC<ReportBugModalProps> = ({ onClose }) => {
     e.preventDefault();
 
     if (!title.trim()) {
-      setError('Please enter a title for the bug');
+      setError('Please enter a title for your feedback');
       return;
     }
 
@@ -88,9 +98,10 @@ const ReportBugModal: React.FC<ReportBugModalProps> = ({ onClose }) => {
         }
       }
 
-      // Create the bug report
+      // Create the bug report with feedback type prefix
+      const feedbackTypeLabel = FEEDBACK_TYPES.find(t => t.value === feedbackType)?.label || 'Feedback';
       const result = await createBugReport(
-        title.trim(),
+        `[${feedbackTypeLabel}] ${title.trim()}`,
         description.trim() || undefined,
         pageUrl || undefined,
         screenshotUrl || undefined,
@@ -119,8 +130,8 @@ const ReportBugModal: React.FC<ReportBugModalProps> = ({ onClose }) => {
           <div className="w-20 h-20 bg-scout-accent/20 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-scout-accent/30">
             <CheckCircle size={40} className="text-scout-accent" />
           </div>
-          <h2 className="text-2xl font-black text-white uppercase mb-2">Bug Reported!</h2>
-          <p className="text-gray-400">Thanks for helping us improve the platform.</p>
+          <h2 className="text-2xl font-black text-white uppercase mb-2">Feedback Sent!</h2>
+          <p className="text-gray-400">Thanks for helping us improve the platform. We review all feedback!</p>
         </div>
       </div>
     );
@@ -132,12 +143,12 @@ const ReportBugModal: React.FC<ReportBugModalProps> = ({ onClose }) => {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center">
-              <Bug size={20} className="text-red-400" />
+            <div className="w-10 h-10 bg-scout-accent/20 rounded-lg flex items-center justify-center">
+              <Lightbulb size={20} className="text-scout-accent" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-white uppercase">Report a Bug</h2>
-              <p className="text-xs text-gray-500">Help us squash issues</p>
+              <h2 className="text-lg font-black text-white uppercase">Feedback & Ideas</h2>
+              <p className="text-xs text-gray-500">Help us build what you need</p>
             </div>
           </div>
           <button
@@ -158,16 +169,40 @@ const ReportBugModal: React.FC<ReportBugModalProps> = ({ onClose }) => {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Feedback Type */}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+              What type of feedback?
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {FEEDBACK_TYPES.map((type) => (
+                <button
+                  key={type.value}
+                  type="button"
+                  onClick={() => setFeedbackType(type.value)}
+                  className={`py-3 px-2 rounded-xl text-xs font-bold transition-all flex flex-col items-center gap-1.5 ${
+                    feedbackType === type.value
+                      ? `${type.color} text-white ring-2 ring-white/30`
+                      : 'bg-scout-700 text-gray-400 hover:bg-scout-600'
+                  }`}
+                >
+                  {type.icon}
+                  <span>{type.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Title */}
           <div className="space-y-2">
             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-              Bug Title <span className="text-red-400">*</span>
+              {feedbackType === 'bug' ? 'What went wrong?' : feedbackType === 'feature' ? 'What feature do you need?' : 'Your idea'} <span className="text-red-400">*</span>
             </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Brief description of the issue"
+              placeholder={feedbackType === 'bug' ? 'Brief description of the issue' : feedbackType === 'feature' ? 'e.g. Export players to CSV' : 'Share your idea...'}
               className="w-full bg-scout-900 border border-scout-700 rounded-xl px-4 py-3 text-white placeholder:text-gray-600 focus:outline-none focus:border-scout-accent transition-colors"
               required
             />
@@ -176,13 +211,13 @@ const ReportBugModal: React.FC<ReportBugModalProps> = ({ onClose }) => {
           {/* Description */}
           <div className="space-y-2">
             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-              Details
+              Tell us more (optional)
             </label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What happened? What did you expect to happen?"
-              rows={4}
+              placeholder={feedbackType === 'bug' ? 'What happened? What did you expect to happen?' : 'Why would this be helpful? How would you use it?'}
+              rows={3}
               className="w-full bg-scout-900 border border-scout-700 rounded-xl px-4 py-3 text-white placeholder:text-gray-600 focus:outline-none focus:border-scout-accent transition-colors resize-none"
             />
           </div>
@@ -190,7 +225,7 @@ const ReportBugModal: React.FC<ReportBugModalProps> = ({ onClose }) => {
           {/* Priority */}
           <div className="space-y-2">
             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-              Priority
+              How important is this to you?
             </label>
             <div className="grid grid-cols-4 gap-2">
               {PRIORITY_OPTIONS.map((option) => (
@@ -275,17 +310,17 @@ const ReportBugModal: React.FC<ReportBugModalProps> = ({ onClose }) => {
             <button
               type="submit"
               disabled={loading || !title.trim()}
-              className="flex-1 py-3 bg-red-500 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 py-3 bg-scout-accent text-scout-900 rounded-xl font-black text-sm flex items-center justify-center gap-2 hover:bg-emerald-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
                   <Loader2 size={18} className="animate-spin" />
-                  {uploading ? 'Uploading...' : 'Submitting...'}
+                  {uploading ? 'Uploading...' : 'Sending...'}
                 </>
               ) : (
                 <>
-                  <Bug size={18} />
-                  Submit Bug
+                  <Send size={18} />
+                  Send Feedback
                 </>
               )}
             </button>
@@ -293,7 +328,7 @@ const ReportBugModal: React.FC<ReportBugModalProps> = ({ onClose }) => {
         </form>
 
         <p className="mt-4 text-center text-xs text-gray-600">
-          Bugs are reviewed by the admin team and fixed as quickly as possible.
+          All feedback is reviewed by the team. We build what scouts need!
         </p>
       </div>
     </div>

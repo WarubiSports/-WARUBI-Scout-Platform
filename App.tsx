@@ -26,7 +26,7 @@ const App: React.FC = () => {
 
   // Supabase integration
   const { scout, loading: scoutLoading, initializeScout, addXP, incrementPlacements } = useScoutContext();
-  const { prospects, addProspect, updateProspect } = useProspects(scout?.id);
+  const { prospects, addProspect, updateProspect, deleteProspect } = useProspects(scout?.id);
   const { events, addEvent, updateEvent } = useEvents(scout?.id);
   const { logOutreach } = useOutreach(scout?.id);
 
@@ -124,14 +124,32 @@ const App: React.FC = () => {
   };
 
   const handleAddPlayer = async (player: Player) => {
-    const newPlayer = await addProspect(player);
-    if (newPlayer) {
-      await addXP(SCOUT_POINTS.PLAYER_LOG);
+    try {
+      const newPlayer = await addProspect(player);
+      if (newPlayer) {
+        await addXP(SCOUT_POINTS.PLAYER_LOG);
+        handleAddNotification({
+            type: 'SUCCESS',
+            title: `+${SCOUT_POINTS.PLAYER_LOG} XP | Player Added`,
+            message: `${player.name} added to your pipeline.`
+        });
+        return newPlayer;
+      } else {
+        handleAddNotification({
+            type: 'ALERT',
+            title: 'Failed to Add Player',
+            message: 'Could not save player. Please try again.'
+        });
+        throw new Error('Failed to add player');
+      }
+    } catch (error) {
+      console.error('Error adding player:', error);
       handleAddNotification({
-          type: 'SUCCESS',
-          title: `+${SCOUT_POINTS.PLAYER_LOG} XP | Player Added`,
-          message: `${player.name} added to your pipeline.`
+          type: 'ALERT',
+          title: 'Error Adding Player',
+          message: String(error)
       });
+      throw error;
     }
   };
 
@@ -251,16 +269,52 @@ const App: React.FC = () => {
       setUserProfile(updatedProfile);
   };
 
+  const handleDeletePlayer = async (playerId: string) => {
+      const player = prospects.find(p => p.id === playerId);
+      try {
+          await deleteProspect(playerId);
+          handleAddNotification({
+              type: 'INFO',
+              title: 'Player Deleted',
+              message: player ? `${player.name} has been removed from your pipeline.` : 'Player removed.'
+          });
+      } catch (error) {
+          console.error('Error deleting player:', error);
+          handleAddNotification({
+              type: 'ALERT',
+              title: 'Delete Failed',
+              message: 'Could not delete player. Please try again.'
+          });
+      }
+  };
+
   const handleAddEvent = async (event: ScoutingEvent) => {
-      const newEvent = await addEvent(event);
-      if (newEvent) {
-        const isHost = event.role === 'HOST' || event.isMine;
-        const points = isHost ? SCOUT_POINTS.EVENT_HOST : SCOUT_POINTS.EVENT_ATTEND;
-        await addXP(points);
+      console.log('[handleAddEvent] Called with event:', event.title);
+      try {
+        const newEvent = await addEvent(event);
+        console.log('[handleAddEvent] addEvent result:', newEvent);
+        if (newEvent) {
+          const isHost = event.role === 'HOST' || event.isMine;
+          const points = isHost ? SCOUT_POINTS.EVENT_HOST : SCOUT_POINTS.EVENT_ATTEND;
+          await addXP(points);
+          handleAddNotification({
+              type: 'SUCCESS',
+              title: `+${points} XP | ${isHost ? 'Event Created' : 'Attendance Confirmed'}`,
+              message: `${event.title} added to schedule.`
+          });
+        } else {
+          handleAddNotification({
+              type: 'ALERT',
+              title: 'Failed to Add Event',
+              message: 'Could not save event. Please try again.'
+          });
+        }
+      } catch (error) {
+        console.error('[handleAddEvent] Error:', error);
         handleAddNotification({
-            type: 'SUCCESS',
-            title: `+${points} XP | ${isHost ? 'Event Created' : 'Attendance Confirmed'}`,
-            message: `${event.title} added to schedule.`
+            type: 'ALERT',
+            title: 'Error',
+            message: String(error)
         });
       }
   };
@@ -318,6 +372,7 @@ const App: React.FC = () => {
             onAddEvent={handleAddEvent}
             onUpdateEvent={handleUpdateEvent}
             onUpdatePlayer={handleUpdatePlayer}
+            onDeletePlayer={handleDeletePlayer}
             onAddNotification={handleAddNotification}
             onMarkAllRead={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
             onMessageSent={handleMessageSent}

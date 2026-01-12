@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { supabase, isSupabaseConfigured, supabaseRest } from '../lib/supabase'
 import type { ScoutProspect, ScoutProspectInsert, ScoutProspectUpdate } from '../lib/database.types'
 import { PlayerStatus } from '../types'
 import type { Player, PlayerEvaluation, OutreachLog } from '../types'
@@ -157,7 +157,11 @@ export function useProspects(scoutId: string | undefined) {
   const handleRealtimeChange = (payload: any) => {
     if (payload.eventType === 'INSERT') {
       const newPlayer = prospectToPlayer(payload.new)
-      setProspects((prev) => [newPlayer, ...prev])
+      // Only add if not already in state (avoid duplicates from local insert + realtime)
+      setProspects((prev) => {
+        if (prev.some(p => p.id === newPlayer.id)) return prev
+        return [newPlayer, ...prev]
+      })
     } else if (payload.eventType === 'UPDATE') {
       setProspects((prev) =>
         prev.map((p) =>
@@ -178,23 +182,21 @@ export function useProspects(scoutId: string | undefined) {
     }
 
     try {
-      // Load from Supabase
-      const { data: prospectsData, error: prospectsError } = await supabase
-        .from('scout_prospects')
-        .select('*')
-        .eq('scout_id', scoutId)
-        .order('created_at', { ascending: false })
+      // Load from Supabase using REST API
+      const { data: prospectsData, error: prospectsError } = await supabaseRest.select<ScoutProspect>(
+        'scout_prospects',
+        `scout_id=eq.${scoutId}&order=created_at.desc`
+      )
 
-      if (prospectsError) throw prospectsError
+      if (prospectsError) throw new Error(prospectsError.message)
 
       // Load outreach logs for each prospect
-      const { data: logsData, error: logsError } = await supabase
-        .from('scout_outreach_logs')
-        .select('*')
-        .eq('scout_id', scoutId)
-        .order('created_at', { ascending: false })
+      const { data: logsData, error: logsError } = await supabaseRest.select<any>(
+        'scout_outreach_logs',
+        `scout_id=eq.${scoutId}&order=created_at.desc`
+      )
 
-      if (logsError) throw logsError
+      if (logsError) throw new Error(logsError.message)
 
       // Group logs by prospect
       const logsByProspect: Record<string, OutreachLog[]> = {}
@@ -215,6 +217,7 @@ export function useProspects(scoutId: string | undefined) {
         prospectToPlayer(p, logsByProspect[p.id] || [])
       ) || []
 
+      console.log('[loadProspects] Loaded', players.length, 'prospects for scoutId:', scoutId)
       setProspects(players)
     } catch (err) {
       console.error('Error loading prospects:', err)
@@ -226,24 +229,40 @@ export function useProspects(scoutId: string | undefined) {
 
   const addProspect = useCallback(
     async (player: Player): Promise<Player | null> => {
-      if (!scoutId || !isSupabaseConfigured) return null
+      console.log('========== ADD PROSPECT START ==========')
+      console.log('[addProspect] scoutId:', scoutId)
+      console.log('[addProspect] isSupabaseConfigured:', isSupabaseConfigured)
+      console.log('[addProspect] player:', player.name)
+
+      if (!scoutId) {
+        console.error('[addProspect] ERROR: scoutId is undefined!')
+        return null
+      }
+
+      if (!isSupabaseConfigured) {
+        console.error('[addProspect] ERROR: Supabase not configured!')
+        return null
+      }
 
       try {
         const prospectData = playerToProspect(player, scoutId)
-        const { data, error } = await supabase
-          .from('scout_prospects')
-          .insert(prospectData as any)
-          .select()
-          .single()
+        console.log('[addProspect] Calling supabaseRest.insert...')
 
-        if (error) throw error
+        // Use direct REST API to bypass Supabase JS client issues
+        const { data, error } = await supabaseRest.insert<ScoutProspect>('scout_prospects', prospectData)
+
+        console.log('[addProspect] Insert completed. data:', data ? 'yes' : 'no', 'error:', error?.message || 'none')
+
+        if (error) throw new Error(error.message)
+        if (!data) throw new Error('No data returned from insert')
 
         const newPlayer = prospectToPlayer(data)
+        console.log('[addProspect] SUCCESS! New player ID:', newPlayer.id)
         // Real-time will handle the update, but update locally too for immediate UI feedback
         setProspects((prev) => [newPlayer, ...prev])
         return newPlayer
       } catch (err) {
-        console.error('Error adding prospect:', err)
+        console.error('[addProspect] CATCH ERROR:', err)
         setError(err instanceof Error ? err.message : 'Failed to add prospect')
         return null
       }
@@ -291,12 +310,10 @@ export function useProspects(scoutId: string | undefined) {
         if (updates.notes !== undefined) dbUpdates.notes = updates.notes
         if (updates.lastContactedAt !== undefined) dbUpdates.last_contacted_at = updates.lastContactedAt
 
-        const { error } = await (supabase
-          .from('scout_prospects') as any)
-          .update(dbUpdates)
-          .eq('id', playerId)
+        // Use direct REST API to bypass Supabase JS client issues
+        const { error } = await supabaseRest.update('scout_prospects', `id=eq.${playerId}`, dbUpdates)
 
-        if (error) throw error
+        if (error) throw new Error(error.message)
 
         // Update local state (real-time will also update)
         setProspects((prev) =>
@@ -315,12 +332,10 @@ export function useProspects(scoutId: string | undefined) {
       if (!isSupabaseConfigured) return
 
       try {
-        const { error } = await supabase
-          .from('scout_prospects')
-          .delete()
-          .eq('id', playerId)
+        // Use direct REST API to bypass Supabase JS client issues
+        const { error } = await supabaseRest.delete('scout_prospects', `id=eq.${playerId}`)
 
-        if (error) throw error
+        if (error) throw new Error(error.message)
 
         setProspects((prev) => prev.filter((p) => p.id !== playerId))
       } catch (err) {

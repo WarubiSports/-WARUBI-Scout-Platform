@@ -782,7 +782,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
 
             {/* Admin Sidebar */}
-            <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full z-10">
+            <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full z-10 overflow-y-auto">
                 <div className="p-6 border-b border-gray-100">
                     <h1 className="text-xl font-black tracking-tighter text-gray-900">WARUBI<span className="text-blue-600">HQ</span></h1>
                     <p className="text-xs text-gray-400 mt-1 font-medium tracking-wide">ADMIN CONTROL TOWER</p>

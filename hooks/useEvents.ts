@@ -150,15 +150,24 @@ export function useEvents(scoutId: string | undefined) {
 
   const addEvent = useCallback(
     async (event: ScoutingEvent): Promise<ScoutingEvent | null> => {
-      if (!scoutId || !isSupabaseConfigured) return null
+      console.log('[addEvent] Starting with scoutId:', scoutId, 'isSupabaseConfigured:', isSupabaseConfigured)
+
+      if (!scoutId || !isSupabaseConfigured) {
+        console.error('[addEvent] Missing scoutId or Supabase not configured')
+        return null
+      }
 
       try {
         const eventData = eventToDb(event, scoutId)
+        console.log('[addEvent] Inserting:', eventData)
+
         const { data, error } = await supabase
           .from('scouting_events')
           .insert(eventData as any)
           .select()
           .single()
+
+        console.log('[addEvent] Result:', { data, error })
 
         if (error) throw error
 
@@ -166,7 +175,7 @@ export function useEvents(scoutId: string | undefined) {
         setEvents((prev) => [newEvent, ...prev])
         return newEvent
       } catch (err) {
-        console.error('Error adding event:', err)
+        console.error('[addEvent] Error:', err)
         setError(err instanceof Error ? err.message : 'Failed to add event')
         return null
       }

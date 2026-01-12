@@ -91,8 +91,6 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
         pathB: { itpCost: 44000, itpScholarship: 0, postTuition: 45000, postScholarship: 25000, postYears: 3 }
     });
 
-    const [evalHook, setEvalHook] = useState<'pro' | 'ncaa' | 'roi'>('pro');
-    const [toolCopied, setToolCopied] = useState(false);
 
     const costA = (roiData.pathA.tuition - roiData.pathA.scholarship) * roiData.pathA.years;
     const costB = (roiData.pathB.itpCost - roiData.pathB.itpScholarship) +
@@ -129,12 +127,6 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
         }
     };
 
-    const copyApplyLink = (hook: string) => {
-        const link = `warubi.com/apply/${user.scoutId || 'demo'}?hook=${hook}`;
-        navigator.clipboard.writeText(link);
-        setToolCopied(true);
-        setTimeout(() => setToolCopied(false), 2000);
-    };
 
     // Sub-Views
     const LeadMagnetMasterclass = () => (
@@ -338,7 +330,7 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
 
                 <div className="grid md:grid-cols-2 gap-8">
                     <div className="space-y-6">
-                        <h3 className="text-sm font-black text-white uppercase flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500"></div> Path A: 4yr US College</h3>
+                        <h3 className="text-sm font-black text-white uppercase flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500"></div> Path A: Standard US College</h3>
                         <div className="space-y-4">
                             <div>
                                 <label className="text-[10px] text-gray-500 uppercase font-black block mb-2">Annual Tuition ($)</label>
@@ -348,26 +340,38 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
                                 <label className="text-[10px] text-gray-500 uppercase font-black block mb-2">Annual Scholarship ($)</label>
                                 <input type="number" value={roiData.pathA.scholarship} onChange={e => setRoiData({ ...roiData, pathA: { ...roiData.pathA, scholarship: Number(e.target.value) } })} className="w-full bg-scout-900 border border-scout-700 rounded-xl p-3 text-white outline-none focus:border-red-500" />
                             </div>
+                            <div>
+                                <label className="text-[10px] text-gray-500 uppercase font-black block mb-2">Years</label>
+                                <input type="number" min="1" max="6" value={roiData.pathA.years} onChange={e => setRoiData({ ...roiData, pathA: { ...roiData.pathA, years: Number(e.target.value) } })} className="w-full bg-scout-900 border border-scout-700 rounded-xl p-3 text-white outline-none focus:border-red-500" />
+                            </div>
                             <div className="p-4 bg-scout-900/50 rounded-xl border border-red-500/20">
-                                <p className="text-[10px] text-gray-500 uppercase font-black">Total 4yr Cost</p>
+                                <p className="text-[10px] text-gray-500 uppercase font-black">Total {roiData.pathA.years}yr Cost</p>
                                 <p className="text-xl font-black text-white">${costA.toLocaleString()}</p>
                             </div>
                         </div>
                     </div>
 
                     <div className="space-y-6">
-                        <h3 className="text-sm font-black text-white uppercase flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-scout-accent shadow-glow"></div> Path B: Warubi ITP + 3yr College</h3>
+                        <h3 className="text-sm font-black text-white uppercase flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-scout-accent shadow-glow"></div> Path B: Warubi ITP + College</h3>
                         <div className="space-y-4">
                             <div>
                                 <label className="text-[10px] text-gray-500 uppercase font-black block mb-2">ITP Residency Cost ($)</label>
                                 <input type="number" value={roiData.pathB.itpCost} onChange={e => setRoiData({ ...roiData, pathB: { ...roiData.pathB, itpCost: Number(e.target.value) } })} className="w-full bg-scout-900 border border-scout-700 rounded-xl p-3 text-white outline-none focus:border-scout-accent" />
                             </div>
                             <div>
-                                <label className="text-[10px] text-gray-500 uppercase font-black block mb-2">Future Annual Scholarship ($)</label>
+                                <label className="text-[10px] text-gray-500 uppercase font-black block mb-2">Post-ITP Annual Tuition ($)</label>
+                                <input type="number" value={roiData.pathB.postTuition} onChange={e => setRoiData({ ...roiData, pathB: { ...roiData.pathB, postTuition: Number(e.target.value) } })} className="w-full bg-scout-900 border border-scout-700 rounded-xl p-3 text-white outline-none focus:border-scout-accent" />
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-gray-500 uppercase font-black block mb-2">Post-ITP Annual Scholarship ($)</label>
                                 <input type="number" value={roiData.pathB.postScholarship} onChange={e => setRoiData({ ...roiData, pathB: { ...roiData.pathB, postScholarship: Number(e.target.value) } })} className="w-full bg-scout-900 border border-scout-700 rounded-xl p-3 text-white outline-none focus:border-scout-accent" />
                             </div>
+                            <div>
+                                <label className="text-[10px] text-gray-500 uppercase font-black block mb-2">Post-ITP Years</label>
+                                <input type="number" min="1" max="5" value={roiData.pathB.postYears} onChange={e => setRoiData({ ...roiData, pathB: { ...roiData.pathB, postYears: Number(e.target.value) } })} className="w-full bg-scout-900 border border-scout-700 rounded-xl p-3 text-white outline-none focus:border-scout-accent" />
+                            </div>
                             <div className="p-4 bg-scout-900/50 rounded-xl border border-scout-accent/20">
-                                <p className="text-[10px] text-gray-500 uppercase font-black">Total Path B Cost</p>
+                                <p className="text-[10px] text-gray-500 uppercase font-black">Total Path B Cost (ITP + {roiData.pathB.postYears}yr)</p>
                                 <p className="text-xl font-black text-white">${costB.toLocaleString()}</p>
                             </div>
                         </div>
@@ -375,67 +379,13 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
                 </div>
 
                 <div className="mt-10 p-6 bg-scout-accent/5 border border-scout-accent/20 rounded-2xl">
-                    <p className="text-sm text-gray-300 italic">"By investing in a professional resume in Germany first, you move from a $15k academic scholarship to a $25k+ athletic scholarship, saving <strong>${roiDifference.toLocaleString()}</strong> over the lifetime of your education."</p>
-                </div>
-            </div>
-        </div>
-    );
-
-    const LinkGeneratorView = () => (
-        <div className="animate-fade-in space-y-8 pb-10 max-w-4xl mx-auto">
-            <button onClick={() => setView('HOME')} className="text-gray-400 hover:text-white flex items-center gap-1 text-sm"><X size={16} /> Back</button>
-            <div className="bg-scout-800 rounded-[2.5rem] border border-scout-700 p-8 shadow-xl">
-                <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic mb-6">Link Customizer</h2>
-                <div className="grid md:grid-cols-3 gap-4 mb-10">
-                    {([
-                        { id: 'pro', label: 'The Pro Hook', desc: 'Focus on German trials', icon: <Trophy size={18} /> },
-                        { id: 'ncaa', label: 'The College Hook', desc: 'Focus on Scholarships', icon: <GraduationCap size={18} /> },
-                        { id: 'roi', label: 'The ROI Hook', desc: 'Focus on Math/Savings', icon: <Calculator size={18} /> }
-                    ] as const).map(h => (
-                        <button
-                            key={h.id}
-                            onClick={() => setEvalHook(h.id)}
-                            className={`p-6 rounded-2xl border-2 text-left transition-all ${evalHook === h.id ? 'bg-scout-accent/10 border-scout-accent' : 'bg-scout-900 border-scout-700 hover:border-scout-600'}`}
-                        >
-                            <div className={`mb-3 ${evalHook === h.id ? 'text-scout-accent' : 'text-gray-500'}`}>{h.icon}</div>
-                            <h4 className="text-sm font-black text-white uppercase">{h.label}</h4>
-                            <p className="text-[10px] text-gray-500 mt-1">{h.desc}</p>
-                        </button>
-                    ))}
-                </div>
-
-                <div className="bg-scout-900 p-8 rounded-3xl border border-scout-700 text-center space-y-6">
-                    <p className="text-gray-400 text-sm">Your Personalized Campaign Link:</p>
-                    <div className="bg-scout-800 p-4 rounded-xl border border-scout-700 flex items-center justify-between font-mono text-scout-accent">
-                        <span>warubi.com/apply/{user.scoutId || 'demo'}?hook={evalHook}</span>
-                        <button onClick={() => copyApplyLink(evalHook)} className="text-white hover:text-scout-accent p-2">
-                            {toolCopied ? <Check size={20} /> : <Copy size={20} />}
-                        </button>
-                    </div>
-                    <p className="text-[10px] text-gray-600 uppercase font-black tracking-widest">Analytics: 142 clicks this month</p>
-                </div>
-            </div>
-        </div>
-    );
-
-    const CollegeTransferValuator = () => (
-        <div className="animate-fade-in space-y-8 pb-10 max-w-4xl mx-auto">
-            <button onClick={() => setView('HOME')} className="text-gray-400 hover:text-white flex items-center gap-1 text-sm"><X size={16} /> Back</button>
-            <div className="bg-scout-800 rounded-[2.5rem] border border-scout-700 p-8 shadow-xl text-center space-y-8">
-                <div className="w-20 h-20 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto text-blue-400 border border-blue-500/30">
-                    <TrendingUp size={40} />
-                </div>
-                <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic">Transfer Valuator</h2>
-                <p className="text-gray-400 max-w-md mx-auto">Use this tool for existing college players (D2/NAIA) looking to move up to D1 or Pro.</p>
-
-                <div className="bg-scout-900 p-8 rounded-3xl border border-scout-700">
-                    <p className="text-xs text-gray-500 font-black uppercase mb-4 tracking-widest">Share this assessment link</p>
-                    <div className="flex gap-2">
-                        <div className="flex-1 bg-scout-800 p-3 rounded-lg border border-scout-700 text-scout-accent text-sm font-mono truncate">
-                            warubi.com/transfer-eval/{user.scoutId || 'demo'}
-                        </div>
-                        <button onClick={() => copyApplyLink('transfer')} className="bg-white text-scout-900 px-6 rounded-lg font-black text-xs uppercase">Copy</button>
-                    </div>
+                    {roiDifference > 0 ? (
+                        <p className="text-sm text-gray-300 italic">"By investing in a professional resume in Germany first, you can save <strong className="text-scout-accent">${roiDifference.toLocaleString()}</strong> over the lifetime of your education while gaining elite development."</p>
+                    ) : roiDifference < 0 ? (
+                        <p className="text-sm text-gray-300 italic">"Path B costs <strong className="text-red-400">${Math.abs(roiDifference).toLocaleString()}</strong> more, but consider the value of professional-level training and exposure that can lead to better opportunities."</p>
+                    ) : (
+                        <p className="text-sm text-gray-300 italic">"Both paths have the same total cost. Consider the non-financial benefits: professional development, European exposure, and enhanced scholarship potential."</p>
+                    )}
                 </div>
             </div>
         </div>
@@ -503,20 +453,6 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
                                         <div className="flex gap-4 items-center min-w-0">
                                             <div className="p-3 bg-scout-900 rounded-2xl text-scout-highlight group-hover:scale-110 transition-transform shrink-0"><Calculator size={24} /></div>
                                             <div className="min-w-0"><h4 className="text-lg font-black text-white uppercase tracking-tight truncate">ROI Visualizer</h4><p className="text-[10px] text-gray-500 truncate">ITP vs US College Debt comparison.</p></div>
-                                        </div>
-                                        <div className="text-gray-700 group-hover:text-white shrink-0 ml-2"><ChevronRight size={20} /></div>
-                                    </div>
-                                    <div onClick={() => { setSelectedToolId('eval_tool'); setView('TOOL'); }} className="bg-scout-800 border-2 border-scout-700 p-6 rounded-[2rem] flex justify-between items-center cursor-pointer hover:border-scout-accent transition-all group">
-                                        <div className="flex gap-4 items-center min-w-0">
-                                            <div className="p-3 bg-scout-900 rounded-2xl text-scout-accent group-hover:scale-110 transition-transform shrink-0"><Smartphone size={24} /></div>
-                                            <div className="min-w-0"><h4 className="text-lg font-black text-white uppercase tracking-tight truncate">Link Customizer</h4><p className="text-[10px] text-gray-500 truncate">High-conversion Bio Link CTAs.</p></div>
-                                        </div>
-                                        <div className="text-gray-700 group-hover:text-white shrink-0 ml-2"><ChevronRight size={20} /></div>
-                                    </div>
-                                    <div onClick={() => { setSelectedToolId('transfer_val'); setView('TOOL'); }} className="bg-scout-800 border-2 border-scout-700 p-6 rounded-[2rem] flex justify-between items-center cursor-pointer hover:border-blue-500 transition-all group">
-                                        <div className="flex gap-4 items-center min-w-0">
-                                            <div className="p-3 bg-scout-900 rounded-2xl text-blue-400 group-hover:scale-110 transition-transform shrink-0"><TrendingUp size={24} /></div>
-                                            <div className="min-w-0"><h4 className="text-lg font-black text-white uppercase tracking-tight truncate">Transfer Portal</h4><p className="text-[10px] text-gray-500 truncate">D2 → D1 Potential Audit.</p></div>
                                         </div>
                                         <div className="text-gray-700 group-hover:text-white shrink-0 ml-2"><ChevronRight size={20} /></div>
                                     </div>
@@ -621,8 +557,6 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
                 {view === 'MODEL' && <SystemAuditView />}
                 {view === 'MASTERCLASS' && <LeadMagnetMasterclass />}
                 {view === 'TOOL' && selectedToolId === 'roi_calc' && <ROICalculatorView />}
-                {view === 'TOOL' && selectedToolId === 'eval_tool' && <LinkGeneratorView />}
-                {view === 'TOOL' && selectedToolId === 'transfer_val' && <CollegeTransferValuator />}
             </div>
 
             {/* AI SIDEBAR (Brain) */}

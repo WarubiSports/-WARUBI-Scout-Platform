@@ -48,20 +48,24 @@ export function useAuth(): UseAuthReturn {
       return
     }
 
-    // Add timeout to prevent infinite loading
+    let isMounted = true
+    let hasResolved = false
+
+    // Guaranteed timeout - will always fire after 3 seconds
     const timeoutId = setTimeout(() => {
-      console.warn('Auth session check timed out, proceeding without session')
-      setState(prev => {
-        if (prev.loading) {
-          return { ...prev, loading: false }
-        }
-        return prev
-      })
-    }, 5000)
+      if (isMounted && !hasResolved) {
+        console.warn('Auth session check timed out, proceeding without session')
+        hasResolved = true
+        setState(prev => ({ ...prev, loading: false }))
+      }
+    }, 3000)
 
     // Get initial session
     supabase.auth.getSession().then(async ({ data: { session }, error }) => {
+      if (!isMounted || hasResolved) return
+      hasResolved = true
       clearTimeout(timeoutId)
+
       if (error) {
         console.error('Error getting session:', error)
         setState(prev => ({ ...prev, loading: false, error: error.message }))
@@ -79,6 +83,8 @@ export function useAuth(): UseAuthReturn {
         }
       }
     }).catch(err => {
+      if (!isMounted || hasResolved) return
+      hasResolved = true
       clearTimeout(timeoutId)
       console.error('Error in getSession:', err)
       setState(prev => ({ ...prev, loading: false, error: 'Failed to check authentication' }))
@@ -88,6 +94,13 @@ export function useAuth(): UseAuthReturn {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email)
+
+        // Clear timeout and mark resolved when auth state changes
+        if (isMounted && !hasResolved) {
+          hasResolved = true
+          clearTimeout(timeoutId)
+        }
+
         setState(prev => ({
           ...prev,
           session,
@@ -105,6 +118,7 @@ export function useAuth(): UseAuthReturn {
     )
 
     return () => {
+      isMounted = false
       clearTimeout(timeoutId)
       subscription.unsubscribe()
     }

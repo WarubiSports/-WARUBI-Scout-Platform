@@ -6,10 +6,14 @@ import { ScoutProvider } from './contexts/ScoutContext';
 
 // Wrapper component that connects Auth to Scout context
 function AppWithProviders() {
-  const { user } = useAuthContext();
+  const { user, loading: authLoading, session } = useAuthContext();
+
+  // Only pass userId to ScoutProvider after auth is confirmed and we have a session
+  // This prevents queries while auth is still initializing
+  const userId = (authLoading || !session) ? undefined : user?.id;
 
   return (
-    <ScoutProvider userId={user?.id}>
+    <ScoutProvider userId={userId}>
       <App />
     </ScoutProvider>
   );
