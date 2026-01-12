@@ -276,3 +276,36 @@ export async function updateApprovedScout(
     return { success: false, error: 'Failed to update scout' };
   }
 }
+
+/**
+ * Send a magic link invitation to an approved scout
+ * This sends an email with a login link directly to the scout
+ */
+export async function sendScoutInvite(email: string): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  if (!isSupabaseConfigured) {
+    return { success: false, error: 'Not configured' };
+  }
+
+  try {
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.toLowerCase().trim(),
+      options: {
+        emailRedirectTo: typeof window !== 'undefined'
+          ? `${window.location.origin}/auth/callback`
+          : undefined,
+      },
+    });
+
+    if (error) {
+      console.error('Error sending invite:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: 'Failed to send invitation' };
+  }
+}

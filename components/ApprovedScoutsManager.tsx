@@ -17,8 +17,10 @@ import {
   getAllApprovedScouts,
   addApprovedScout,
   removeApprovedScout,
+  sendScoutInvite,
   ApprovedScout
 } from '../services/accessControlService';
+import { toast } from 'sonner';
 
 const ApprovedScoutsManager: React.FC = () => {
   const [scouts, setScouts] = useState<ApprovedScout[]>([]);
@@ -36,6 +38,9 @@ const ApprovedScoutsManager: React.FC = () => {
 
   // Delete confirmation
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Invite sending
+  const [sendingInviteId, setSendingInviteId] = useState<string | null>(null);
 
   const loadScouts = async () => {
     setLoading(true);
@@ -87,6 +92,22 @@ const ApprovedScoutsManager: React.FC = () => {
       setError(result.error || 'Failed to remove scout');
     }
     setDeletingId(null);
+  };
+
+  const handleSendInvite = async (scout: ApprovedScout) => {
+    setSendingInviteId(scout.id);
+    const result = await sendScoutInvite(scout.email);
+    if (result.success) {
+      toast.success(`Invitation sent to ${scout.email}`, {
+        description: 'They will receive a magic link to sign in',
+        duration: 4000,
+      });
+    } else {
+      toast.error('Failed to send invitation', {
+        description: result.error,
+      });
+    }
+    setSendingInviteId(null);
   };
 
   const filteredScouts = scouts.filter(
@@ -314,18 +335,35 @@ const ApprovedScoutsManager: React.FC = () => {
               </div>
 
               {/* Actions */}
-              <button
-                onClick={() => handleRemoveScout(scout.id)}
-                disabled={deletingId === scout.id}
-                className="p-2 bg-red-500/10 text-red-400 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/20 transition-all disabled:opacity-50"
-                title="Remove from approved list"
-              >
-                {deletingId === scout.id ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <Trash2 size={16} />
+              <div className="flex items-center gap-2">
+                {!scout.has_registered && (
+                  <button
+                    onClick={() => handleSendInvite(scout)}
+                    disabled={sendingInviteId === scout.id}
+                    className="px-3 py-2 bg-scout-accent/10 text-scout-accent rounded-lg hover:bg-scout-accent/20 transition-all disabled:opacity-50 flex items-center gap-1.5 text-xs font-bold"
+                    title="Send magic link invitation"
+                  >
+                    {sendingInviteId === scout.id ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Mail size={14} />
+                    )}
+                    Send Invite
+                  </button>
                 )}
-              </button>
+                <button
+                  onClick={() => handleRemoveScout(scout.id)}
+                  disabled={deletingId === scout.id}
+                  className="p-2 bg-red-500/10 text-red-400 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-500/20 transition-all disabled:opacity-50"
+                  title="Remove from approved list"
+                >
+                  {deletingId === scout.id ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Trash2 size={16} />
+                  )}
+                </button>
+              </div>
             </div>
           ))}
         </div>

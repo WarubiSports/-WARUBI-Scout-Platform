@@ -461,6 +461,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         title: '',
         location: '',
         date: '',
+        endDate: '',
         time: '',
         type: 'Showcase' as 'ID Day' | 'Showcase' | 'Camp' | 'Tournament' | 'Trial',
         fee: ''
@@ -477,6 +478,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             title: globalEventForm.title,
             location: globalEventForm.location,
             date: globalEventForm.date,
+            endDate: globalEventForm.endDate || undefined,
             time: globalEventForm.time || 'TBD',
             type: globalEventForm.type,
             fee: globalEventForm.fee ? parseFloat(globalEventForm.fee) : undefined,
@@ -499,6 +501,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     title: '',
                     location: '',
                     date: '',
+                    endDate: '',
                     time: '',
                     type: 'Showcase',
                     fee: ''
@@ -1141,14 +1144,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-3 gap-4">
+                                <div className="grid grid-cols-4 gap-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Date *</label>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Start Date *</label>
                                         <input
                                             type="date"
                                             className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                                             value={globalEventForm.date}
                                             onChange={e => setGlobalEventForm({ ...globalEventForm, date: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">End Date</label>
+                                        <input
+                                            type="date"
+                                            className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                            value={globalEventForm.endDate}
+                                            onChange={e => setGlobalEventForm({ ...globalEventForm, endDate: e.target.value })}
                                         />
                                     </div>
                                     <div>
@@ -1240,7 +1252,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                             <tr key={event.id} className="hover:bg-gray-50 transition-colors">
                                                 <td className="p-4 font-bold text-gray-900">{event.title}</td>
                                                 <td className="p-4 text-gray-600">{event.location}</td>
-                                                <td className="p-4 text-gray-600">{event.date}</td>
+                                                <td className="p-4 text-gray-600">
+                                                    {event.date}{event.endDate ? ` - ${event.endDate}` : ''}
+                                                </td>
                                                 <td className="p-4">
                                                     <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold">
                                                         {event.type}
