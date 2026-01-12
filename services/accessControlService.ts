@@ -193,14 +193,25 @@ export async function addApprovedScout(
   }
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    // Get user with timeout to prevent hanging
+    let approvedBy = 'admin';
+    try {
+      const userPromise = supabase.auth.getUser();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('getUser timeout')), 3000)
+      );
+      const { data: { user } } = await Promise.race([userPromise, timeoutPromise]) as any;
+      approvedBy = user?.email || 'admin';
+    } catch (e) {
+      console.warn('Could not get user for approved_by, using default');
+    }
 
     const { data, error } = await (supabase.rpc as any)('add_approved_scout', {
       p_email: email.toLowerCase().trim(),
       p_name: name || null,
       p_region: region || null,
       p_notes: notes || null,
-      p_approved_by: user?.email || 'admin'
+      p_approved_by: approvedBy
     });
 
     if (error) {
