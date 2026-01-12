@@ -154,7 +154,7 @@ export async function setUserPassword(password: string): Promise<{
 
 /**
  * Get all approved scouts (admin only)
- * Uses RPC function to bypass table-level access issues
+ * Uses direct REST API
  */
 export async function getAllApprovedScouts(): Promise<{
   scouts: ApprovedScout[];
@@ -165,15 +165,19 @@ export async function getAllApprovedScouts(): Promise<{
   }
 
   try {
-    const { data, error } = await supabase.rpc('get_all_approved_scouts');
+    const { data, error } = await supabaseRest.select<ApprovedScout>(
+      'approved_scouts',
+      'order=approved_at.desc'
+    );
 
     if (error) {
-      console.error('Error fetching approved scouts via RPC:', error);
+      console.error('Error fetching approved scouts:', error);
       return { scouts: [], error: error.message };
     }
 
     return { scouts: data || [] };
   } catch (err) {
+    console.error('Exception in getAllApprovedScouts:', err);
     return { scouts: [], error: 'Failed to fetch approved scouts' };
   }
 }
