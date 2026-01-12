@@ -350,10 +350,17 @@ ${user.name}`);
                                 </div>
                                 {filteredSpotlights.map(p => (
                                     <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all border-l-4 ${selectedPlayerId === p.id ? 'border-scout-accent bg-scout-accent/10' : 'border-transparent bg-scout-accent/5'} flex items-center justify-between group`}>
-                                        <div className="min-w-0">
+                                        <div className="min-w-0 flex-1">
                                             <p className="text-sm font-bold text-white truncate">{p.name}</p>
                                             <p className="text-[9px] text-scout-accent font-black uppercase">Verified • View Report</p>
                                         </div>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onStatusChange?.(p.id, PlayerStatus.INTERESTED); }}
+                                            className="opacity-0 group-hover:opacity-100 p-2 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-110"
+                                            title="Move to My Players"
+                                        >
+                                            <ArrowRight size={14} />
+                                        </button>
                                     </div>
                                 ))}
                             </div>
@@ -368,10 +375,17 @@ ${user.name}`);
                                 </div>
                                 {filteredSignals.map(p => (
                                     <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all border-l-4 signal-pulse ${selectedPlayerId === p.id ? 'border-orange-500 bg-orange-500/10' : 'border-transparent bg-orange-500/5'} flex items-center justify-between group`}>
-                                        <div className="min-w-0">
+                                        <div className="min-w-0 flex-1">
                                             <p className="text-sm font-bold text-white truncate">{p.name}</p>
                                             <p className="text-[9px] text-orange-400 font-black uppercase">Interacting • Live</p>
                                         </div>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onStatusChange?.(p.id, PlayerStatus.INTERESTED); }}
+                                            className="opacity-0 group-hover:opacity-100 p-2 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-110"
+                                            title="Move to My Players"
+                                        >
+                                            <ArrowRight size={14} />
+                                        </button>
                                     </div>
                                 ))}
                             </div>
@@ -385,11 +399,18 @@ ${user.name}`);
                                     <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Sparks Sent</h4>
                                 </div>
                                 {filteredSparks.map(p => (
-                                    <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all hover:bg-scout-700/30 flex items-center border-l-4 ${selectedPlayerId === p.id ? 'border-yellow-500 bg-yellow-500/5' : 'border-transparent'}`}>
-                                        <div className="min-w-0">
+                                    <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all hover:bg-scout-700/30 flex items-center border-l-4 group ${selectedPlayerId === p.id ? 'border-yellow-500 bg-yellow-500/5' : 'border-transparent'}`}>
+                                        <div className="min-w-0 flex-1">
                                             <p className="text-sm font-bold text-white truncate">{p.name}</p>
                                             <p className="text-[9px] text-gray-500 uppercase font-black">Waiting for Click</p>
                                         </div>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onStatusChange?.(p.id, PlayerStatus.INTERESTED); }}
+                                            className="opacity-0 group-hover:opacity-100 p-2 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-110"
+                                            title="Move to My Players"
+                                        >
+                                            <ArrowRight size={14} />
+                                        </button>
                                     </div>
                                 ))}
                             </div>
