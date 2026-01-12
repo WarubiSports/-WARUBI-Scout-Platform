@@ -572,7 +572,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                             <div>
                                 <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter italic">My Players</h2>
-                                <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2">Players Who've Signaled Interest</p>
+                                <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2">Your Player Portfolio</p>
                             </div>
                             <div className="flex items-center gap-4">
                                 <div className="bg-scout-800 p-1 rounded-xl border border-scout-700 flex shadow-inner">

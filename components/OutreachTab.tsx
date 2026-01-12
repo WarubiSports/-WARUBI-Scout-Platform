@@ -299,7 +299,7 @@ ${user.name}`);
           </div>
           <div className="flex gap-4 md:gap-12">
               {[
-                  { i: <Ghost size={16}/>, l: '1. Undiscovered', s: 'New Prospect', c: 'text-gray-500' },
+                  { i: <Ghost size={16}/>, l: '1. Prospect', s: 'New Lead', c: 'text-gray-500' },
                   { i: <Send size={16}/>, l: '2. Contacted', s: 'Outreach Sent', c: 'text-blue-500' },
                   { i: <Flame size={16} className="animate-pulse"/>, l: '3. Signal', s: 'Engaged', c: 'text-orange-500' },
                   { i: <Trophy size={16} className="text-scout-accent"/>, l: '4. My Players', s: 'Interested', c: 'text-scout-accent' }
@@ -395,10 +395,10 @@ ${user.name}`);
                             </div>
                         )}
 
-                        {/* 4. UNDISCOVERED */}
+                        {/* 4. PROSPECTS */}
                         <div className="px-6 py-4 border-t border-scout-700/30 flex items-center gap-2 mt-4">
                             <Ghost size={14} className="text-gray-600" />
-                            <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Undiscovered</h4>
+                            <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Prospects</h4>
                         </div>
                         <div className="divide-y divide-scout-700/30">
                             {filteredUndiscovered.map(p => (
@@ -591,7 +591,7 @@ ${user.name}`);
                                         <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest border border-gray-700 px-1.5 py-0.5 rounded">{selectedPlayer.position}</span>
                                         <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest border border-gray-700 px-1.5 py-0.5 rounded">{selectedPlayer.age} Years Old</span>
                                         <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${selectedPlayer.activityStatus === 'spotlight' ? 'bg-scout-accent/10 text-scout-accent' : 'bg-gray-700 text-gray-400'}`}>
-                                            {selectedPlayer.activityStatus === 'spotlight' ? 'Spotlight Verified' : selectedPlayer.activityStatus === 'signal' ? 'Signal Active' : selectedPlayer.activityStatus === 'spark' ? 'Spark Sent' : 'Undiscovered Ghost'}
+                                            {selectedPlayer.activityStatus === 'spotlight' ? 'Spotlight Verified' : selectedPlayer.activityStatus === 'signal' ? 'Signal Active' : selectedPlayer.activityStatus === 'spark' ? 'Spark Sent' : 'New Prospect'}
                                         </span>
                                     </div>
                                 </div>

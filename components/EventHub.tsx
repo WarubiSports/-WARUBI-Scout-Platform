@@ -321,7 +321,7 @@ const CreateEventForm = ({ formData, setFormData, loading, handleCreate, onCance
     </div>
 );
 
-const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateAttendance, copyToClipboard, copied, onSubmitForApproval, onSimulateHQApproval, onPublishEvent }: any) => {
+const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateAttendance, copyToClipboard, copied, onSubmitForApproval, onPublishEvent }: any) => {
     const isMine = event.role === 'HOST' || event.isMine;
     const isAttending = isMine || events.some((e: any) => e.id === event.id || (e.title === event.title && e.date === event.date));
     const [mobileTab, setMobileTab] = useState<'overview' | 'agenda' | 'tasks'>('overview');
@@ -484,8 +484,7 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                   {event.status === 'Pending Approval' && (
                                       <div className="bg-yellow-500/10 p-4 rounded-lg border border-yellow-500/30">
                                           <h4 className="text-yellow-500 font-bold text-sm mb-2 flex items-center gap-2"><Loader2 size={14} className="animate-spin"/> Under Review</h4>
-                                          <p className="text-xs text-yellow-200/70 mb-4">HQ is reviewing your proposal.</p>
-                                          <button onClick={() => onSimulateHQApproval(event)} className="w-full bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 font-bold py-2 rounded text-xs border border-yellow-500/50 uppercase tracking-wider">(Demo: HQ Approve)</button>
+                                          <p className="text-xs text-yellow-200/70">Warubi HQ is reviewing your event proposal. You'll be notified when approved.</p>
                                       </div>
                                   )}
                                   {event.status === 'Approved' && (
@@ -728,7 +727,6 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
 
 const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateEvent, onScanRoster }) => {
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
-  const [mobileTab, setMobileTab] = useState<'schedule' | 'discover'>('schedule');
   const [selectedEvent, setSelectedEvent] = useState<ScoutingEvent | null>(null);
   const [attendingEvent, setAttendingEvent] = useState<ScoutingEvent | null>(null);
   const [loading, setLoading] = useState(false);
@@ -882,11 +880,6 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
       handleUpdateEvent(updated);
   };
 
-  const simulateHQApproval = (event: ScoutingEvent) => {
-    const updated = { ...event, status: 'Approved' as EventStatus };
-    handleUpdateEvent(updated);
-  };
-
   const publishEvent = (event: ScoutingEvent) => {
       const updated = { ...event, status: 'Published' as EventStatus };
       handleUpdateEvent(updated);
@@ -922,7 +915,6 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
                 copyToClipboard={copyToClipboard}
                 copied={copied}
                 onSubmitForApproval={submitForApproval}
-                onSimulateHQApproval={simulateHQApproval}
                 onPublishEvent={publishEvent}
             />
         ) : (
@@ -951,19 +943,8 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
                     </div>
                 )}
 
-                {/* Mobile Tab Toggle */}
-                {isMobile && (
-                    <div className="flex border-b border-scout-700 bg-scout-900 sticky top-0 z-20">
-                        <button onClick={() => { haptic.light(); setMobileTab('schedule'); }} className={`flex-1 py-4 text-xs font-black uppercase tracking-widest active:scale-95 transition-transform ${mobileTab === 'schedule' ? 'text-scout-accent border-b-2 border-scout-accent' : 'text-gray-500'}`}>My Schedule</button>
-                        <button onClick={() => { haptic.light(); setMobileTab('discover'); }} className={`flex-1 py-4 text-xs font-black uppercase tracking-widest active:scale-95 transition-transform ${mobileTab === 'discover' ? 'text-scout-accent border-b-2 border-scout-accent' : 'text-gray-500'}`}>Opportunities</button>
-                    </div>
-                )}
-
                 <div className="flex-1 overflow-y-auto custom-scrollbar pb-24 md:pb-8">
-                    
-                    {/* SCHEDULE VIEW */}
-                    {(mobileTab === 'schedule' || !isMobile) && (
-                        <div className="space-y-8">
+                    <div className="space-y-8">
                             {/* THIS WEEK */}
                             {thisWeekEvents.length > 0 && (
                                 <div>
@@ -1026,9 +1007,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
                                     ))}
                                 </div>
                             )}
-                        </div>
-                    )}
-
+                    </div>
                 </div>
                 
                 {/* Mobile FAB */}
