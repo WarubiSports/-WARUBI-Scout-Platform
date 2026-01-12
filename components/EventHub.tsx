@@ -110,8 +110,18 @@ const AttendancePrepModal = ({ event, onCancel, onConfirm }: { event: ScoutingEv
             </div>
 
             <div className="p-4 bg-scout-900 flex gap-3 border-t border-scout-700">
-                <button onClick={onCancel} className="flex-1 py-3 text-gray-400 hover:text-white text-sm font-medium transition-colors">Cancel</button>
-                <button onClick={onConfirm} className="flex-[2] bg-scout-accent hover:bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
+                <button type="button" onClick={onCancel} className="flex-1 py-3 text-gray-400 hover:text-white text-sm font-medium transition-colors">Cancel</button>
+                <button
+                    type="button"
+                    onClick={() => {
+                        if (typeof onConfirm !== 'function') {
+                            alert('onConfirm is not a function!');
+                            return;
+                        }
+                        onConfirm();
+                    }}
+                    className="flex-[2] bg-scout-accent hover:bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+                >
                     Got it, Add to Schedule
                 </button>
             </div>
@@ -873,14 +883,23 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
   };
 
   const confirmAttendance = async () => {
-      if (!attendingEvent) return;
+      if (!attendingEvent) {
+          alert('No event selected');
+          return;
+      }
 
       const newEvent: ScoutingEvent = {
           ...attendingEvent,
           id: `event-${Date.now()}`,
           isMine: false,
           role: 'ATTENDEE',
-          status: 'Published'
+          status: 'Published',
+          marketingCopy: '',
+          agenda: [],
+          checklist: [
+              { task: "Get the Roster", completed: false },
+              { task: "Prepare Warubi QR Code", completed: false }
+          ]
       };
 
       try {
@@ -888,6 +907,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
           setAttendingEvent(null);
       } catch (error) {
           console.error('Failed to add event:', error);
+          alert('Failed to add event: ' + (error instanceof Error ? error.message : String(error)));
       }
   };
 

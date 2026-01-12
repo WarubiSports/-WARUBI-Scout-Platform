@@ -22,7 +22,7 @@ interface OutreachTabProps {
 }
 
 const INTENTS = [
-  { id: 'first_spark', title: 'First Spark', desc: 'Initial contact + Assessment Link', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' },
+  { id: 'first_spark', title: 'First Spark', desc: 'Initial contact message', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' },
   { id: 'invite_id', title: 'Invite to ID', desc: 'Formal invitation to event', color: 'bg-blue-500/10 text-blue-400 border-blue-500/30' },
   { id: 'request_video', title: 'Request Video', desc: 'Ask for highlight footage', color: 'bg-purple-500/10 text-purple-400 border-purple-500/30' },
   { id: 'follow_up', title: 'Follow-up', desc: 'Second spark after no signal', color: 'bg-amber-500/10 text-amber-400 border-amber-500/30' },
@@ -598,16 +598,6 @@ ${user.name}`);
 
                         {/* Terminal Header Controls */}
                         <div className="absolute top-4 right-6 flex items-center gap-4 z-10">
-                            <div className="flex items-center gap-2 bg-scout-900/80 border border-scout-700 px-2.5 py-1 rounded-full">
-                                <Link size={10} className={includeSmartLink ? "text-scout-accent" : "text-gray-600"} />
-                                <span className="text-[8px] font-black uppercase text-gray-500 tracking-widest">Assessment Link</span>
-                                <button 
-                                    onClick={() => setIncludeSmartLink(!includeSmartLink)}
-                                    className={`w-7 h-3.5 rounded-full relative transition-all ${includeSmartLink ? 'bg-scout-accent' : 'bg-scout-800'}`}
-                                >
-                                    <div className={`absolute top-0.5 w-2.5 h-2.5 bg-white rounded-full transition-all ${includeSmartLink ? 'left-[16px]' : 'left-0.5'}`}></div>
-                                </button>
-                            </div>
                             <div className="text-[9px] font-mono text-gray-700 uppercase tracking-widest hidden lg:block">Outreach v3.0</div>
                         </div>
 

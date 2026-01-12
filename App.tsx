@@ -58,12 +58,16 @@ const App: React.FC = () => {
     fetchApprovedScoutInfo();
   }, [isAuthenticated, user?.email, scout]);
 
+  // Track if initial view has been set
+  const [initialViewSet, setInitialViewSet] = useState(false);
+
   // Handle auth state and view routing
   useEffect(() => {
     if (authLoading || scoutLoading) return;
 
     if (!isAuthenticated) {
       setView(AppView.LOGIN);
+      setInitialViewSet(false); // Reset when logged out
       return;
     }
 
@@ -81,11 +85,16 @@ const App: React.FC = () => {
         leadMagnetActive: scout.lead_magnet_active,
       };
       setUserProfile(profile);
-      setView(scout.is_admin ? AppView.ADMIN : AppView.DASHBOARD);
+      // Only set initial view once, don't override on subsequent scout updates
+      if (!initialViewSet) {
+        setView(scout.is_admin ? AppView.ADMIN : AppView.DASHBOARD);
+        setInitialViewSet(true);
+      }
     } else {
       setView(AppView.ONBOARDING);
+      setInitialViewSet(false);
     }
-  }, [authLoading, scoutLoading, isAuthenticated, scout]);
+  }, [authLoading, scoutLoading, isAuthenticated, scout, initialViewSet]);
 
   const handleAddNotification = useCallback((notification: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) => {
       const newNotif: AppNotification = {

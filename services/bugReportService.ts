@@ -51,8 +51,22 @@ export async function createBugReport(
   }
 
   try {
-    // Get current user info
-    const { data: { user } } = await supabase.auth.getUser();
+    console.log('[createBugReport] Starting submission...');
+
+    // Get current user info - use a timeout to prevent hanging
+    console.log('[createBugReport] Getting user info...');
+    let user = null;
+    try {
+      const userPromise = supabase.auth.getUser();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('getUser timeout')), 3000)
+      );
+      const { data: { user: fetchedUser } } = await Promise.race([userPromise, timeoutPromise]) as any;
+      user = fetchedUser;
+      console.log('[createBugReport] Got user:', user?.email);
+    } catch (userError) {
+      console.warn('[createBugReport] Could not get user, continuing without:', userError);
+    }
 
     // Extract feedback type from title prefix (e.g., "[Feature] Title" -> "feature")
     let feedbackType: 'bug' | 'feature' | 'idea' | 'other' = 'other';
