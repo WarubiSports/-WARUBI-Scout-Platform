@@ -295,10 +295,10 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
     );
 
     const AuditSlider = ({ label, value, onChange, icon: Icon }: any) => {
-        const getGlowColor = (val: number) => {
-            if (val >= 85) return 'shadow-[0_0_15px_rgba(16,185,129,0.4)]';
-            if (val >= 70) return 'shadow-[0_0_10px_rgba(251,191,36,0.3)]';
-            return '';
+        const getTrackColor = (val: number) => {
+            if (val >= 85) return 'bg-scout-accent';
+            if (val >= 70) return 'bg-scout-highlight';
+            return 'bg-blue-500';
         };
 
         return (
@@ -308,22 +308,35 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                         {Icon && <Icon size={14} className="text-gray-500" />}
                         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{label}</span>
                     </div>
-                    <span className={`text-sm font-mono font-black ${value >= 85 ? 'text-scout-accent' : value >= 70 ? 'text-scout-highlight' : 'text-gray-500'}`}>
+                    <span className={`text-sm font-mono font-black ${value >= 85 ? 'text-scout-accent' : value >= 70 ? 'text-scout-highlight' : 'text-white'}`}>
                         {value}
                     </span>
                 </div>
-                <div className="relative h-6 flex items-center">
+                <div className="relative h-8 flex items-center">
+                    {/* Track background */}
+                    <div className="absolute inset-x-0 h-2 bg-scout-700 rounded-full" />
+                    {/* Filled track */}
+                    <div
+                        className={`absolute left-0 h-2 rounded-full transition-all ${getTrackColor(value)}`}
+                        style={{ width: `${value}%` }}
+                    />
+                    {/* Visual Benchmarks */}
+                    <div className="absolute left-[70%] top-1 bottom-1 w-px bg-gray-500/50 pointer-events-none" title="College Ready" />
+                    <div className="absolute left-[85%] top-1 bottom-1 w-px bg-scout-accent/50 pointer-events-none" title="Pro Prospect" />
+                    {/* Range input (invisible but handles interaction) */}
                     <input
                         type="range"
                         min="0"
                         max="100"
                         value={value}
                         onChange={(e) => onChange(parseInt(e.target.value))}
-                        className={`w-full h-1.5 bg-scout-900 rounded-full appearance-none cursor-pointer accent-scout-accent hover:accent-emerald-400 transition-all ${getGlowColor(value)}`}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     />
-                    {/* Visual Benchmarks */}
-                    <div className="absolute left-[70%] top-0 bottom-0 w-px bg-scout-700/50 pointer-events-none" title="College Ready"></div>
-                    <div className="absolute left-[85%] top-0 bottom-0 w-px bg-scout-accent/30 pointer-events-none" title="Pro Prospect"></div>
+                    {/* Custom thumb */}
+                    <div
+                        className={`absolute w-5 h-5 rounded-full border-2 border-white shadow-lg pointer-events-none transition-all ${getTrackColor(value)}`}
+                        style={{ left: `calc(${value}% - 10px)` }}
+                    />
                 </div>
             </div>
         );
@@ -388,6 +401,14 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                                                 status: PlayerStatus.LEAD,
                                                 submittedAt: new Date().toISOString(),
                                                 outreachLogs: [],
+                                                evaluation: {
+                                                    score: 0,
+                                                    tier: 'Pending' as const,
+                                                    summary: 'Quick add - awaiting full evaluation',
+                                                    strengths: [],
+                                                    concerns: [],
+                                                    collegeProjection: 'To be determined'
+                                                }
                                             };
                                             try {
                                                 await onAddPlayer(quickPlayer);

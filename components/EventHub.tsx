@@ -611,12 +611,19 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                   <div>
                                       <label className="text-sm font-semibold text-gray-300 flex items-center gap-2 mb-3"><Calendar size={14}/> Agenda</label>
                                       <ul className="space-y-2">
-                                          {(event.agenda || []).map((item: string, i: number) => (
-                                              <li key={i} className="flex items-start gap-2 text-sm text-gray-400">
-                                                  <span className="text-scout-accent font-mono text-xs mt-0.5">{item.split(' - ')[0]}</span>
-                                                  <span>{item.split(' - ')[1] || item}</span>
-                                              </li>
-                                          ))}
+                                          {(event.agenda || []).map((item: string, i: number) => {
+                                              const parts = item.split(' - ');
+                                              const time = parts[0];
+                                              // Remove time prefix from description (e.g., "09:30 AM: Registration" -> "Registration")
+                                              const descPart = parts[1] || item;
+                                              const description = descPart.replace(/^\d{1,2}:\d{2}\s*(AM|PM):?\s*/i, '');
+                                              return (
+                                                  <li key={i} className="flex items-start gap-2 text-sm text-gray-400">
+                                                      <span className="text-scout-accent font-mono text-xs mt-0.5">{time}</span>
+                                                      <span>{description}</span>
+                                                  </li>
+                                              );
+                                          })}
                                       </ul>
                                   </div>
                                   <div>
@@ -699,13 +706,19 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                 {mobileTab === 'agenda' && (
                     <div className="relative pl-6 space-y-6">
                         <div className="absolute left-[9px] top-2 bottom-2 w-0.5 bg-scout-700"></div>
-                        {(event.agenda || []).map((item: string, i: number) => (
-                            <div key={i} className="relative">
-                                <div className="absolute -left-6 top-1 w-2.5 h-2.5 rounded-full bg-scout-accent border-2 border-scout-900"></div>
-                                <p className="text-scout-accent font-mono text-xs font-bold mb-1">{item.split(' - ')[0]}</p>
-                                <p className="text-white text-sm bg-scout-800 p-3 rounded-lg border border-scout-700 shadow-sm">{item.split(' - ')[1] || item}</p>
-                            </div>
-                        ))}
+                        {(event.agenda || []).map((item: string, i: number) => {
+                            const parts = item.split(' - ');
+                            const time = parts[0];
+                            const descPart = parts[1] || item;
+                            const description = descPart.replace(/^\d{1,2}:\d{2}\s*(AM|PM):?\s*/i, '');
+                            return (
+                                <div key={i} className="relative">
+                                    <div className="absolute -left-6 top-1 w-2.5 h-2.5 rounded-full bg-scout-accent border-2 border-scout-900"></div>
+                                    <p className="text-scout-accent font-mono text-xs font-bold mb-1">{time}</p>
+                                    <p className="text-white text-sm bg-scout-800 p-3 rounded-lg border border-scout-700 shadow-sm">{description}</p>
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
 
