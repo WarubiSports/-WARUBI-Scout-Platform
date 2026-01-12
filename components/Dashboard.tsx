@@ -240,7 +240,12 @@ const Dashboard: React.FC<DashboardProps> = ({
     };
 
     const PipelineStack = () => {
-        const activePlayers = players.filter(p => p.status !== PlayerStatus.ARCHIVED);
+        // My Players only shows Interested, Offered, Placed (engaged players)
+        const activePlayers = players.filter(p =>
+            p.status === PlayerStatus.INTERESTED ||
+            p.status === PlayerStatus.OFFERED ||
+            p.status === PlayerStatus.PLACED
+        );
         const [stackIdx, setStackIdx] = useState(0);
         const currentPlayer = activePlayers[stackIdx];
 
@@ -253,14 +258,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className="w-20 h-20 bg-scout-800 rounded-3xl flex items-center justify-center mb-6 border border-scout-700">
                     <Users size={40} className="text-scout-accent" />
                 </div>
-                <p className="text-xl font-black uppercase italic text-white mb-2">Start Your Pipeline</p>
-                <p className="text-sm text-gray-400 mb-6 max-w-xs">Add your first player to begin tracking prospects and building your scouting network.</p>
+                <p className="text-xl font-black uppercase italic text-white mb-2">No Engaged Players Yet</p>
+                <p className="text-sm text-gray-400 mb-6 max-w-xs">Players who signal interest from your Scouting Pool will appear here.</p>
                 <button
-                    onClick={() => setIsSubmissionOpen(true)}
+                    onClick={() => setActiveTab(DashboardTab.OUTREACH)}
                     className="bg-scout-accent hover:bg-emerald-600 text-scout-900 px-6 py-3 rounded-xl font-black flex items-center gap-2 transition-all active:scale-95"
                 >
-                    <PlusCircle size={20} />
-                    Add First Player
+                    <MessageSquare size={20} />
+                    Go to Scouting Pool
                 </button>
             </div>
         );
@@ -326,8 +331,11 @@ const Dashboard: React.FC<DashboardProps> = ({
     };
 
     const ListView = () => {
+        // My Players only shows Interested, Offered, Placed (engaged players)
         const filteredPlayers = players.filter(p =>
-            p.status !== PlayerStatus.ARCHIVED &&
+            (p.status === PlayerStatus.INTERESTED ||
+             p.status === PlayerStatus.OFFERED ||
+             p.status === PlayerStatus.PLACED) &&
             p.name.toLowerCase().includes(listSearch.toLowerCase())
         );
 
@@ -336,7 +344,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className="p-6 border-b border-scout-700/50 bg-scout-900/40 flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="relative w-full md:w-96">
                         <Search className="absolute left-3 top-2.5 text-gray-500" size={18} />
-                        <input type="text" placeholder="Filter active pipeline..." className="w-full bg-scout-950 border border-scout-700 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-scout-accent transition-all" value={listSearch} onChange={(e) => setListSearch(e.target.value)} />
+                        <input type="text" placeholder="Filter my players..." className="w-full bg-scout-950 border border-scout-700 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-scout-accent transition-all" value={listSearch} onChange={(e) => setListSearch(e.target.value)} />
                     </div>
                 </div>
                 <div className="overflow-x-auto">
@@ -353,7 +361,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                     </td>
                                     <td className="px-6 py-4">
                                         <select value={p.status} onChange={(e) => handleStatusChange(p.id, e.target.value as PlayerStatus)} className="bg-scout-900/50 border border-scout-700/50 rounded-lg px-2 py-1 text-[10px] font-black uppercase text-gray-300 outline-none">
-                                            {[PlayerStatus.LEAD, PlayerStatus.CONTACTED, PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED, PlayerStatus.ARCHIVED].map(status => <option key={status} value={status}>{status}</option>)}
+                                            {[PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED, PlayerStatus.ARCHIVED].map(status => <option key={status} value={status}>{status}</option>)}
                                         </select>
                                     </td>
                                     <td className="px-6 py-4 font-black text-scout-accent">{p.evaluation?.score || '?'}</td>
@@ -394,8 +402,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <h1 className="text-2xl font-black tracking-tighter text-white uppercase italic">Warubi<span className="text-scout-accent">Scout</span></h1>
                 </div>
                 <nav className="flex-1 p-4 space-y-2 mt-4">
-                    <button onClick={() => setActiveTab(DashboardTab.PLAYERS)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.PLAYERS ? 'bg-scout-700 text-white' : 'text-gray-500 hover:bg-scout-900/50'}`}><Users size={20} /> Pipeline</button>
-                    <button onClick={() => setActiveTab(DashboardTab.OUTREACH)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.OUTREACH ? 'bg-scout-accent text-scout-900' : 'text-gray-300 hover:text-white'}`}><MessageSquare size={20} /> Outreach</button>
+                    <button onClick={() => setActiveTab(DashboardTab.PLAYERS)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.PLAYERS ? 'bg-scout-700 text-white' : 'text-gray-500 hover:bg-scout-900/50'}`}><Users size={20} /> My Players</button>
+                    <button onClick={() => setActiveTab(DashboardTab.OUTREACH)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.OUTREACH ? 'bg-scout-accent text-scout-900' : 'text-gray-300 hover:text-white'}`}><MessageSquare size={20} /> Scouting Pool</button>
                     <button onClick={() => setActiveTab(DashboardTab.EVENTS)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.EVENTS ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><CalendarDays size={20} /> Events</button>
                     <button onClick={() => setActiveTab(DashboardTab.KNOWLEDGE)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.KNOWLEDGE ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><Zap size={20} /> Training</button>
                 </nav>
@@ -563,8 +571,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                             <div>
-                                <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter italic">Pipeline</h2>
-                                <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2">Managed Leads & Signals</p>
+                                <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter italic">My Players</h2>
+                                <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2">Players Who've Signaled Interest</p>
                             </div>
                             <div className="flex items-center gap-4">
                                 <div className="bg-scout-800 p-1 rounded-xl border border-scout-700 flex shadow-inner">
@@ -578,7 +586,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
                         {viewMode === 'board' ? (
                             <div className="flex gap-6 overflow-x-auto pb-8 custom-scrollbar min-h-[500px]">
-                                {[PlayerStatus.LEAD, PlayerStatus.CONTACTED, PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED].map(status => (
+                                {[PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED].map(status => (
                                     <div key={status} onDragOver={(e) => onDragOver(e, status)} onDrop={(e) => onDrop(e, status)} className={`flex-1 min-w-[340px] flex flex-col bg-scout-800/20 rounded-[3rem] border ${draggedOverStatus === status ? 'border-scout-accent bg-scout-accent/5 shadow-glow' : 'border-scout-700/50'}`}>
                                         <div className="p-8 border-b border-scout-700/50 bg-scout-900/20 backdrop-blur-md flex justify-between items-center rounded-t-[3rem]"><h3 className="font-black uppercase text-[10px] tracking-[0.3em] opacity-50">{status}</h3><span className="text-[10px] bg-scout-900 border border-scout-700 px-3 py-1 rounded-full text-gray-500 font-black">{players.filter(p => p.status === status).length}</span></div>
                                         <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1 max-h-[calc(100vh-450px)]">
@@ -626,7 +634,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className="flex justify-around items-end max-w-md mx-auto">
                     <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.PLAYERS); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.PLAYERS ? 'text-scout-accent' : 'text-gray-600'}`}>
                         <Users size={24} />
-                        <span className="text-[9px] font-black uppercase">Pipeline</span>
+                        <span className="text-[9px] font-black uppercase">My Players</span>
                     </button>
                     <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.EVENTS); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.EVENTS ? 'text-scout-accent' : 'text-gray-600'}`}>
                         <CalendarDays size={24} />
@@ -639,7 +647,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     </div>
                     <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.OUTREACH); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.OUTREACH ? 'text-scout-accent' : 'text-gray-600'}`}>
                         <MessageSquare size={24} />
-                        <span className="text-[9px] font-black uppercase">Outreach</span>
+                        <span className="text-[9px] font-black uppercase">Pool</span>
                     </button>
                     <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.KNOWLEDGE); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.KNOWLEDGE ? 'text-scout-accent' : 'text-gray-600'}`}>
                         <Zap size={24} />

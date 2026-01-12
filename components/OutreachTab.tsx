@@ -117,15 +117,20 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
     };
   }, []);
 
-  // Grouping for the Sidebar - leads with different activity levels
-  const leadPool = players.filter(p => p.status === PlayerStatus.LEAD);
-  
-  const spotlights = leadPool.filter(p => p.activityStatus === 'spotlight');
-  const signals = leadPool.filter(p => p.activityStatus === 'signal');
-  const sparks = leadPool.filter(p => p.activityStatus === 'spark');
-  const undiscovered = leadPool.filter(p => !p.activityStatus || p.activityStatus === 'undiscovered');
+  // Scouting Pool shows early-stage prospects: Lead and Contacted statuses
+  const scoutingPool = players.filter(p =>
+    p.status === PlayerStatus.LEAD || p.status === PlayerStatus.CONTACTED
+  );
+
+  // Group by activity status for the sidebar
+  const spotlights = scoutingPool.filter(p => p.activityStatus === 'spotlight');
+  const signals = scoutingPool.filter(p => p.activityStatus === 'signal');
+  const sparks = scoutingPool.filter(p => p.activityStatus === 'spark');
+  const contacted = scoutingPool.filter(p => p.status === PlayerStatus.CONTACTED && (!p.activityStatus || p.activityStatus === 'undiscovered'));
+  const undiscovered = scoutingPool.filter(p => p.status === PlayerStatus.LEAD && (!p.activityStatus || p.activityStatus === 'undiscovered'));
 
   const filteredUndiscovered = undiscovered.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredContacted = contacted.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredSparks = sparks.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredSignals = signals.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredSpotlights = spotlights.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -231,12 +236,20 @@ ${user.name}`);
     });
   };
 
-  const promoteToSpotlight = () => {
+  // Move player to "My Players" section (Interested status)
+  const promoteToMyPlayers = () => {
       if (selectedPlayer && onStatusChange) {
-          onStatusChange(selectedPlayer.id, PlayerStatus.LEAD);
+          onStatusChange(selectedPlayer.id, PlayerStatus.INTERESTED);
           setSelectedPlayerId(null);
           setDraftedMessage('');
           setActiveIntent(null);
+      }
+  };
+
+  // Mark as contacted (first outreach sent)
+  const markAsContacted = () => {
+      if (selectedPlayer && onStatusChange) {
+          onStatusChange(selectedPlayer.id, PlayerStatus.CONTACTED);
       }
   };
 
@@ -280,16 +293,16 @@ ${user.name}`);
                   <Info size={20} />
               </div>
               <div>
-                  <h3 className="text-sm font-black text-white uppercase tracking-tighter italic">Talent Spotlight Protocol</h3>
-                  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Bridging the Gap from Shadow to Lead</p>
+                  <h3 className="text-sm font-black text-white uppercase tracking-tighter italic">Scouting Funnel</h3>
+                  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">From Discovery to My Players</p>
               </div>
           </div>
           <div className="flex gap-4 md:gap-12">
               {[
-                  { i: <Ghost size={16}/>, l: '1. Undiscovered', s: 'Hidden Talent', c: 'text-gray-500' },
-                  { i: <Zap size={16}/>, l: '2. Spark', s: 'Initial Contact', c: 'text-yellow-500' },
-                  { i: <Flame size={16} className="animate-pulse"/>, l: '3. Signal', s: 'Click Detected', c: 'text-orange-500' },
-                  { i: <Trophy size={16} className="text-scout-accent"/>, l: '4. Spotlight', s: 'Data Verified', c: 'text-scout-accent' }
+                  { i: <Ghost size={16}/>, l: '1. Undiscovered', s: 'New Prospect', c: 'text-gray-500' },
+                  { i: <Send size={16}/>, l: '2. Contacted', s: 'Outreach Sent', c: 'text-blue-500' },
+                  { i: <Flame size={16} className="animate-pulse"/>, l: '3. Signal', s: 'Engaged', c: 'text-orange-500' },
+                  { i: <Trophy size={16} className="text-scout-accent"/>, l: '4. My Players', s: 'Interested', c: 'text-scout-accent' }
               ].map((step, idx) => (
                   <div key={idx} className="flex flex-col items-center text-center">
                       <div className={`flex items-center gap-1.5 font-black uppercase text-[10px] mb-1 ${step.c}`}>
@@ -304,13 +317,13 @@ ${user.name}`);
 
       <div className="flex flex-1 gap-6 overflow-hidden">
         {/* LEFT: UNIFIED SIDEBAR */}
-        <CompactErrorBoundary name="Discovery Pool">
+        <CompactErrorBoundary name="Scouting Pool">
         <div className="w-1/3 bg-scout-800 rounded-[2rem] border border-scout-700 flex flex-col overflow-hidden shadow-2xl shrink-0">
             <div className="p-4 border-b border-scout-700 bg-scout-900/50">
                 <div className="flex justify-between items-center mb-4">
                     <div className="flex items-center gap-2">
                         <Users className="text-scout-highlight" size={18} />
-                        <h3 className="font-black text-white uppercase tracking-tighter italic">Discovery Pool</h3>
+                        <h3 className="font-black text-white uppercase tracking-tighter italic">Scouting Pool</h3>
                     </div>
                     <div className="flex bg-scout-800 p-1 rounded-xl border border-scout-700">
                         <button onClick={() => setIngestionMode('LIST')} className={`p-2 rounded-lg transition-all ${ingestionMode === 'LIST' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><LayoutList size={16} /></button>
@@ -397,6 +410,26 @@ ${user.name}`);
                                 </div>
                             ))}
                         </div>
+
+                        {/* 5. CONTACTED (Awaiting Response) */}
+                        {filteredContacted.length > 0 && (
+                            <>
+                                <div className="px-6 py-4 border-t border-scout-700/30 flex items-center gap-2 mt-4">
+                                    <Send size={14} className="text-blue-500" />
+                                    <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Contacted</h4>
+                                </div>
+                                <div className="divide-y divide-scout-700/30">
+                                    {filteredContacted.map(p => (
+                                        <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all hover:bg-scout-700/50 flex items-center border-l-4 ${selectedPlayerId === p.id ? 'border-blue-500 bg-blue-500/10' : 'border-transparent'}`}>
+                                            <div className="min-w-0 flex-1">
+                                                <h4 className="text-sm font-bold truncate text-white">{p.name}</h4>
+                                                <p className="text-[9px] text-blue-400 font-black uppercase">{p.position} • Awaiting Response</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
                     </div>
                 ) : ingestionMode === 'DROPZONE' ? (
                     <div className="p-6 h-full flex flex-col animate-fade-in space-y-6">
@@ -536,11 +569,11 @@ ${user.name}`);
                                      </p>
                                  </div>
                              </div>
-                             <button 
-                                onClick={promoteToSpotlight}
+                             <button
+                                onClick={promoteToMyPlayers}
                                 className="px-6 py-2 bg-scout-accent hover:bg-emerald-600 text-scout-900 font-black rounded-xl shadow-glow relative z-10 transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest"
                              >
-                                <Trophy size={14}/> Promote to Pipeline
+                                <Trophy size={14}/> Move to My Players
                              </button>
                         </div>
                     )}

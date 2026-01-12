@@ -18,46 +18,6 @@ interface EventHubProps {
   onScanRoster?: (event: ScoutingEvent) => void;
 }
 
-// Mock Data for "Inspiration" / Overview
-const MOCK_OPPORTUNITIES: ScoutingEvent[] = [
-    {
-        id: 'global-1',
-        isMine: false,
-        role: 'ATTENDEE',
-        status: 'Published',
-        title: 'Dallas Cup 2025',
-        date: '2025-04-14',
-        location: 'Dallas, TX',
-        type: 'Tournament',
-        fee: 'N/A',
-        registeredCount: 400
-    },
-    {
-        id: 'global-2',
-        isMine: false,
-        role: 'ATTENDEE',
-        status: 'Published',
-        title: 'Surf Cup Summer',
-        date: '2025-07-25',
-        location: 'San Diego, CA',
-        type: 'Tournament',
-        fee: 'N/A',
-        registeredCount: 600
-    },
-    {
-        id: 'global-3',
-        isMine: false,
-        role: 'ATTENDEE',
-        status: 'Published',
-        title: 'WARUBI Germany Showcase',
-        date: '2025-08-10',
-        location: 'Frankfurt, DE',
-        type: 'Showcase',
-        fee: '€150',
-        registeredCount: 85
-    }
-];
-
 // --- EXTRACTED COMPONENTS ---
 
 const StatusPill = ({ status }: { status: EventStatus }) => {
@@ -1069,29 +1029,6 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
                         </div>
                     )}
 
-                    {/* OPPORTUNITIES / DISCOVER (ALWAYS VISIBLE ON DESKTOP RIGHT OR VIA MOBILE TAB) */}
-                    {(mobileTab === 'discover' || !isMobile) && (
-                        <div className={!isMobile ? "mt-12 pt-12 border-t border-scout-800" : ""}>
-                            <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                                <Sparkles size={12} className="text-scout-highlight"/> Opportunities to Scout
-                            </h4>
-                            <div className="space-y-2">
-                                {MOCK_OPPORTUNITIES.map(evt => {
-                                    const isAdded = events.some(e => e.id === evt.id || (e.title === evt.title && e.date === evt.date));
-                                    return (
-                                        <EventRow 
-                                            key={evt.id} 
-                                            event={evt} 
-                                            isOpportunity={true} 
-                                            isAdded={isAdded}
-                                            onClick={(e) => { setSelectedEvent(e); setView('detail'); }}
-                                            onAdd={initiateAttendance}
-                                        />
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
                 </div>
                 
                 {/* Mobile FAB */}
