@@ -206,8 +206,13 @@ const EventRow: React.FC<{ event: ScoutingEvent; isOpportunity?: boolean; isAdde
                             <CheckCircle size={14}/> Scheduled
                         </div>
                     ) : (
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); onAdd && onAdd(event); }}
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (onAdd) {
+                                    onAdd(event);
+                                }
+                            }}
                             className="bg-scout-accent hover:bg-emerald-600 text-scout-900 font-bold text-xs px-4 py-1.5 rounded-full shadow-lg active:scale-95 transition-all flex items-center gap-1"
                         >
                             <Plus size={14} /> Add to Schedule
@@ -748,6 +753,15 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
   const [showGuide, setShowGuide] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
+  // Wrapper to sync selectedEvent when an event is updated
+  const handleUpdateEvent = (updatedEvent: ScoutingEvent) => {
+    onUpdateEvent(updatedEvent);
+    // If the updated event is currently selected, sync the local state
+    if (selectedEvent && selectedEvent.id === updatedEvent.id) {
+      setSelectedEvent(updatedEvent);
+    }
+  };
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
@@ -833,8 +847,8 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
   };
 
   const initiateAttendance = (eventToMark: ScoutingEvent) => {
-      const isAlreadyAdded = events.some(e => 
-          e.id === eventToMark.id || 
+      const isAlreadyAdded = events.some(e =>
+          e.id === eventToMark.id ||
           (e.title === eventToMark.title && e.date === eventToMark.date)
       );
 
@@ -846,11 +860,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
   };
 
   const confirmAttendance = async () => {
-      console.log('[confirmAttendance] Button clicked, attendingEvent:', attendingEvent?.title);
-      if (!attendingEvent) {
-          console.error('[confirmAttendance] No attendingEvent set');
-          return;
-      }
+      if (!attendingEvent) return;
 
       const newEvent: ScoutingEvent = {
           ...attendingEvent,
@@ -860,13 +870,11 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
           status: 'Published'
       };
 
-      console.log('[confirmAttendance] Calling onAddEvent with:', newEvent);
       try {
           await onAddEvent(newEvent);
-          console.log('[confirmAttendance] onAddEvent completed');
           setAttendingEvent(null);
       } catch (error) {
-          console.error('[confirmAttendance] Failed to add event:', error);
+          console.error('Failed to add event:', error);
       }
   };
 
@@ -878,30 +886,27 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
 
   const submitForApproval = (event: ScoutingEvent) => {
       const updated = { ...event, status: 'Pending Approval' as EventStatus };
-      onUpdateEvent(updated);
-      setSelectedEvent(updated);
+      handleUpdateEvent(updated);
   };
 
   const simulateHQApproval = (event: ScoutingEvent) => {
     const updated = { ...event, status: 'Approved' as EventStatus };
-    onUpdateEvent(updated);
-    setSelectedEvent(updated);
+    handleUpdateEvent(updated);
   };
 
   const publishEvent = (event: ScoutingEvent) => {
       const updated = { ...event, status: 'Published' as EventStatus };
-      onUpdateEvent(updated);
-      setSelectedEvent(updated);
+      handleUpdateEvent(updated);
   };
 
   return (
     <div className="h-full relative">
         {showGuide && <HostGuideModal onClose={() => setShowGuide(false)} />}
         {attendingEvent && (
-            <AttendancePrepModal 
-                event={attendingEvent} 
-                onCancel={() => setAttendingEvent(null)} 
-                onConfirm={confirmAttendance} 
+            <AttendancePrepModal
+                event={attendingEvent}
+                onCancel={() => setAttendingEvent(null)}
+                onConfirm={confirmAttendance}
             />
         )}
 
@@ -919,7 +924,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
                 events={events}
                 isMobile={isMobile}
                 onClose={() => setView('list')}
-                onUpdateEvent={onUpdateEvent}
+                onUpdateEvent={handleUpdateEvent}
                 initiateAttendance={initiateAttendance}
                 copyToClipboard={copyToClipboard}
                 copied={copied}

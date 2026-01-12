@@ -1,7 +1,6 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, supabaseRest } from '../lib/supabase';
 import type { BugReport, BugReportStatus, BugReportPriority } from '../types';
-
-// const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL; // Unused
+import type { Feedback, FeedbackInsert } from '../lib/database.types';
 
 /**
  * Upload a screenshot to Supabase Storage
@@ -10,8 +9,8 @@ export async function uploadScreenshot(file: File): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
 
   try {
-    const fileName = `bug-${Date.now()}-${Math.random().toString(36).substring(7)}.${file.name.split('.').pop()}`;
-    const filePath = `bug-screenshots/${fileName}`;
+    const fileName = `feedback-${Date.now()}-${Math.random().toString(36).substring(7)}.${file.name.split('.').pop()}`;
+    const filePath = `feedback-screenshots/${fileName}`;
 
     const { error } = await supabase.storage
       .from('uploads')
@@ -38,7 +37,7 @@ export async function uploadScreenshot(file: File): Promise<string | null> {
 }
 
 /**
- * Create a new bug report using RPC function
+ * Create a new feedback/bug report using direct REST API
  */
 export async function createBugReport(
   title: string,
@@ -55,30 +54,60 @@ export async function createBugReport(
     // Get current user info
     const { data: { user } } = await supabase.auth.getUser();
 
-    const { data, error } = await (supabase.rpc as any)('create_bug_report', {
-      p_title: title,
-      p_description: description || null,
-      p_page_url: pageUrl || null,
-      p_reporter_id: user?.id || null,
-      p_reporter_name: user?.email || 'Anonymous',
-      p_screenshot_url: screenshotUrl || null,
-      p_priority: priority || 'medium'
-    });
+    // Extract feedback type from title prefix (e.g., "[Feature] Title" -> "feature")
+    let feedbackType: 'bug' | 'feature' | 'idea' | 'other' = 'other';
+    let cleanTitle = title;
+
+    const typeMatch = title.match(/^\[(Bug|Feature|Idea|Other)\]\s*/i);
+    if (typeMatch) {
+      const type = typeMatch[1].toLowerCase();
+      if (type === 'bug' || type === 'feature' || type === 'idea' || type === 'other') {
+        feedbackType = type;
+      }
+      cleanTitle = title.replace(typeMatch[0], '');
+    }
+
+    const feedbackData: FeedbackInsert = {
+      title: cleanTitle,
+      description: description || null,
+      feedback_type: feedbackType,
+      page_url: pageUrl || null,
+      reporter_id: user?.id || null,
+      reporter_name: user?.user_metadata?.name || user?.email?.split('@')[0] || 'Anonymous',
+      reporter_email: user?.email || null,
+      screenshot_url: screenshotUrl || null,
+      status: 'open',
+      priority: priority || 'medium'
+    };
+
+    console.log('[createBugReport] Submitting feedback:', feedbackData);
+
+    const { data, error } = await supabaseRest.insert<Feedback>('feedback', feedbackData);
 
     if (error) {
-      console.error('Error creating bug report:', error);
+      console.error('Error creating feedback:', error);
+
+      // Check if it's a table not found error
+      if (error.message.includes('does not exist') || error.message.includes('404')) {
+        return {
+          success: false,
+          error: 'Feedback table not set up. Please contact admin to create the feedback table in Supabase.'
+        };
+      }
+
       return { success: false, error: error.message };
     }
 
-    return { success: true, id: data };
+    console.log('[createBugReport] Success! Feedback ID:', data?.id);
+    return { success: true, id: data?.id };
   } catch (err) {
     console.error('Error in createBugReport:', err);
-    return { success: false, error: 'Failed to submit bug report' };
+    return { success: false, error: 'Failed to submit feedback' };
   }
 }
 
 /**
- * Get all bug reports (admin only)
+ * Get all feedback/bug reports (admin only)
  */
 export async function getAllBugReports(): Promise<{
   reports: BugReport[];
@@ -89,25 +118,28 @@ export async function getAllBugReports(): Promise<{
   }
 
   try {
-    const { data, error } = await (supabase.rpc as any)('get_all_bug_reports');
+    const { data, error } = await supabaseRest.select<Feedback>(
+      'feedback',
+      'order=created_at.desc'
+    );
 
     if (error) {
-      console.error('Error fetching bug reports:', error);
+      console.error('Error fetching feedback:', error);
       return { reports: [], error: error.message };
     }
 
-    // Transform snake_case to camelCase
-    const reports: BugReport[] = (data || []).map((r: any) => ({
+    // Transform to BugReport type
+    const reports: BugReport[] = ((data as Feedback[]) || []).map((r) => ({
       id: r.id,
       title: r.title,
-      description: r.description,
-      pageUrl: r.page_url,
-      reporterId: r.reporter_id,
-      reporterName: r.reporter_name,
-      screenshotUrl: r.screenshot_url,
+      description: r.description || undefined,
+      pageUrl: r.page_url || undefined,
+      reporterId: r.reporter_id || undefined,
+      reporterName: r.reporter_name || undefined,
+      screenshotUrl: r.screenshot_url || undefined,
       status: r.status,
       priority: r.priority,
-      adminNotes: r.admin_notes,
+      adminNotes: r.admin_notes || undefined,
       createdAt: r.created_at,
       updatedAt: r.updated_at
     }));
@@ -115,12 +147,12 @@ export async function getAllBugReports(): Promise<{
     return { reports };
   } catch (err) {
     console.error('Error in getAllBugReports:', err);
-    return { reports: [], error: 'Failed to fetch bug reports' };
+    return { reports: [], error: 'Failed to fetch feedback' };
   }
 }
 
 /**
- * Update bug report status (admin only)
+ * Update feedback status (admin only)
  */
 export async function updateBugReportStatus(
   id: string,
@@ -132,21 +164,21 @@ export async function updateBugReportStatus(
   }
 
   try {
-    const { data, error } = await (supabase.rpc as any)('update_bug_report_status', {
-      p_id: id,
-      p_status: status,
-      p_admin_notes: adminNotes || null
+    const { error } = await supabaseRest.update('feedback', `id=eq.${id}`, {
+      status,
+      admin_notes: adminNotes || null,
+      updated_at: new Date().toISOString()
     });
 
     if (error) {
-      console.error('Error updating bug report:', error);
+      console.error('Error updating feedback:', error);
       return { success: false, error: error.message };
     }
 
-    return { success: data === true };
+    return { success: true };
   } catch (err) {
     console.error('Error in updateBugReportStatus:', err);
-    return { success: false, error: 'Failed to update bug report' };
+    return { success: false, error: 'Failed to update feedback' };
   }
 }
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { supabase, isSupabaseConfigured, supabaseRest } from '../lib/supabase'
 import type { ScoutingEvent as DbEvent, ScoutingEventInsert, ScoutingEventUpdate } from '../lib/database.types'
 import type { ScoutingEvent, EventStatus } from '../types'
 import { parseAgenda, parseChecklist, agendaToJson, checklistToJson } from '../lib/guards'
@@ -202,12 +202,10 @@ export function useEvents(scoutId: string | undefined) {
         if (updates.registeredCount !== undefined) dbUpdates.registered_count = updates.registeredCount
         if (updates.hostName !== undefined) dbUpdates.host_name = updates.hostName
 
-        const { error } = await (supabase
-          .from('scouting_events') as any)
-          .update(dbUpdates)
-          .eq('id', eventId)
+        // Use REST API to bypass Supabase JS client AbortError issues
+        const { error } = await supabaseRest.update('scouting_events', `id=eq.${eventId}`, dbUpdates)
 
-        if (error) throw error
+        if (error) throw new Error(error.message)
 
         setEvents((prev) =>
           prev.map((e) => (e.id === eventId ? { ...e, ...updates } : e))

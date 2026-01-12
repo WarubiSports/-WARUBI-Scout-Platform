@@ -431,6 +431,55 @@ export interface Database {
           description?: string | null
         }
       }
+      feedback: {
+        Row: {
+          id: string
+          title: string
+          description: string | null
+          feedback_type: 'bug' | 'feature' | 'idea' | 'other'
+          page_url: string | null
+          reporter_id: string | null
+          reporter_name: string | null
+          reporter_email: string | null
+          screenshot_url: string | null
+          status: 'open' | 'in_progress' | 'resolved' | 'closed'
+          priority: 'low' | 'medium' | 'high' | 'critical'
+          admin_notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          description?: string | null
+          feedback_type?: 'bug' | 'feature' | 'idea' | 'other'
+          page_url?: string | null
+          reporter_id?: string | null
+          reporter_name?: string | null
+          reporter_email?: string | null
+          screenshot_url?: string | null
+          status?: 'open' | 'in_progress' | 'resolved' | 'closed'
+          priority?: 'low' | 'medium' | 'high' | 'critical'
+          admin_notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          description?: string | null
+          feedback_type?: 'bug' | 'feature' | 'idea' | 'other'
+          page_url?: string | null
+          reporter_id?: string | null
+          reporter_name?: string | null
+          reporter_email?: string | null
+          screenshot_url?: string | null
+          status?: 'open' | 'in_progress' | 'resolved' | 'closed'
+          priority?: 'low' | 'medium' | 'high' | 'critical'
+          admin_notes?: string | null
+          updated_at?: string
+        }
+      }
     }
   }
 }
@@ -450,3 +499,7 @@ export type OutreachLogInsert = Database['public']['Tables']['scout_outreach_log
 export type ScoutingEvent = Database['public']['Tables']['scouting_events']['Row']
 export type ScoutingEventInsert = Database['public']['Tables']['scouting_events']['Insert']
 export type ScoutingEventUpdate = Database['public']['Tables']['scouting_events']['Update']
+
+export type Feedback = Database['public']['Tables']['feedback']['Row']
+export type FeedbackInsert = Database['public']['Tables']['feedback']['Insert']
+export type FeedbackUpdate = Database['public']['Tables']['feedback']['Update']
