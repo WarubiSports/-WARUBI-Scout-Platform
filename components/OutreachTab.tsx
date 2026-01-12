@@ -10,7 +10,8 @@ import {
 } from 'lucide-react';
 import { generateOutreachMessage, extractPlayersFromBulkData, extractRosterFromPhoto, AIUsageLimitError } from '../services/geminiService';
 import { CompactErrorBoundary } from './ErrorBoundary';
-import { handleMobileFocus } from '../hooks/useMobileFeatures';
+import { handleMobileFocus, haptic } from '../hooks/useMobileFeatures';
+import { toast } from 'sonner';
 
 interface OutreachTabProps {
   players: Player[];
