@@ -402,11 +402,18 @@ ${user.name}`);
                         </div>
                         <div className="divide-y divide-scout-700/30">
                             {filteredUndiscovered.map(p => (
-                                <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all hover:bg-scout-700/50 flex items-center opacity-60 grayscale border-l-4 ${selectedPlayerId === p.id ? 'border-white/20 bg-white/5 grayscale-0 opacity-100' : 'border-transparent'}`}>
+                                <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all hover:bg-scout-700/50 flex items-center opacity-60 grayscale border-l-4 group ${selectedPlayerId === p.id ? 'border-white/20 bg-white/5 grayscale-0 opacity-100' : 'border-transparent'}`}>
                                     <div className="min-w-0 flex-1">
                                         <h4 className="text-sm font-bold truncate text-white">{p.name}</h4>
                                         <p className="text-[9px] text-gray-500 font-black uppercase">{p.position} • {p.age}yo</p>
                                     </div>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onStatusChange?.(p.id, PlayerStatus.INTERESTED); }}
+                                        className="opacity-0 group-hover:opacity-100 p-2 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-110"
+                                        title="Move to My Players"
+                                    >
+                                        <ArrowRight size={14} />
+                                    </button>
                                 </div>
                             ))}
                         </div>
@@ -420,11 +427,18 @@ ${user.name}`);
                                 </div>
                                 <div className="divide-y divide-scout-700/30">
                                     {filteredContacted.map(p => (
-                                        <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all hover:bg-scout-700/50 flex items-center border-l-4 ${selectedPlayerId === p.id ? 'border-blue-500 bg-blue-500/10' : 'border-transparent'}`}>
+                                        <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all hover:bg-scout-700/50 flex items-center border-l-4 group ${selectedPlayerId === p.id ? 'border-blue-500 bg-blue-500/10' : 'border-transparent'}`}>
                                             <div className="min-w-0 flex-1">
                                                 <h4 className="text-sm font-bold truncate text-white">{p.name}</h4>
                                                 <p className="text-[9px] text-blue-400 font-black uppercase">{p.position} • Awaiting Response</p>
                                             </div>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onStatusChange?.(p.id, PlayerStatus.INTERESTED); }}
+                                                className="opacity-0 group-hover:opacity-100 p-2 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-110"
+                                                title="Move to My Players"
+                                            >
+                                                <ArrowRight size={14} />
+                                            </button>
                                         </div>
                                     ))}
                                 </div>
