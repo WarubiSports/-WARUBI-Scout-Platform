@@ -122,9 +122,19 @@ const saveUsageData = (daily: AIUsageRecord, monthly: AIUsageRecord): void => {
   }
 };
 
+// Admin bypass flag - set via setAdminMode()
+let isAdminUser = false;
+
+/**
+ * Set admin mode to bypass limits
+ */
+export const setAdminMode = (isAdmin: boolean): void => {
+  isAdminUser = isAdmin;
+};
+
 /**
  * Check if an operation can be performed within limits
- * NOTE: Limits disabled for admin/testing - always allows operations
+ * Admin users bypass all limits
  */
 export const canPerformOperation = (operationType: AIOperationType): {
   allowed: boolean;
@@ -134,11 +144,42 @@ export const canPerformOperation = (operationType: AIOperationType): {
 } => {
   const cost = OPERATION_COSTS[operationType];
 
-  // Limits disabled - always allow
+  // Admin users have no limits
+  if (isAdminUser) {
+    return {
+      allowed: true,
+      creditsNeeded: cost,
+      creditsRemaining: { daily: Infinity, monthly: Infinity }
+    };
+  }
+
+  const { daily, monthly } = loadUsageData();
+
+  const dailyRemaining = FREE_TIER_LIMITS.dailyCredits - daily.totalCredits;
+  const monthlyRemaining = FREE_TIER_LIMITS.monthlyCredits - monthly.totalCredits;
+
+  if (dailyRemaining < cost) {
+    return {
+      allowed: false,
+      reason: `Daily AI limit reached. Resets at midnight. (${dailyRemaining}/${FREE_TIER_LIMITS.dailyCredits} credits remaining)`,
+      creditsNeeded: cost,
+      creditsRemaining: { daily: dailyRemaining, monthly: monthlyRemaining }
+    };
+  }
+
+  if (monthlyRemaining < cost) {
+    return {
+      allowed: false,
+      reason: `Monthly AI limit reached. Resets on the 1st. (${monthlyRemaining}/${FREE_TIER_LIMITS.monthlyCredits} credits remaining)`,
+      creditsNeeded: cost,
+      creditsRemaining: { daily: dailyRemaining, monthly: monthlyRemaining }
+    };
+  }
+
   return {
     allowed: true,
     creditsNeeded: cost,
-    creditsRemaining: { daily: Infinity, monthly: Infinity }
+    creditsRemaining: { daily: dailyRemaining, monthly: monthlyRemaining }
   };
 };
 

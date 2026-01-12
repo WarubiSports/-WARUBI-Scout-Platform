@@ -10,6 +10,7 @@ import PasswordSetupModal from './components/PasswordSetupModal';
 import { evaluatePlayer } from './services/geminiService';
 import { sendProspectToTrial } from './services/trialService';
 import { isEmailApproved } from './services/accessControlService';
+import { setAdminMode } from './services/aiUsageService';
 import { useAuthContext } from './contexts/AuthContext';
 import { useScoutContext } from './contexts/ScoutContext';
 import { useProspects } from './hooks/useProspects';
@@ -72,6 +73,9 @@ const App: React.FC = () => {
     }
 
     if (scout) {
+      // Set admin mode for AI usage limits
+      setAdminMode(scout.is_admin || false);
+
       const profile: UserProfile = {
         name: scout.name,
         roles: scout.roles || ['Regional Scout'],
