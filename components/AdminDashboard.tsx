@@ -295,23 +295,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {/* Recent Activity */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                     <h3 className="font-bold text-gray-900 mb-4">Live Network Feed</h3>
-                    <div className="space-y-4">
-                        {[
-                            { text: "Sarah Jenkins submitted a Tier 1 Prospect", time: "2m ago", icon: Users, color: "text-blue-500 bg-blue-50" },
-                            { text: "New Event Request: 'Berlin Summer ID'", time: "15m ago", icon: Calendar, color: "text-orange-500 bg-orange-50" },
-                            { text: "James O. reached 60 leads milestone", time: "1h ago", icon: Award, color: "text-yellow-500 bg-yellow-50" },
-                            { text: "System Audit complete", time: "3h ago", icon: ShieldCheck, color: "text-green-500 bg-green-50" },
-                        ].map((item, i) => (
-                            <div key={i} className="flex items-start gap-3 pb-3 border-b border-gray-50 last:border-0 last:pb-0">
-                                <div className={`p-2 rounded-full ${item.color}`}>
-                                    <item.icon size={16} />
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-800 font-medium">{item.text}</p>
-                                    <p className="text-xs text-gray-400">{item.time}</p>
-                                </div>
-                            </div>
-                        ))}
+                    <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                        <Activity size={32} className="mb-3 opacity-50" />
+                        <p className="text-sm">No recent activity</p>
+                        <p className="text-xs mt-1">Activity will appear here as scouts work</p>
                     </div>
                 </div>
 
@@ -358,7 +345,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-2">
                                     <span className="bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-1 rounded uppercase">Pending Review</span>
-                                    <span className="text-sm text-gray-500">Submitted by Alex Scout</span>
+                                    {evt.scoutId && <span className="text-sm text-gray-500">Submitted by {scouts.find(s => s.id === evt.scoutId)?.name || 'Scout'}</span>}
                                 </div>
                                 <h3 className="text-xl font-bold text-gray-900 mb-1">{evt.title}</h3>
                                 <div className="flex gap-4 text-sm text-gray-600 mb-4">
@@ -532,175 +519,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     // Filter global events (events without a specific scout or marked as global)
     const globalEvents = events.filter(e => e.isGlobal);
-
-    const GlobalEventsTab = () => (
-        <div className="space-y-6 animate-fade-in">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-900">Global Events</h2>
-                    <p className="text-gray-500 text-sm">Create events visible to all scouts in the network</p>
-                </div>
-                <button
-                    onClick={() => setIsAddingGlobalEvent(!isAddingGlobalEvent)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2"
-                >
-                    <Plus size={18} /> {isAddingGlobalEvent ? 'Cancel' : 'Create Event'}
-                </button>
-            </div>
-
-            {/* Add Event Form */}
-            {isAddingGlobalEvent && (
-                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
-                    <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                        <Globe size={20} className="text-blue-500" /> New Global Event
-                    </h3>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Title *</label>
-                            <input
-                                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                value={globalEventForm.title}
-                                onChange={e => setGlobalEventForm({ ...globalEventForm, title: e.target.value })}
-                                placeholder="e.g. WARUBI Summer Showcase 2025"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Location *</label>
-                            <input
-                                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                value={globalEventForm.location}
-                                onChange={e => setGlobalEventForm({ ...globalEventForm, location: e.target.value })}
-                                placeholder="e.g. Dallas, TX"
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Date *</label>
-                            <input
-                                type="date"
-                                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                value={globalEventForm.date}
-                                onChange={e => setGlobalEventForm({ ...globalEventForm, date: e.target.value })}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Time</label>
-                            <input
-                                type="time"
-                                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                value={globalEventForm.time}
-                                onChange={e => setGlobalEventForm({ ...globalEventForm, time: e.target.value })}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Type</label>
-                            <select
-                                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                value={globalEventForm.type}
-                                onChange={e => setGlobalEventForm({ ...globalEventForm, type: e.target.value as any })}
-                            >
-                                <option value="ID Day">ID Day</option>
-                                <option value="Showcase">Showcase</option>
-                                <option value="Camp">Camp</option>
-                                <option value="Tournament">Tournament</option>
-                                <option value="Trial">Trial</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Fee (Optional)</label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-2.5 text-gray-400">$</span>
-                                <input
-                                    type="number"
-                                    className="w-full border border-gray-300 rounded-lg p-2.5 pl-7 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                    value={globalEventForm.fee}
-                                    onChange={e => setGlobalEventForm({ ...globalEventForm, fee: e.target.value })}
-                                    placeholder="0"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                        <button
-                            onClick={() => setIsAddingGlobalEvent(false)}
-                            className="px-4 py-2 text-gray-500 hover:text-gray-700 font-bold text-sm"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleSaveGlobalEvent}
-                            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-lg flex items-center gap-2"
-                        >
-                            <Check size={16} /> Create Global Event
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Events List */}
-            {globalEvents.length === 0 && !isAddingGlobalEvent ? (
-                <div className="bg-white p-12 rounded-xl border border-gray-200 text-center">
-                    <Calendar size={48} className="mx-auto text-gray-300 mb-4" />
-                    <h3 className="text-lg font-bold text-gray-900">No Global Events</h3>
-                    <p className="text-gray-500 mb-4">Create events that all scouts in your network can see and attend.</p>
-                    <button
-                        onClick={() => setIsAddingGlobalEvent(true)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold inline-flex items-center gap-2"
-                    >
-                        <Plus size={18} /> Create First Event
-                    </button>
-                </div>
-            ) : globalEvents.length > 0 && (
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <table className="w-full text-left">
-                        <thead className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold">
-                            <tr>
-                                <th className="p-4">Event</th>
-                                <th className="p-4">Location</th>
-                                <th className="p-4">Date</th>
-                                <th className="p-4">Type</th>
-                                <th className="p-4">Fee</th>
-                                <th className="p-4">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {globalEvents.map(event => (
-                                <tr key={event.id} className="hover:bg-gray-50 transition-colors">
-                                    <td className="p-4 font-bold text-gray-900">{event.title}</td>
-                                    <td className="p-4 text-gray-600">{event.location}</td>
-                                    <td className="p-4 text-gray-600">{event.date}</td>
-                                    <td className="p-4">
-                                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold">
-                                            {event.type}
-                                        </span>
-                                    </td>
-                                    <td className="p-4 text-gray-600">
-                                        {event.fee ? `$${event.fee}` : 'Free'}
-                                    </td>
-                                    <td className="p-4">
-                                        <span className={`text-xs px-2 py-1 rounded font-bold ${
-                                            event.status === 'Published' ? 'bg-green-100 text-green-700' :
-                                            event.status === 'Approved' ? 'bg-blue-100 text-blue-700' :
-                                            'bg-gray-100 text-gray-600'
-                                        }`}>
-                                            {event.status}
-                                        </span>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
-        </div>
-    );
 
     const NewsRoomTab = () => (
         <div className="space-y-6 animate-fade-in flex gap-6 h-[calc(100vh-140px)]">
