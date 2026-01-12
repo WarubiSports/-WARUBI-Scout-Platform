@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { UserProfile, Player, PlayerStatus, ScoutingEvent } from '../types';
-import { DEMO_DATA } from '../constants';
-import { Loader2, User, ArrowRight, BrainCircuit, ShieldCheck, Sparkles, MapPin, Check, GraduationCap, Shield, Briefcase, Users, Heart, Zap, FileText, Scale } from 'lucide-react';
+import { UserProfile, Player, ScoutingEvent } from '../types';
+import { Loader2, User, ArrowRight, BrainCircuit, ShieldCheck, Sparkles, MapPin, Check, GraduationCap, Shield, Briefcase, Users, Heart, FileText, Scale, LogOut } from 'lucide-react';
+import { useAuthContext } from '../contexts/AuthContext';
 
 interface OnboardingProps {
     onComplete: (profile: UserProfile, initialPlayers: Player[], initialEvents: ScoutingEvent[]) => void;
+    approvedScoutInfo?: { isAdmin: boolean; name?: string; region?: string } | null;
 }
 
 const ROLES = [
@@ -16,18 +17,28 @@ const ROLES = [
     { id: 'tournament', label: 'Event Director', icon: <ShieldCheck size={20}/> },
 ];
 
-const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
-    const [step, setStep] = useState(0); // Start at 0 for Professional Declaration
+const Onboarding: React.FC<OnboardingProps> = ({ onComplete, approvedScoutInfo }) => {
+    const [step, setStep] = useState(0);
     const [loading, setLoading] = useState(false);
-    
-    const [name, setName] = useState('');
-    const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
-    const [region, setRegion] = useState('');
+    const { signOut } = useAuthContext();
+
+    // Check if user is admin (can select roles) or regular scout (auto-assigned)
+    const isAdmin = approvedScoutInfo?.isAdmin || false;
+
+    // Pre-fill from approved scout info if available
+    const [name, setName] = useState(approvedScoutInfo?.name || '');
+    // Regular scouts are auto-assigned as "Regional Scout"
+    const [selectedRoles, setSelectedRoles] = useState<string[]>(isAdmin ? [] : ['regional']);
+    const [region, setRegion] = useState(approvedScoutInfo?.region || '');
 
     const toggleRole = (roleId: string) => {
-        setSelectedRoles(prev => 
+        setSelectedRoles(prev =>
             prev.includes(roleId) ? prev.filter(r => r !== roleId) : [...prev, roleId]
         );
+    };
+
+    const handleBackToLogin = async () => {
+        await signOut();
     };
 
     const handleComplete = async () => {
@@ -41,9 +52,10 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                 weeklyTasks: ["Set up Instagram Link", "Add first 3 players"],
                 scoutPersona: selectedRoles.length > 1 ? "The Unified Expert" : "The Specialist",
                 scoutId,
-                leadMagnetActive: true
+                leadMagnetActive: true,
+                isAdmin: approvedScoutInfo?.isAdmin || false,
             };
-            
+
             setTimeout(() => {
                 onComplete(user, [], []);
                 setLoading(false);
@@ -53,28 +65,10 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
         }
     };
 
-    const handleDemoLogin = () => {
-        setLoading(true);
-        const demoUser: UserProfile = {
-            name: "Herbert the Scout",
-            roles: ["Regional Scout", "Club Coach"],
-            region: "Bavaria, Germany",
-            weeklyTasks: ["Review new leads", "Finalize showcase roster"],
-            scoutPersona: "The Specialist",
-            scoutId: "scout-demo-123",
-            leadMagnetActive: true
-        };
-        
-        setTimeout(() => {
-            onComplete(demoUser, DEMO_DATA.players, DEMO_DATA.events);
-            setLoading(false);
-        }, 800);
-    };
-
     return (
         <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-[#05080f]">
             <div className="max-w-xl w-full bg-scout-800 border border-scout-700 rounded-[2.5rem] shadow-2xl p-10 relative overflow-hidden">
-                
+
                 {step === 0 && (
                     <div className="space-y-8 animate-fade-in text-center">
                         <div className="space-y-4">
@@ -98,11 +92,19 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                                 <p className="text-xs text-white font-bold">No Pay-To-Play</p>
                             </div>
                         </div>
-                        <button 
+                        <button
                             onClick={() => setStep(1)}
                             className="w-full bg-scout-accent hover:bg-emerald-600 text-scout-900 font-black py-5 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-3 active:scale-95 uppercase tracking-widest text-sm"
                         >
                             Acknowledge the Standard <ArrowRight size={20}/>
+                        </button>
+
+                        <button
+                            onClick={handleBackToLogin}
+                            className="w-full text-gray-500 text-xs hover:text-gray-300 transition-colors flex items-center justify-center gap-2 mt-4"
+                        >
+                            <LogOut size={14} />
+                            Back to Login
                         </button>
                     </div>
                 )}
@@ -111,66 +113,72 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                     <div className="space-y-8 animate-fade-in">
                         <div className="text-center">
                             <h1 className="text-4xl font-black text-white mb-2 uppercase tracking-tighter italic">Warubi<span className="text-scout-accent">Scout</span></h1>
-                            <p className="text-gray-400 font-medium">Define your unified scouting identity.</p>
+                            <p className="text-gray-400 font-medium">
+                                {isAdmin ? 'Define your unified scouting identity.' : 'Confirm your scouting profile.'}
+                            </p>
                         </div>
-                        
+
                         <div className="space-y-4">
                             <div className="bg-scout-900 border-2 border-scout-700 rounded-2xl px-4 py-3 flex items-center gap-4 focus-within:border-scout-accent transition-all">
                                 <User className="text-scout-accent" size={20} />
-                                <input 
+                                <input
                                     value={name} onChange={e => setName(e.target.value)}
-                                    className="bg-transparent w-full text-white font-bold outline-none placeholder-gray-600" 
+                                    className="bg-transparent w-full text-white font-bold outline-none placeholder-gray-600"
                                     placeholder="Full Name"
                                 />
                             </div>
                             <div className="bg-scout-900 border-2 border-scout-700 rounded-2xl px-4 py-3 flex items-center gap-4 focus-within:border-scout-accent transition-all">
                                 <MapPin className="text-scout-accent" size={20} />
-                                <input 
+                                <input
                                     value={region} onChange={e => setRegion(e.target.value)}
-                                    className="bg-transparent w-full text-white font-bold outline-none placeholder-gray-600" 
+                                    className="bg-transparent w-full text-white font-bold outline-none placeholder-gray-600"
                                     placeholder="Scouting Region (e.g. Bavaria, Germany)"
                                 />
                             </div>
                         </div>
 
-                        <div>
-                            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4 ml-1">Identity Matrix</p>
-                            <div className="grid grid-cols-2 gap-3">
-                                {ROLES.map(role => (
-                                    <button 
-                                        key={role.id}
-                                        onClick={() => toggleRole(role.id)}
-                                        className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
-                                            selectedRoles.includes(role.id) 
-                                            ? 'bg-scout-accent/10 border-scout-accent text-white' 
-                                            : 'bg-scout-900 border-scout-700 text-gray-500 hover:border-scout-600'
-                                        }`}
-                                    >
-                                        <div className={selectedRoles.includes(role.id) ? 'text-scout-accent' : 'text-gray-600'}>{role.icon}</div>
-                                        <span className="text-xs font-bold uppercase tracking-tight">{role.label}</span>
-                                        {selectedRoles.includes(role.id) && <Check size={14} className="ml-auto text-scout-accent" />}
-                                    </button>
-                                ))}
+                        {/* Role selection only for admins */}
+                        {isAdmin && (
+                            <div>
+                                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4 ml-1">Identity Matrix</p>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {ROLES.map(role => (
+                                        <button
+                                            key={role.id}
+                                            onClick={() => toggleRole(role.id)}
+                                            className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
+                                                selectedRoles.includes(role.id)
+                                                ? 'bg-scout-accent/10 border-scout-accent text-white'
+                                                : 'bg-scout-900 border-scout-700 text-gray-500 hover:border-scout-600'
+                                            }`}
+                                        >
+                                            <div className={selectedRoles.includes(role.id) ? 'text-scout-accent' : 'text-gray-600'}>{role.icon}</div>
+                                            <span className="text-xs font-bold uppercase tracking-tight">{role.label}</span>
+                                            {selectedRoles.includes(role.id) && <Check size={14} className="ml-auto text-scout-accent" />}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                        
-                        <div className="space-y-4">
-                            <button 
-                                onClick={() => setStep(2)} 
-                                disabled={!name || !region || selectedRoles.length === 0 || loading}
-                                className="w-full bg-scout-accent hover:bg-emerald-600 disabled:opacity-30 text-scout-900 font-black py-5 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-3 active:scale-95"
-                            >
-                                {loading ? <Loader2 className="animate-spin" /> : <>Next Step <ArrowRight size={20}/></>}
-                            </button>
-                            
-                            <button 
-                                onClick={handleDemoLogin}
-                                disabled={loading}
-                                className="w-full bg-scout-900 border border-scout-700 hover:border-scout-accent text-gray-400 hover:text-white font-bold py-4 rounded-2xl transition-all flex items-center justify-center gap-2 text-xs uppercase tracking-widest"
-                            >
-                                <Zap size={14} className="text-scout-highlight" /> Try Demo Mode (Quick Access)
-                            </button>
-                        </div>
+                        )}
+
+                        {/* Show assigned role for regular scouts */}
+                        {!isAdmin && (
+                            <div className="bg-scout-900/50 border border-scout-700 rounded-2xl p-4">
+                                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Your Role</p>
+                                <div className="flex items-center gap-3 text-white">
+                                    <Users size={20} className="text-scout-accent" />
+                                    <span className="font-bold">Regional Scout</span>
+                                </div>
+                            </div>
+                        )}
+
+                        <button
+                            onClick={() => setStep(2)}
+                            disabled={!name || !region || (isAdmin && selectedRoles.length === 0) || loading}
+                            className="w-full bg-scout-accent hover:bg-emerald-600 disabled:opacity-30 text-scout-900 font-black py-5 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-3 active:scale-95"
+                        >
+                            {loading ? <Loader2 className="animate-spin" /> : <>Next Step <ArrowRight size={20}/></>}
+                        </button>
                     </div>
                 )}
 
@@ -196,7 +204,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                                 {[
                                     "Automated evaluations on arrival",
                                     "Direct Parent contact collection",
-                                    "Shadow Pipeline integration"
+                                    "Pipeline integration"
                                 ].map((item, i) => (
                                     <li key={i} className="flex items-center gap-2 text-xs text-gray-300">
                                         <Check size={14} className="text-scout-accent" /> {item}
@@ -205,8 +213,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
                             </ul>
                         </div>
 
-                        <button 
-                            onClick={handleComplete} 
+                        <button
+                            onClick={handleComplete}
                             disabled={loading}
                             className="w-full bg-white hover:bg-gray-100 text-scout-900 font-black py-5 rounded-2xl transition-all shadow-2xl active:scale-95 uppercase tracking-wide flex items-center justify-center gap-3"
                         >

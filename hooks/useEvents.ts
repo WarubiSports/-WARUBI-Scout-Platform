@@ -4,9 +4,6 @@ import type { ScoutingEvent as DbEvent, ScoutingEventInsert, ScoutingEventUpdate
 import type { ScoutingEvent, EventStatus } from '../types'
 import { parseAgenda, parseChecklist, agendaToJson, checklistToJson } from '../lib/guards'
 
-// Local storage key for demo mode
-const DEMO_EVENTS_KEY = 'warubi_demo_events'
-
 // Map frontend EventStatus to database status
 function statusToDb(status: EventStatus): DbEvent['status'] {
   const mapping: Record<EventStatus, DbEvent['status']> = {
@@ -72,24 +69,21 @@ function eventFromDb(dbEvent: DbEvent, scoutId?: string): ScoutingEvent {
   }
 }
 
-export function useEvents(scoutId: string | undefined, forceDemoMode: boolean = false) {
+export function useEvents(scoutId: string | undefined) {
   const [events, setEvents] = useState<ScoutingEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  // Check if this is a demo scout ID (starts with "demo-") or demo mode is forced
-  const isDemoScout = scoutId?.startsWith('demo-') ?? false
-  const [isDemo, setIsDemo] = useState(!isSupabaseConfigured || isDemoScout || forceDemoMode)
 
-  // Load events on mount or when scoutId/forceDemoMode changes
+  // Load events on mount or when scoutId changes
   useEffect(() => {
-    if (scoutId || forceDemoMode) {
+    if (scoutId) {
       loadEvents()
     }
-  }, [scoutId, forceDemoMode])
+  }, [scoutId])
 
-  // Set up real-time subscription (skip in demo mode)
+  // Set up real-time subscription
   useEffect(() => {
-    if (!scoutId || !isSupabaseConfigured || isDemo || forceDemoMode) return
+    if (!scoutId || !isSupabaseConfigured) return
 
     const subscription = supabase
       .channel('event-changes')
@@ -109,7 +103,7 @@ export function useEvents(scoutId: string | undefined, forceDemoMode: boolean = 
     return () => {
       subscription.unsubscribe()
     }
-  }, [scoutId, isDemo])
+  }, [scoutId])
 
   const handleRealtimeChange = (payload: any) => {
     if (payload.eventType === 'INSERT') {
@@ -127,171 +121,121 @@ export function useEvents(scoutId: string | undefined, forceDemoMode: boolean = 
   }
 
   const loadEvents = async () => {
-    if (!scoutId) return
-
-    setLoading(true)
-
-    // If demo mode is forced or it's a demo scout, use localStorage only
-    if (forceDemoMode || isDemoScout) {
-      const stored = localStorage.getItem(DEMO_EVENTS_KEY)
-      if (stored) {
-        setEvents(JSON.parse(stored))
-      }
-      setIsDemo(true)
+    if (!scoutId || !isSupabaseConfigured) {
       setLoading(false)
       return
     }
 
+    setLoading(true)
+
     try {
-      if (isSupabaseConfigured) {
-        // Load all events (scout's own + published events)
-        const { data, error } = await supabase
-          .from('scouting_events')
-          .select('*')
-          .or(`host_scout_id.eq.${scoutId},status.eq.published`)
-          .order('event_date', { ascending: true })
+      // Load all events (scout's own + published events)
+      const { data, error } = await supabase
+        .from('scouting_events')
+        .select('*')
+        .or(`host_scout_id.eq.${scoutId},status.eq.published`)
+        .order('event_date', { ascending: true })
 
-        if (error) throw error
+      if (error) throw error
 
-        const mappedEvents = (data || []).map((e) => eventFromDb(e, scoutId))
-        setEvents(mappedEvents)
-        setIsDemo(false)
-      } else {
-        // Demo mode - load from localStorage
-        const stored = localStorage.getItem(DEMO_EVENTS_KEY)
-        if (stored) {
-          setEvents(JSON.parse(stored))
-        }
-        setIsDemo(true)
-      }
+      const mappedEvents = (data || []).map((e) => eventFromDb(e, scoutId))
+      setEvents(mappedEvents)
     } catch (err) {
       console.error('Error loading events:', err)
       setError(err instanceof Error ? err.message : 'Failed to load events')
-      setIsDemo(true)
     } finally {
       setLoading(false)
     }
   }
 
-  const saveDemoEvents = (eventList: ScoutingEvent[]) => {
-    localStorage.setItem(DEMO_EVENTS_KEY, JSON.stringify(eventList))
-  }
-
   const addEvent = useCallback(
     async (event: ScoutingEvent): Promise<ScoutingEvent | null> => {
-      if (!scoutId) return null
+      if (!scoutId || !isSupabaseConfigured) return null
 
-      if (isSupabaseConfigured && !isDemo) {
-        try {
-          const eventData = eventToDb(event, scoutId)
-          const { data, error } = await supabase
-            .from('scouting_events')
-            .insert(eventData)
-            .select()
-            .single()
+      try {
+        const eventData = eventToDb(event, scoutId)
+        const { data, error } = await supabase
+          .from('scouting_events')
+          .insert(eventData as any)
+          .select()
+          .single()
 
-          if (error) throw error
+        if (error) throw error
 
-          const newEvent = eventFromDb(data, scoutId)
-          setEvents((prev) => [newEvent, ...prev])
-          return newEvent
-        } catch (err) {
-          console.error('Error adding event:', err)
-          setError(err instanceof Error ? err.message : 'Failed to add event')
-          // Fall back to demo mode
-          return addDemoEvent(event)
-        }
-      } else {
-        return addDemoEvent(event)
+        const newEvent = eventFromDb(data, scoutId)
+        setEvents((prev) => [newEvent, ...prev])
+        return newEvent
+      } catch (err) {
+        console.error('Error adding event:', err)
+        setError(err instanceof Error ? err.message : 'Failed to add event')
+        return null
       }
     },
-    [scoutId, isDemo]
+    [scoutId]
   )
-
-  const addDemoEvent = (event: ScoutingEvent): ScoutingEvent => {
-    const newEvent = { ...event, id: event.id || `demo-${Date.now()}` }
-    const updated = [newEvent, ...events]
-    setEvents(updated)
-    saveDemoEvents(updated)
-    return newEvent
-  }
 
   const updateEvent = useCallback(
     async (eventId: string, updates: Partial<ScoutingEvent>): Promise<void> => {
-      if (isSupabaseConfigured && !isDemo) {
-        try {
-          const dbUpdates: ScoutingEventUpdate = {}
+      if (!isSupabaseConfigured) return
 
-          if (updates.title !== undefined) dbUpdates.title = updates.title
-          if (updates.date !== undefined) dbUpdates.event_date = updates.date
-          if (updates.location !== undefined) dbUpdates.location = updates.location
-          if (updates.type !== undefined) dbUpdates.event_type = updates.type
-          if (updates.status !== undefined) dbUpdates.status = statusToDb(updates.status)
-          if (updates.fee !== undefined) dbUpdates.fee = updates.fee
-          if (updates.marketingCopy !== undefined) dbUpdates.marketing_copy = updates.marketingCopy
-          if (updates.agenda !== undefined) dbUpdates.agenda = agendaToJson(updates.agenda)
-          if (updates.checklist !== undefined) dbUpdates.checklist = checklistToJson(updates.checklist)
-          if (updates.registeredCount !== undefined) dbUpdates.registered_count = updates.registeredCount
-          if (updates.hostName !== undefined) dbUpdates.host_name = updates.hostName
+      try {
+        const dbUpdates: ScoutingEventUpdate = {}
 
-          const { error } = await supabase
-            .from('scouting_events')
-            .update(dbUpdates)
-            .eq('id', eventId)
+        if (updates.title !== undefined) dbUpdates.title = updates.title
+        if (updates.date !== undefined) dbUpdates.event_date = updates.date
+        if (updates.location !== undefined) dbUpdates.location = updates.location
+        if (updates.type !== undefined) dbUpdates.event_type = updates.type
+        if (updates.status !== undefined) dbUpdates.status = statusToDb(updates.status)
+        if (updates.fee !== undefined) dbUpdates.fee = updates.fee
+        if (updates.marketingCopy !== undefined) dbUpdates.marketing_copy = updates.marketingCopy
+        if (updates.agenda !== undefined) dbUpdates.agenda = agendaToJson(updates.agenda)
+        if (updates.checklist !== undefined) dbUpdates.checklist = checklistToJson(updates.checklist)
+        if (updates.registeredCount !== undefined) dbUpdates.registered_count = updates.registeredCount
+        if (updates.hostName !== undefined) dbUpdates.host_name = updates.hostName
 
-          if (error) throw error
+        const { error } = await (supabase
+          .from('scouting_events') as any)
+          .update(dbUpdates)
+          .eq('id', eventId)
 
-          setEvents((prev) =>
-            prev.map((e) => (e.id === eventId ? { ...e, ...updates } : e))
-          )
-        } catch (err) {
-          console.error('Error updating event:', err)
-          setError(err instanceof Error ? err.message : 'Failed to update event')
-          updateDemoEvent(eventId, updates)
-        }
-      } else {
-        updateDemoEvent(eventId, updates)
+        if (error) throw error
+
+        setEvents((prev) =>
+          prev.map((e) => (e.id === eventId ? { ...e, ...updates } : e))
+        )
+      } catch (err) {
+        console.error('Error updating event:', err)
+        setError(err instanceof Error ? err.message : 'Failed to update event')
       }
     },
-    [isDemo, events]
+    [events]
   )
-
-  const updateDemoEvent = (eventId: string, updates: Partial<ScoutingEvent>) => {
-    const updated = events.map((e) => (e.id === eventId ? { ...e, ...updates } : e))
-    setEvents(updated)
-    saveDemoEvents(updated)
-  }
 
   const deleteEvent = useCallback(
     async (eventId: string): Promise<void> => {
-      if (isSupabaseConfigured && !isDemo) {
-        try {
-          const { error } = await supabase
-            .from('scouting_events')
-            .delete()
-            .eq('id', eventId)
+      if (!isSupabaseConfigured) return
 
-          if (error) throw error
+      try {
+        const { error } = await supabase
+          .from('scouting_events')
+          .delete()
+          .eq('id', eventId)
 
-          setEvents((prev) => prev.filter((e) => e.id !== eventId))
-        } catch (err) {
-          console.error('Error deleting event:', err)
-          setError(err instanceof Error ? err.message : 'Failed to delete event')
-        }
-      } else {
-        const updated = events.filter((e) => e.id !== eventId)
-        setEvents(updated)
-        saveDemoEvents(updated)
+        if (error) throw error
+
+        setEvents((prev) => prev.filter((e) => e.id !== eventId))
+      } catch (err) {
+        console.error('Error deleting event:', err)
+        setError(err instanceof Error ? err.message : 'Failed to delete event')
       }
     },
-    [isDemo, events]
+    [events]
   )
 
   return {
     events,
     loading,
     error,
-    isDemo,
     addEvent,
     updateEvent,
     deleteEvent,

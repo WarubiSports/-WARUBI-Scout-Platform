@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Toaster } from 'sonner';
-import { AppView, UserProfile, Player, ScoutingEvent, NewsItem, AppNotification, PlayerStatus } from './types';
-import { INITIAL_NEWS_ITEMS, INITIAL_TICKER_ITEMS, SCOUT_POINTS } from './constants';
+import { AppView, UserProfile, Player, ScoutingEvent, AppNotification, PlayerStatus } from './types';
+import { SCOUT_POINTS } from './constants';
 import Login from './components/Login';
 import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
@@ -9,9 +9,9 @@ import AdminDashboard from './components/AdminDashboard';
 import PasswordSetupModal from './components/PasswordSetupModal';
 import { evaluatePlayer } from './services/geminiService';
 import { sendProspectToTrial } from './services/trialService';
+import { isEmailApproved } from './services/accessControlService';
 import { useAuthContext } from './contexts/AuthContext';
 import { useScoutContext } from './contexts/ScoutContext';
-import { useDemoMode } from './contexts/DemoModeContext';
 import { useProspects } from './hooks/useProspects';
 import { useEvents } from './hooks/useEvents';
 import { useOutreach } from './hooks/useOutreach';
@@ -19,48 +19,55 @@ import { useOutreach } from './hooks/useOutreach';
 const App: React.FC = () => {
   const [view, setView] = useState<AppView>(AppView.LOGIN);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-
-  // Demo mode context (shared across all components)
-  const { isDemoMode, enableDemoMode, disableDemoMode } = useDemoMode();
+  const [approvedScoutInfo, setApprovedScoutInfo] = useState<{ isAdmin: boolean; name?: string; region?: string } | null>(null);
 
   // Auth context
-  const { isAuthenticated, loading: authLoading, signOut, needsPasswordSetup, dismissPasswordSetup } = useAuthContext();
+  const { isAuthenticated, loading: authLoading, signOut, needsPasswordSetup, dismissPasswordSetup, user } = useAuthContext();
 
   // Supabase integration
-  const { scout, loading: scoutLoading, initializeScout, addXP, incrementPlacements, isDemo } = useScoutContext();
-  const { prospects, addProspect, updateProspect, isDemo: prospectsDemo } = useProspects(scout?.id, isDemoMode);
-  const { events, addEvent, updateEvent, isDemo: eventsDemo } = useEvents(scout?.id, isDemoMode);
-  const { logOutreach } = useOutreach(scout?.id, isDemoMode);
-
-  // Local state (transient data)
-  const [newsItems, setNewsItems] = useState<NewsItem[]>(INITIAL_NEWS_ITEMS);
-  const [tickerItems, setTickerItems] = useState<string[]>(INITIAL_TICKER_ITEMS);
+  const { scout, loading: scoutLoading, initializeScout, addXP, incrementPlacements } = useScoutContext();
+  const { prospects, addProspect, updateProspect } = useProspects(scout?.id);
+  const { events, addEvent, updateEvent } = useEvents(scout?.id);
+  const { logOutreach } = useOutreach(scout?.id);
 
   const [notifications, setNotifications] = useState<AppNotification[]>([
       {
           id: 'welcome-msg',
           type: 'INFO',
           title: 'Welcome to Warubi Scout',
-          message: 'Your account is active. Use the Outreach tab to engage Undiscovered Talent.',
+          message: 'Your account is active. Add players to start tracking your pipeline.',
           timestamp: new Date().toISOString(),
           read: false
       }
   ]);
 
+  // Fetch approved scout info for authenticated users who need onboarding
+  useEffect(() => {
+    const fetchApprovedScoutInfo = async () => {
+      if (isAuthenticated && user?.email && !scout) {
+        const { approved, scout: scoutData } = await isEmailApproved(user.email);
+        if (approved && scoutData) {
+          setApprovedScoutInfo({
+            isAdmin: scoutData.role === 'admin',
+            name: scoutData.name || undefined,
+            region: scoutData.region || undefined,
+          });
+        }
+      }
+    };
+    fetchApprovedScoutInfo();
+  }, [isAuthenticated, user?.email, scout]);
+
   // Handle auth state and view routing
   useEffect(() => {
-    // Still loading - wait
     if (authLoading || scoutLoading) return;
 
-    // Not authenticated and not in demo mode - show login
-    if (!isAuthenticated && !isDemoMode) {
+    if (!isAuthenticated) {
       setView(AppView.LOGIN);
       return;
     }
 
-    // Authenticated (or demo) - check if scout profile exists
     if (scout) {
-      // Reconstruct userProfile from scout data
       const profile: UserProfile = {
         name: scout.name,
         roles: scout.roles || ['Regional Scout'],
@@ -74,23 +81,11 @@ const App: React.FC = () => {
         leadMagnetActive: scout.lead_magnet_active,
       };
       setUserProfile(profile);
-      if (scout.is_admin) {
-        setView(AppView.ADMIN);
-      } else {
-        setView(AppView.DASHBOARD);
-      }
-    } else if (isAuthenticated || isDemoMode) {
-      // Authenticated but no scout profile - show onboarding
+      setView(scout.is_admin ? AppView.ADMIN : AppView.DASHBOARD);
+    } else {
       setView(AppView.ONBOARDING);
     }
-  }, [authLoading, scoutLoading, isAuthenticated, isDemoMode, scout]);
-
-  // Clear demo mode when user successfully authenticates
-  useEffect(() => {
-    if (isAuthenticated && isDemoMode) {
-      disableDemoMode();
-    }
-  }, [isAuthenticated, isDemoMode, disableDemoMode]);
+  }, [authLoading, scoutLoading, isAuthenticated, scout]);
 
   const handleAddNotification = useCallback((notification: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) => {
       const newNotif: AppNotification = {
@@ -102,52 +97,8 @@ const App: React.FC = () => {
       setNotifications(prev => [newNotif, ...prev]);
   }, []);
 
-  const simulateProgression = (playerId: string) => {
-    // 1. SIGNAL STATE (The Gatekeeper) - After a delay of sending a "Spark"
-    setTimeout(async () => {
-        const player = prospects.find(p => p.id === playerId);
-        if (player && player.status === PlayerStatus.PROSPECT) {
-            handleAddNotification({
-                type: 'INFO',
-                title: 'Signal Detected!',
-                message: `${player.name} just engaged with your assessment. Player pulsing in Undiscovered list.`
-            });
-            await updateProspect(playerId, {
-                activityStatus: 'signal',
-                lastActive: new Date().toISOString()
-            });
-        }
-    }, 5000);
-
-    // 2. SPOTLIGHT (The Promotion) - Once Signal is detected, simulate they finished the assessment
-    setTimeout(async () => {
-        const playerToEvaluate = prospects.find(p => p.id === playerId);
-        if (playerToEvaluate && playerToEvaluate.status === PlayerStatus.PROSPECT) {
-            try {
-                const result = await evaluatePlayer(`Name: ${playerToEvaluate.name}, Position: ${playerToEvaluate.position}`);
-                await updateProspect(playerId, {
-                    evaluation: result,
-                    activityStatus: 'spotlight',
-                    lastActive: new Date().toISOString()
-                });
-                handleAddNotification({
-                    type: 'SUCCESS',
-                    title: 'Spotlight Ready',
-                    message: `${playerToEvaluate.name} has completed the assessment. Review and promote to Pipeline.`
-                });
-            } catch (e) {
-                console.error("Simulation eval failed", e);
-            }
-        }
-    }, 15000);
-  };
-
   const scoutScore = useMemo(() => {
-      // Use scout's XP from database if available
-      if (scout?.xp_score) {
-        return scout.xp_score;
-      }
-      // Fallback calculation
+      if (scout?.xp_score) return scout.xp_score;
       let score = 0;
       score += prospects.length * SCOUT_POINTS.PLAYER_LOG;
       score += prospects.filter(p => p.status === PlayerStatus.PLACED).length * SCOUT_POINTS.PLACEMENT;
@@ -157,23 +108,18 @@ const App: React.FC = () => {
   }, [scout?.xp_score, prospects, events]);
 
   const handleOnboardingComplete = async (profile: UserProfile, initialPlayers: Player[], initialEvents: ScoutingEvent[]) => {
-    // Create scout in Supabase
-    const newScout = await initializeScout(profile);
-
+    await initializeScout(profile);
     setUserProfile(profile);
     if (profile.isAdmin) {
         setView(AppView.ADMIN);
         return;
     }
-
-    // Add any initial players/events to Supabase
     for (const player of initialPlayers) {
       await addProspect(player);
     }
     for (const event of initialEvents) {
       await addEvent(event);
     }
-
     setView(AppView.DASHBOARD);
   };
 
@@ -183,23 +129,21 @@ const App: React.FC = () => {
       await addXP(SCOUT_POINTS.PLAYER_LOG);
       handleAddNotification({
           type: 'SUCCESS',
-          title: `+${SCOUT_POINTS.PLAYER_LOG} XP | Player Logged`,
-          message: `${player.name} added as Undiscovered Talent.`
+          title: `+${SCOUT_POINTS.PLAYER_LOG} XP | Player Added`,
+          message: `${player.name} added to your pipeline.`
       });
     }
   };
 
   const handleMessageSent = async (playerId: string, log: any) => {
-      // Log outreach to Supabase
       const outreachLog = await logOutreach(
         playerId,
         log.method,
         log.templateName,
-        undefined, // message content
+        undefined,
         log.note
       );
 
-      // Update player with new log and activity status
       const player = prospects.find(p => p.id === playerId);
       if (player) {
         await updateProspect(playerId, {
@@ -208,8 +152,14 @@ const App: React.FC = () => {
           activityStatus: 'spark'
         });
 
-        if (player.status === PlayerStatus.PROSPECT) {
-          simulateProgression(playerId);
+        // Auto-advance from Lead to Contacted on first message
+        if (player.status === PlayerStatus.LEAD) {
+          await updateProspect(playerId, { status: PlayerStatus.CONTACTED });
+          handleAddNotification({
+              type: 'INFO',
+              title: 'Player Contacted',
+              message: `${player.name} moved to Contacted stage.`
+          });
         }
       }
   };
@@ -241,7 +191,6 @@ const App: React.FC = () => {
           );
 
           if (success && trialProspectId) {
-              // Update the prospect with the trial link
               updatedPlayer.trialProspectId = trialProspectId;
               handleAddNotification({
                   type: 'SUCCESS',
@@ -257,7 +206,7 @@ const App: React.FC = () => {
           }
       }
 
-      // INTELLIGENCE RECALIBRATION LOGIC
+      // AI Recalibration on high-impact field changes
       const highImpactFieldsChanged =
           oldPlayer.position !== updatedPlayer.position ||
           oldPlayer.gpa !== updatedPlayer.gpa ||
@@ -266,14 +215,12 @@ const App: React.FC = () => {
           oldPlayer.videoLink !== updatedPlayer.videoLink;
 
       if (highImpactFieldsChanged) {
-          // Immediately update UI to show scanning state
           await updateProspect(updatedPlayer.id, {
             ...updatedPlayer,
             isRecalibrating: true,
             previousScore: oldPlayer.evaluation?.score
           });
 
-          // Trigger AI Recalibration
           try {
               const inputString = `Name: ${updatedPlayer.name}, Pos: ${updatedPlayer.position}, Club: ${updatedPlayer.club}, Level: ${updatedPlayer.teamLevel}, GPA: ${updatedPlayer.gpa}, Video: ${updatedPlayer.videoLink}`;
               const newEval = await evaluatePlayer(inputString);
@@ -287,7 +234,7 @@ const App: React.FC = () => {
               handleAddNotification({
                   type: 'SUCCESS',
                   title: 'Intelligence Recalibrated',
-                  message: `${updatedPlayer.name}'s Scout Score updated to ${newEval.score} based on new data.`
+                  message: `${updatedPlayer.name}'s Scout Score updated to ${newEval.score}.`
               });
           } catch (e) {
               await updateProspect(updatedPlayer.id, {
@@ -296,7 +243,6 @@ const App: React.FC = () => {
               });
           }
       } else {
-          // Standard update
           await updateProspect(updatedPlayer.id, updatedPlayer);
       }
   };
@@ -323,21 +269,12 @@ const App: React.FC = () => {
       await updateEvent(updatedEvent.id, updatedEvent);
   };
 
-  // Handle skip login (demo mode)
-  const handleSkipLogin = () => {
-    enableDemoMode();
-    setView(AppView.ONBOARDING);
-  };
-
-  // Handle logout
   const handleLogout = async () => {
     await signOut();
     setUserProfile(null);
-    disableDemoMode();
     setView(AppView.LOGIN);
   };
 
-  // Show loading state while checking for existing session
   if (authLoading || scoutLoading) {
     return (
       <div style={{
@@ -360,12 +297,13 @@ const App: React.FC = () => {
   return (
     <>
       <Toaster position="top-right" richColors closeButton />
-      {view === AppView.LOGIN && (
-        <Login onSkip={handleSkipLogin} />
-      )}
+      {view === AppView.LOGIN && <Login />}
 
       {view === AppView.ONBOARDING && (
-        <Onboarding onComplete={handleOnboardingComplete} />
+        <Onboarding
+          onComplete={handleOnboardingComplete}
+          approvedScoutInfo={approvedScoutInfo}
+        />
       )}
 
       {view === AppView.DASHBOARD && userProfile && (
@@ -373,8 +311,6 @@ const App: React.FC = () => {
             user={userProfile}
             players={prospects}
             events={events}
-            newsItems={newsItems}
-            tickerItems={tickerItems}
             notifications={notifications}
             scoutScore={scoutScore}
             onAddPlayer={handleAddPlayer}
@@ -389,6 +325,8 @@ const App: React.FC = () => {
                 const p = prospects.find(player => player.id === id);
                 if (p) await handleUpdatePlayer({ ...p, status });
             }}
+            onLogout={handleLogout}
+            onReturnToAdmin={userProfile?.isAdmin ? () => setView(AppView.ADMIN) : undefined}
         />
       )}
 
@@ -396,22 +334,17 @@ const App: React.FC = () => {
           <AdminDashboard
             players={prospects}
             events={events}
-            newsItems={newsItems}
-            tickerItems={tickerItems}
             notifications={notifications}
             onUpdateEvent={handleUpdateEvent}
             onUpdatePlayer={handleUpdatePlayer}
-            onAddNews={(item) => setNewsItems(prev => [item, ...prev])}
-            onDeleteNews={(id) => setNewsItems(prev => prev.filter(item => item.id !== id))}
-            onUpdateTicker={(items) => setTickerItems(items)}
             onAddNotification={handleAddNotification}
             onMarkAllRead={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
             onLogout={handleLogout}
             onImpersonate={(p) => { setUserProfile(p); setView(AppView.DASHBOARD); }}
+            onSwitchToScoutView={() => setView(AppView.DASHBOARD)}
           />
       )}
 
-      {/* Password setup prompt after magic link login */}
       {needsPasswordSetup && isAuthenticated && (
         <PasswordSetupModal onClose={dismissPasswordSetup} />
       )}

@@ -1,12 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Player, ScoutingEvent, PlayerStatus, UserProfile, NewsItem, AppNotification } from '../types';
-import { 
-    LayoutDashboard, Users, Calendar, CheckCircle, XCircle, 
-    ShieldCheck, Activity, Search, Filter, Briefcase, Award, 
-    LogOut, Globe, TrendingUp, AlertCircle, FileText, Check, 
+import {
+    LayoutDashboard, Users, Calendar, CheckCircle, XCircle,
+    ShieldCheck, Activity, Search, Filter, Briefcase, Award,
+    LogOut, Globe, TrendingUp, AlertCircle, FileText, Check,
     MoreHorizontal, Edit2, BadgeCheck, X, Save, Eye, Plus,
-    List, LayoutGrid, Newspaper, Flame, Trash2, Link, Bell
+    List, LayoutGrid, Newspaper, Flame, Trash2, Link, Bell, KeyRound, Bug, Copy, ExternalLink, Loader2
 } from 'lucide-react';
+import ApprovedScoutsManager from './ApprovedScoutsManager';
+import { getAllBugReports, updateBugReportStatus, generateClaudePrompt } from '../services/bugReportService';
+import { useAllScouts } from '../hooks/useAllScouts';
+import type { BugReport, BugReportStatus } from '../types';
+import type { Scout } from '../lib/database.types';
 
 interface AdminDashboardProps {
     players: Player[];
@@ -14,6 +19,7 @@ interface AdminDashboardProps {
     onUpdateEvent: (event: ScoutingEvent) => void;
     onUpdatePlayer: (player: Player) => void;
     onLogout: () => void;
+    onSwitchToScoutView?: () => void;
     onImpersonate?: (scout: UserProfile) => void;
     // News Props
     newsItems?: NewsItem[];
@@ -26,61 +32,19 @@ interface AdminDashboardProps {
     onMarkAllRead?: () => void;
 }
 
-// EXTENDED MOCK DATA FOR SCOUTS
-// Fix: Changed 'role' to 'roles' to match UserProfile interface
-const INITIAL_MOCK_SCOUTS: (UserProfile & { id: string, leads: number, conversion: string, status: string })[] = [
-    { 
-        id: 'scout-1', 
-        name: 'Alex Scout', 
-        roles: ['Head Coach'], 
-        region: 'California', 
-        leads: 42, 
-        conversion: '12%', 
-        status: 'Active',
-        weeklyTasks: [], 
-        certifications: ['USSF B License', 'Talent ID Level 1'] 
-    },
-    { 
-        id: 'scout-2', 
-        name: 'Sarah Jenkins', 
-        roles: ['Independent'], 
-        region: 'New York', 
-        leads: 28, 
-        conversion: '15%', 
-        status: 'Active',
-        weeklyTasks: [],
-        certifications: ['Former D1 Player']
-    },
-    { 
-        id: 'scout-3', 
-        name: 'David Mueller', 
-        roles: ['Agent'], 
-        region: 'Berlin', 
-        leads: 15, 
-        conversion: '22%', 
-        status: 'Active',
-        weeklyTasks: [],
-        certifications: ['DFB Elite Youth', 'Registered Intermediary']
-    },
-    { 
-        id: 'scout-4', 
-        name: 'James O.', 
-        roles: ['Academy Director'], 
-        region: 'Lagos', 
-        leads: 60, 
-        conversion: '8%', 
-        status: 'Review',
-        weeklyTasks: [],
-        certifications: []
-    },
-];
+// Scout type with stats for display
+interface ScoutWithStats extends Scout {
+  prospects_count?: number
+  conversion_rate?: string
+}
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
-    players, 
-    events, 
-    onUpdateEvent, 
+const AdminDashboard: React.FC<AdminDashboardProps> = ({
+    players,
+    events,
+    onUpdateEvent,
     onUpdatePlayer,
     onLogout,
+    onSwitchToScoutView,
     onImpersonate,
     newsItems = [],
     tickerItems = [],
@@ -91,14 +55,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     onAddNotification,
     onMarkAllRead
 }) => {
-    const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'APPROVALS' | 'TALENT' | 'SCOUTS' | 'NEWS'>('OVERVIEW');
+    const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'APPROVALS' | 'TALENT' | 'SCOUTS' | 'ACCESS' | 'NEWS' | 'BUGS'>('OVERVIEW');
     const [searchQuery, setSearchQuery] = useState('');
-    
+
+    // Real scout data from Supabase
+    const { scouts, loading: scoutsLoading, updateScout: updateScoutInDb, refresh: refreshScouts } = useAllScouts();
+
     // Scout Management State
-    const [scouts, setScouts] = useState(INITIAL_MOCK_SCOUTS);
-    const [selectedScout, setSelectedScout] = useState<(typeof scouts)[0] | null>(null);
+    const [selectedScout, setSelectedScout] = useState<ScoutWithStats | null>(null);
     const [isEditingScout, setIsEditingScout] = useState(false);
-    const [scoutFormData, setScoutFormData] = useState<(typeof scouts)[0] | null>(null);
+    const [scoutFormData, setScoutFormData] = useState<ScoutWithStats | null>(null);
     const [newBadge, setNewBadge] = useState('');
     const [scoutViewMode, setScoutViewMode] = useState<'grid' | 'list'>('grid');
 
@@ -115,6 +81,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     // Notification State
     const [showNotifications, setShowNotifications] = useState(false);
+
+    // Bug Reports State
+    const [bugReports, setBugReports] = useState<BugReport[]>([]);
+    const [bugReportsLoading, setBugReportsLoading] = useState(false);
+    const [selectedBugReport, setSelectedBugReport] = useState<BugReport | null>(null);
+    const [updatingBugId, setUpdatingBugId] = useState<string | null>(null);
 
     // --- DERIVED STATS ---
     const pendingEvents = events.filter(e => e.status === 'Pending Approval');
@@ -157,62 +129,51 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     // --- SCOUT MANAGEMENT HANDLERS ---
 
-    const handleScoutClick = (scout: typeof scouts[0]) => {
+    const handleScoutClick = (scout: ScoutWithStats) => {
         setSelectedScout(scout);
-        setScoutFormData(scout);
+        setScoutFormData({ ...scout });
         setIsEditingScout(false);
     };
 
-    const handleScoutUpdate = () => {
+    const handleScoutUpdate = async () => {
         if (!scoutFormData) return;
-        setScouts(prev => prev.map(s => s.id === scoutFormData.id ? scoutFormData : s));
-        setSelectedScout(scoutFormData);
-        setIsEditingScout(false);
-    };
-
-    const toggleVerification = () => {
-        if (!scoutFormData) return;
-        // Simple toggle logic for demo - assuming we might add a 'verified' boolean later, 
-        // for now we stick to the 'Active' status or certifications logic.
-        // Let's add a "Verified Scout" badge if not present, remove if present
-        const hasBadge = scoutFormData.certifications?.includes('Verified Scout');
-        let newCerts = scoutFormData.certifications || [];
-        
-        if (hasBadge) {
-            newCerts = newCerts.filter(c => c !== 'Verified Scout');
-        } else {
-            newCerts = [...newCerts, 'Verified Scout'];
+        // Save to Supabase
+        const success = await updateScoutInDb(scoutFormData.id, {
+            name: scoutFormData.name,
+            region: scoutFormData.region,
+            roles: scoutFormData.roles,
+            status: scoutFormData.status,
+            bio: scoutFormData.bio,
+        });
+        if (success) {
+            setSelectedScout(scoutFormData);
+            setIsEditingScout(false);
+            refreshScouts();
         }
-        setScoutFormData({ ...scoutFormData, certifications: newCerts });
     };
 
-    const addBadge = () => {
-        if (!newBadge || !scoutFormData) return;
-        setScoutFormData({
-            ...scoutFormData,
-            certifications: [...(scoutFormData.certifications || []), newBadge]
-        });
-        setNewBadge('');
-    };
-
-    const removeBadge = (badge: string) => {
-        if (!scoutFormData) return;
-        setScoutFormData({
-            ...scoutFormData,
-            certifications: scoutFormData.certifications?.filter(c => c !== badge)
-        });
-    };
+    const scoutToUserProfile = (scout: ScoutWithStats): UserProfile => ({
+        name: scout.name,
+        roles: scout.roles || ['Regional Scout'],
+        region: scout.region,
+        affiliation: scout.affiliation || undefined,
+        scoutPersona: scout.scout_persona || undefined,
+        weeklyTasks: [],
+        scoutId: scout.id,
+        isAdmin: scout.is_admin,
+        bio: scout.bio || undefined,
+        leadMagnetActive: scout.lead_magnet_active,
+    });
 
     const triggerImpersonation = () => {
         if (onImpersonate && selectedScout) {
-            // Map the extended mock scout back to UserProfile
-            onImpersonate(selectedScout);
+            onImpersonate(scoutToUserProfile(selectedScout));
         }
     };
 
-    const triggerRowImpersonation = (e: React.MouseEvent, scout: UserProfile) => {
+    const triggerRowImpersonation = (e: React.MouseEvent, scout: ScoutWithStats) => {
         e.stopPropagation();
-        if (onImpersonate) onImpersonate(scout);
+        if (onImpersonate) onImpersonate(scoutToUserProfile(scout));
     }
 
     // --- NEWS MANAGEMENT HANDLERS ---
@@ -244,6 +205,44 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         }
     };
 
+    // --- BUG REPORTS HANDLERS ---
+
+    const loadBugReports = async () => {
+        setBugReportsLoading(true);
+        const { reports, error } = await getAllBugReports();
+        if (!error) {
+            setBugReports(reports);
+        }
+        setBugReportsLoading(false);
+    };
+
+    const handleUpdateBugStatus = async (id: string, status: BugReportStatus, notes?: string) => {
+        setUpdatingBugId(id);
+        const result = await updateBugReportStatus(id, status, notes);
+        if (result.success) {
+            setBugReports(prev => prev.map(r =>
+                r.id === id ? { ...r, status, adminNotes: notes || r.adminNotes, updatedAt: new Date().toISOString() } : r
+            ));
+            if (selectedBugReport?.id === id) {
+                setSelectedBugReport({ ...selectedBugReport, status, adminNotes: notes || selectedBugReport.adminNotes });
+            }
+        }
+        setUpdatingBugId(null);
+    };
+
+    const copyClaudePrompt = (report: BugReport) => {
+        const prompt = generateClaudePrompt(report);
+        navigator.clipboard.writeText(prompt);
+        alert('Claude prompt copied to clipboard!');
+    };
+
+    // Load bug reports when tab is active
+    React.useEffect(() => {
+        if (activeTab === 'BUGS') {
+            loadBugReports();
+        }
+    }, [activeTab]);
+
     // --- SUB-VIEWS ---
 
     const OverviewTab = () => (
@@ -257,7 +256,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </div>
                         <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">+12%</span>
                     </div>
-                    <div className="text-3xl font-bold text-gray-900">{scouts.length + 120}</div>
+                    <div className="text-3xl font-bold text-gray-900">{scoutsLoading ? '...' : scouts.length}</div>
                     <div className="text-sm text-gray-500">Active Scouts</div>
                 </div>
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -265,9 +264,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <div className="p-3 bg-purple-50 rounded-lg text-purple-600">
                             <Activity size={24} />
                         </div>
-                        <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">+5%</span>
                     </div>
-                    <div className="text-3xl font-bold text-gray-900">{players.length + 850}</div>
+                    <div className="text-3xl font-bold text-gray-900">{players.length}</div>
                     <div className="text-sm text-gray-500">Players in Pipeline</div>
                 </div>
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -429,11 +427,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {players.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map(p => (
+                        {players.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map(p => {
+                            const scoutName = scouts.find(s => s.id === p.scoutId)?.name || 'Unknown';
+                            return (
                             <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                                 <td className="p-4 font-bold text-gray-900">{p.name}</td>
                                 <td className="p-4 text-gray-600">{p.position}</td>
-                                <td className="p-4 text-gray-600 text-sm">Alex Scout</td>
+                                <td className="p-4 text-gray-600 text-sm">{scoutName}</td>
                                 <td className="p-4">
                                     <span className={`text-[10px] px-2 py-1 rounded font-bold uppercase ${
                                         p.evaluation?.scholarshipTier === 'Tier 1' ? 'bg-purple-100 text-purple-700' :
@@ -450,7 +450,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 </td>
                                 <td className="p-4 text-right">
                                     {p.status !== PlayerStatus.PLACED && (
-                                        <button 
+                                        <button
                                             onClick={() => placePlayer(p)}
                                             className="text-xs bg-gray-900 hover:bg-gray-700 text-white px-3 py-1.5 rounded font-bold transition-colors"
                                         >
@@ -459,7 +459,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                     )}
                                 </td>
                             </tr>
-                        ))}
+                        )})}
                     </tbody>
                 </table>
             </div>
@@ -617,11 +617,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             <div>
                                 <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                                     {selectedScout.name}
-                                    {scoutFormData.certifications?.includes('Verified Scout') && (
+                                    {selectedScout.is_admin && (
                                         <BadgeCheck size={18} className="text-blue-500 fill-blue-50" />
                                     )}
                                 </h3>
-                                <p className="text-sm text-gray-500">ID: {selectedScout.id}</p>
+                                <p className="text-sm text-gray-500">Level {selectedScout.level || 1} • {selectedScout.xp_score || 0} XP</p>
                             </div>
                         </div>
                         <button onClick={() => setSelectedScout(null)} className="text-gray-400 hover:text-gray-700">
@@ -631,111 +631,82 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                     {/* Content */}
                     <div className="p-6 overflow-y-auto">
-                        
-                        {/* 1. Account Actions & Status */}
+
+                        {/* Stats Row */}
                         <div className="flex gap-4 mb-8">
-                            <div className="flex-1 bg-blue-50 rounded-lg p-4 border border-blue-100 flex items-center justify-between">
-                                <div>
-                                    <p className="text-xs font-bold text-blue-700 uppercase">Verification</p>
-                                    <p className="text-sm text-blue-900">{scoutFormData.certifications?.includes('Verified Scout') ? 'Verified Account' : 'Unverified'}</p>
-                                </div>
-                                <button 
-                                    onClick={toggleVerification}
-                                    className={`px-3 py-1 rounded text-xs font-bold transition-colors ${scoutFormData.certifications?.includes('Verified Scout') ? 'bg-white text-blue-600' : 'bg-blue-600 text-white'}`}
-                                >
-                                    {scoutFormData.certifications?.includes('Verified Scout') ? 'Revoke' : 'Verify'}
-                                </button>
+                            <div className="flex-1 bg-gray-50 rounded-lg p-4 border border-gray-200 text-center">
+                                <div className="text-2xl font-bold text-gray-900">{selectedScout.prospects_count || 0}</div>
+                                <div className="text-xs text-gray-500 uppercase">Prospects</div>
                             </div>
-                            <div className="flex-1 bg-purple-50 rounded-lg p-4 border border-purple-100 flex items-center justify-between">
-                                <div>
-                                    <p className="text-xs font-bold text-purple-700 uppercase">Access</p>
-                                    <p className="text-sm text-purple-900">"God Mode"</p>
-                                </div>
-                                <button 
+                            <div className="flex-1 bg-green-50 rounded-lg p-4 border border-green-200 text-center">
+                                <div className="text-2xl font-bold text-green-600">{selectedScout.placements_count || 0}</div>
+                                <div className="text-xs text-gray-500 uppercase">Placed</div>
+                            </div>
+                            <div className="flex-1 bg-purple-50 rounded-lg p-4 border border-purple-200 text-center">
+                                <div className="text-2xl font-bold text-purple-600">{selectedScout.xp_score || 0}</div>
+                                <div className="text-xs text-gray-500 uppercase">XP Score</div>
+                            </div>
+                            <div className="flex-1 bg-blue-50 rounded-lg p-4 border border-blue-100 flex items-center justify-center">
+                                <button
                                     onClick={triggerImpersonation}
-                                    className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs font-bold flex items-center gap-1"
+                                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-bold flex items-center gap-2"
                                 >
-                                    <Eye size={12} /> Login as User
+                                    <Eye size={16} /> View as Scout
                                 </button>
                             </div>
                         </div>
 
-                        <div className="grid md:grid-cols-2 gap-8">
-                            {/* 2. Profile Editor */}
-                            <div className="space-y-4">
-                                <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                                    <Edit2 size={16} className="text-gray-400" /> Edit Profile
-                                </h4>
+                        {/* Profile Editor */}
+                        <div className="space-y-4">
+                            <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                                <Edit2 size={16} className="text-gray-400" /> Edit Profile
+                            </h4>
+                            <div className="grid md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1">Full Name</label>
-                                    <input 
+                                    <input
                                         className="w-full border border-gray-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
                                         value={scoutFormData.name}
                                         onChange={e => setScoutFormData({...scoutFormData!, name: e.target.value})}
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 mb-1">Role / Title</label>
-                                    <input 
-                                        className="w-full border border-gray-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        // Fix: Using roles[0] as a placeholder for editing the primary role
-                                        value={scoutFormData.roles[0] || ''}
-                                        onChange={e => setScoutFormData({...scoutFormData!, roles: [e.target.value]})}
-                                    />
-                                </div>
-                                <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1">Region</label>
-                                    <input 
+                                    <input
                                         className="w-full border border-gray-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
                                         value={scoutFormData.region}
                                         onChange={e => setScoutFormData({...scoutFormData!, region: e.target.value})}
                                     />
                                 </div>
                                 <div>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1">Role</label>
+                                    <input
+                                        className="w-full border border-gray-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                                        value={scoutFormData.roles?.[0] || ''}
+                                        onChange={e => setScoutFormData({...scoutFormData!, roles: [e.target.value]})}
+                                    />
+                                </div>
+                                <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1">Account Status</label>
-                                    <select 
+                                    <select
                                         className="w-full border border-gray-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
                                         value={scoutFormData.status}
-                                        onChange={e => setScoutFormData({...scoutFormData!, status: e.target.value})}
+                                        onChange={e => setScoutFormData({...scoutFormData!, status: e.target.value as 'active' | 'inactive' | 'pending'})}
                                     >
-                                        <option value="Active">Active</option>
-                                        <option value="Review">Under Review</option>
-                                        <option value="Suspended">Suspended</option>
+                                        <option value="active">Active</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="inactive">Inactive</option>
                                     </select>
                                 </div>
                             </div>
-
-                            {/* 3. Badges & Certs */}
-                            <div className="space-y-4">
-                                <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                                    <Award size={16} className="text-gray-400" /> Credentials & Badges
-                                </h4>
-                                <div className="flex gap-2">
-                                    <input 
-                                        className="flex-1 border border-gray-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        placeholder="e.g. UEFA A License"
-                                        value={newBadge}
-                                        onChange={e => setNewBadge(e.target.value)}
-                                        onKeyDown={e => e.key === 'Enter' && addBadge()}
-                                    />
-                                    <button 
-                                        onClick={addBadge}
-                                        className="bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 rounded"
-                                    >
-                                        <Plus size={18} />
-                                    </button>
-                                </div>
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                    {scoutFormData.certifications?.map((badge, idx) => (
-                                        <span key={idx} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold border border-blue-100">
-                                            {badge}
-                                            <button onClick={() => removeBadge(badge)} className="hover:text-red-500"><X size={12}/></button>
-                                        </span>
-                                    ))}
-                                    {(!scoutFormData.certifications || scoutFormData.certifications.length === 0) && (
-                                        <span className="text-sm text-gray-400 italic">No badges added yet.</span>
-                                    )}
-                                </div>
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 mb-1">Bio</label>
+                                <textarea
+                                    className="w-full border border-gray-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none h-20 resize-none"
+                                    value={scoutFormData.bio || ''}
+                                    onChange={e => setScoutFormData({...scoutFormData!, bio: e.target.value})}
+                                    placeholder="Scout bio..."
+                                />
                             </div>
                         </div>
                     </div>
@@ -837,23 +808,45 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     >
                         <Globe size={20} /> Global Talent
                     </button>
-                    <button 
+                    <button
                         onClick={() => setActiveTab('SCOUTS')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'SCOUTS' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
                     >
                         <Briefcase size={20} /> Scout Network
                     </button>
-                    <button 
+                    <button
+                        onClick={() => setActiveTab('ACCESS')}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'ACCESS' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                    >
+                        <KeyRound size={20} /> Access Control
+                    </button>
+                    <button
                         onClick={() => setActiveTab('NEWS')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'NEWS' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
                     >
                         <Newspaper size={20} /> Newsroom
                     </button>
+                    <button
+                        onClick={() => setActiveTab('BUGS')}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'BUGS' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                    >
+                        <Bug size={20} /> Bug Reports
+                        {bugReports.filter(r => r.status === 'open').length > 0 && (
+                            <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                {bugReports.filter(r => r.status === 'open').length}
+                            </span>
+                        )}
+                    </button>
                 </nav>
 
-                <div className="p-4 border-t border-gray-100">
+                <div className="p-4 border-t border-gray-100 space-y-2">
+                    {onSwitchToScoutView && (
+                        <button onClick={onSwitchToScoutView} className="flex items-center gap-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 w-full px-4 py-2 rounded-lg transition-colors">
+                            <Eye size={18} /> Switch to Scout View
+                        </button>
+                    )}
                     <button onClick={onLogout} className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-red-600 w-full px-4 py-2 transition-colors">
-                        <LogOut size={18} /> Logout to App
+                        <LogOut size={18} /> Logout
                     </button>
                 </div>
             </aside>
@@ -888,16 +881,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             </div>
                         </div>
 
-                        {scoutViewMode === 'grid' ? (
+                        {scoutsLoading ? (
+                            <div className="bg-white p-12 rounded-xl border border-gray-200 text-center">
+                                <Loader2 size={32} className="mx-auto text-gray-400 animate-spin mb-4" />
+                                <p className="text-gray-500">Loading scouts...</p>
+                            </div>
+                        ) : scouts.length === 0 ? (
+                            <div className="bg-white p-12 rounded-xl border border-gray-200 text-center">
+                                <Users size={48} className="mx-auto text-gray-300 mb-4" />
+                                <h3 className="text-lg font-bold text-gray-900">No Scouts Yet</h3>
+                                <p className="text-gray-500">Add scouts via Access Control to see them here.</p>
+                            </div>
+                        ) : scoutViewMode === 'grid' ? (
                             <div className="grid grid-cols-3 gap-6">
                                 {scouts.map(scout => (
-                                    <div 
-                                        key={scout.id} 
+                                    <div
+                                        key={scout.id}
                                         onClick={() => handleScoutClick(scout)}
                                         className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col items-center text-center cursor-pointer hover:border-blue-300 hover:shadow-md transition-all group relative"
                                     >
-                                        {scout.certifications?.includes('Verified Scout') && (
-                                            <div className="absolute top-3 right-3 text-blue-500" title="Verified">
+                                        {scout.is_admin && (
+                                            <div className="absolute top-3 right-3 text-blue-500" title="Admin">
                                                 <BadgeCheck size={18} />
                                             </div>
                                         )}
@@ -905,21 +909,25 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                             {scout.name.charAt(0)}
                                         </div>
                                         <h3 className="font-bold text-gray-900">{scout.name}</h3>
-                                        <p className="text-xs text-gray-500 mb-4">{scout.roles.join(', ')} • {scout.region}</p>
-                                        
+                                        <p className="text-xs text-gray-500 mb-4">{scout.roles?.join(', ') || 'Scout'} • {scout.region}</p>
+
                                         <div className="flex justify-center gap-4 w-full mb-4 border-t border-b border-gray-50 py-3">
                                             <div>
-                                                <div className="text-lg font-bold text-gray-900">{scout.leads}</div>
-                                                <div className="text-[10px] text-gray-400 uppercase">Leads</div>
+                                                <div className="text-lg font-bold text-gray-900">{scout.prospects_count || 0}</div>
+                                                <div className="text-[10px] text-gray-400 uppercase">Prospects</div>
                                             </div>
                                             <div>
-                                                <div className="text-lg font-bold text-green-600">{scout.conversion}</div>
-                                                <div className="text-[10px] text-gray-400 uppercase">Conv.</div>
+                                                <div className="text-lg font-bold text-green-600">{scout.placements_count || 0}</div>
+                                                <div className="text-[10px] text-gray-400 uppercase">Placed</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-lg font-bold text-purple-600">{scout.xp_score || 0}</div>
+                                                <div className="text-[10px] text-gray-400 uppercase">XP</div>
                                             </div>
                                         </div>
-                                        
+
                                         <div className="flex justify-center items-center gap-2">
-                                            <span className={`text-xs px-2 py-1 rounded font-bold uppercase ${scout.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                            <span className={`text-xs px-2 py-1 rounded font-bold uppercase ${scout.status === 'active' ? 'bg-green-100 text-green-700' : scout.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
                                                 {scout.status}
                                             </span>
                                             <span className="text-xs text-blue-600 font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
@@ -937,15 +945,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                             <th className="p-4">Scout Identity</th>
                                             <th className="p-4">Region</th>
                                             <th className="p-4">Performance</th>
-                                            <th className="p-4">Credentials</th>
+                                            <th className="p-4">Level</th>
                                             <th className="p-4">Status</th>
                                             <th className="p-4 text-right">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100 text-sm">
                                         {scouts.map(scout => (
-                                            <tr 
-                                                key={scout.id} 
+                                            <tr
+                                                key={scout.id}
                                                 onClick={() => handleScoutClick(scout)}
                                                 className="hover:bg-gray-50 transition-colors cursor-pointer group"
                                             >
@@ -957,11 +965,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                                         <div>
                                                             <div className="font-bold text-gray-900 flex items-center gap-1">
                                                                 {scout.name}
-                                                                {scout.certifications?.includes('Verified Scout') && (
+                                                                {scout.is_admin && (
                                                                     <BadgeCheck size={14} className="text-blue-500 fill-blue-50" />
                                                                 )}
                                                             </div>
-                                                            <div className="text-xs text-gray-500">{scout.roles.join(', ')}</div>
+                                                            <div className="text-xs text-gray-500">{scout.roles?.join(', ') || 'Scout'}</div>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -969,46 +977,36 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                                 <td className="p-4">
                                                     <div className="flex gap-4">
                                                         <div>
-                                                            <span className="block font-bold text-gray-900">{scout.leads}</span>
-                                                            <span className="text-[10px] text-gray-400 uppercase">Leads</span>
+                                                            <span className="block font-bold text-gray-900">{scout.prospects_count || 0}</span>
+                                                            <span className="text-[10px] text-gray-400 uppercase">Prospects</span>
                                                         </div>
                                                         <div>
-                                                            <span className="block font-bold text-green-600">{scout.conversion}</span>
-                                                            <span className="text-[10px] text-gray-400 uppercase">Conv.</span>
+                                                            <span className="block font-bold text-green-600">{scout.placements_count || 0}</span>
+                                                            <span className="text-[10px] text-gray-400 uppercase">Placed</span>
                                                         </div>
                                                     </div>
                                                 </td>
                                                 <td className="p-4">
-                                                    {scout.certifications && scout.certifications.length > 0 ? (
-                                                        <div className="flex flex-wrap gap-1">
-                                                            {scout.certifications.slice(0, 2).map((cert, idx) => (
-                                                                <span key={idx} className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 truncate max-w-[120px]">
-                                                                    {cert}
-                                                                </span>
-                                                            ))}
-                                                            {scout.certifications.length > 2 && (
-                                                                <span className="text-[10px] text-gray-400 px-1.5 py-0.5">+{scout.certifications.length - 2} more</span>
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-xs text-gray-400 italic">Unverified</span>
-                                                    )}
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm font-bold text-purple-600">Lv.{scout.level || 1}</span>
+                                                        <span className="text-xs text-gray-400">({scout.xp_score || 0} XP)</span>
+                                                    </div>
                                                 </td>
                                                 <td className="p-4">
-                                                    <span className={`text-[10px] px-2 py-1 rounded font-bold uppercase ${scout.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                                    <span className={`text-[10px] px-2 py-1 rounded font-bold uppercase ${scout.status === 'active' ? 'bg-green-100 text-green-700' : scout.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
                                                         {scout.status}
                                                     </span>
                                                 </td>
                                                 <td className="p-4 text-right">
                                                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <button 
+                                                        <button
                                                             onClick={(e) => { e.stopPropagation(); handleScoutClick(scout); }}
                                                             className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded"
                                                             title="Edit Profile"
                                                         >
                                                             <Edit2 size={16} />
                                                         </button>
-                                                        <button 
+                                                        <button
                                                             onClick={(e) => triggerRowImpersonation(e, scout)}
                                                             className="p-1.5 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded"
                                                             title="Login as User"
@@ -1026,7 +1024,249 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                 )}
 
+                {activeTab === 'ACCESS' && (
+                    <div className="space-y-6 animate-fade-in">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-900">Access Control</h2>
+                                <p className="text-gray-500 text-sm">Manage which scouts can access the platform</p>
+                            </div>
+                        </div>
+                        <ApprovedScoutsManager />
+                    </div>
+                )}
+
                 {activeTab === 'NEWS' && <NewsRoomTab />}
+
+                {activeTab === 'BUGS' && (
+                    <div className="space-y-6 animate-fade-in">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-900">Bug Reports</h2>
+                                <p className="text-gray-500 text-sm">Review and manage reported issues</p>
+                            </div>
+                            <button
+                                onClick={loadBugReports}
+                                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"
+                            >
+                                {bugReportsLoading ? <Loader2 size={16} className="animate-spin" /> : null}
+                                Refresh
+                            </button>
+                        </div>
+
+                        {/* Stats */}
+                        <div className="grid grid-cols-4 gap-4">
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                                <div className="text-2xl font-bold text-gray-900">{bugReports.length}</div>
+                                <div className="text-sm text-gray-500">Total Reports</div>
+                            </div>
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-red-100">
+                                <div className="text-2xl font-bold text-red-600">{bugReports.filter(r => r.status === 'open').length}</div>
+                                <div className="text-sm text-gray-500">Open</div>
+                            </div>
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-yellow-100">
+                                <div className="text-2xl font-bold text-yellow-600">{bugReports.filter(r => r.status === 'in_progress').length}</div>
+                                <div className="text-sm text-gray-500">In Progress</div>
+                            </div>
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-green-100">
+                                <div className="text-2xl font-bold text-green-600">{bugReports.filter(r => r.status === 'resolved' || r.status === 'closed').length}</div>
+                                <div className="text-sm text-gray-500">Resolved</div>
+                            </div>
+                        </div>
+
+                        {bugReportsLoading ? (
+                            <div className="bg-white p-12 rounded-xl border border-gray-200 text-center">
+                                <Loader2 size={32} className="mx-auto text-gray-400 animate-spin mb-4" />
+                                <p className="text-gray-500">Loading bug reports...</p>
+                            </div>
+                        ) : bugReports.length === 0 ? (
+                            <div className="bg-white p-12 rounded-xl border border-gray-200 text-center">
+                                <Bug size={48} className="mx-auto text-gray-300 mb-4" />
+                                <h3 className="text-lg font-bold text-gray-900">No Bug Reports</h3>
+                                <p className="text-gray-500">When users report bugs, they'll appear here.</p>
+                            </div>
+                        ) : (
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                <table className="w-full text-left">
+                                    <thead className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold">
+                                        <tr>
+                                            <th className="p-4">Bug</th>
+                                            <th className="p-4">Reporter</th>
+                                            <th className="p-4">Priority</th>
+                                            <th className="p-4">Status</th>
+                                            <th className="p-4">Reported</th>
+                                            <th className="p-4 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {bugReports.map(report => (
+                                            <tr key={report.id} className="hover:bg-gray-50 transition-colors">
+                                                <td className="p-4">
+                                                    <div className="font-bold text-gray-900 mb-1">{report.title}</div>
+                                                    {report.description && (
+                                                        <p className="text-xs text-gray-500 line-clamp-1">{report.description}</p>
+                                                    )}
+                                                    {report.screenshotUrl && (
+                                                        <a href={report.screenshotUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1 mt-1">
+                                                            <ExternalLink size={10} /> View Screenshot
+                                                        </a>
+                                                    )}
+                                                </td>
+                                                <td className="p-4 text-sm text-gray-600">{report.reporterName || 'Anonymous'}</td>
+                                                <td className="p-4">
+                                                    <span className={`text-[10px] px-2 py-1 rounded font-bold uppercase ${
+                                                        report.priority === 'critical' ? 'bg-red-100 text-red-700' :
+                                                        report.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                                                        report.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                                        'bg-gray-100 text-gray-600'
+                                                    }`}>
+                                                        {report.priority}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4">
+                                                    <select
+                                                        value={report.status}
+                                                        onChange={(e) => handleUpdateBugStatus(report.id, e.target.value as BugReportStatus)}
+                                                        disabled={updatingBugId === report.id}
+                                                        className={`text-xs font-bold px-2 py-1 rounded border outline-none cursor-pointer ${
+                                                            report.status === 'open' ? 'bg-red-50 text-red-700 border-red-200' :
+                                                            report.status === 'in_progress' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                                                            report.status === 'resolved' ? 'bg-green-50 text-green-700 border-green-200' :
+                                                            'bg-gray-50 text-gray-600 border-gray-200'
+                                                        }`}
+                                                    >
+                                                        <option value="open">Open</option>
+                                                        <option value="in_progress">In Progress</option>
+                                                        <option value="resolved">Resolved</option>
+                                                        <option value="closed">Closed</option>
+                                                    </select>
+                                                </td>
+                                                <td className="p-4 text-xs text-gray-500">
+                                                    {new Date(report.createdAt).toLocaleDateString()}
+                                                </td>
+                                                <td className="p-4 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={() => copyClaudePrompt(report)}
+                                                            className="p-1.5 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded"
+                                                            title="Copy Claude Code Prompt"
+                                                        >
+                                                            <Copy size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setSelectedBugReport(report)}
+                                                            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded"
+                                                            title="View Details"
+                                                        >
+                                                            <Eye size={16} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {/* Bug Report Detail Modal */}
+                        {selectedBugReport && (
+                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+                                <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                                    <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                                selectedBugReport.priority === 'critical' ? 'bg-red-100' :
+                                                selectedBugReport.priority === 'high' ? 'bg-orange-100' :
+                                                'bg-gray-100'
+                                            }`}>
+                                                <Bug size={20} className={
+                                                    selectedBugReport.priority === 'critical' ? 'text-red-600' :
+                                                    selectedBugReport.priority === 'high' ? 'text-orange-600' :
+                                                    'text-gray-600'
+                                                } />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-lg font-bold text-gray-900">{selectedBugReport.title}</h3>
+                                                <p className="text-xs text-gray-500">Reported by {selectedBugReport.reporterName || 'Anonymous'}</p>
+                                            </div>
+                                        </div>
+                                        <button onClick={() => setSelectedBugReport(null)} className="text-gray-400 hover:text-gray-700">
+                                            <X size={24} />
+                                        </button>
+                                    </div>
+
+                                    <div className="p-6 overflow-y-auto space-y-6">
+                                        {/* Description */}
+                                        <div>
+                                            <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Description</h4>
+                                            <p className="text-sm text-gray-700 bg-gray-50 p-4 rounded-lg border border-gray-100">
+                                                {selectedBugReport.description || 'No description provided'}
+                                            </p>
+                                        </div>
+
+                                        {/* Page URL */}
+                                        {selectedBugReport.pageUrl && (
+                                            <div>
+                                                <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Page URL</h4>
+                                                <a href={selectedBugReport.pageUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline break-all">
+                                                    {selectedBugReport.pageUrl}
+                                                </a>
+                                            </div>
+                                        )}
+
+                                        {/* Screenshot */}
+                                        {selectedBugReport.screenshotUrl && (
+                                            <div>
+                                                <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Screenshot</h4>
+                                                <a href={selectedBugReport.screenshotUrl} target="_blank" rel="noreferrer">
+                                                    <img
+                                                        src={selectedBugReport.screenshotUrl}
+                                                        alt="Bug screenshot"
+                                                        className="max-w-full h-auto rounded-lg border border-gray-200 hover:opacity-90 transition-opacity"
+                                                    />
+                                                </a>
+                                            </div>
+                                        )}
+
+                                        {/* Claude Prompt */}
+                                        <div>
+                                            <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Claude Code Prompt</h4>
+                                            <div className="bg-gray-900 text-gray-100 p-4 rounded-lg text-xs font-mono overflow-x-auto whitespace-pre-wrap max-h-48">
+                                                {generateClaudePrompt(selectedBugReport)}
+                                            </div>
+                                            <button
+                                                onClick={() => copyClaudePrompt(selectedBugReport)}
+                                                className="mt-2 flex items-center gap-2 text-xs text-purple-600 hover:text-purple-700 font-medium"
+                                            >
+                                                <Copy size={14} /> Copy to Clipboard
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
+                                        <select
+                                            value={selectedBugReport.status}
+                                            onChange={(e) => handleUpdateBugStatus(selectedBugReport.id, e.target.value as BugReportStatus)}
+                                            className="text-sm font-bold px-3 py-2 rounded-lg border border-gray-200 outline-none"
+                                        >
+                                            <option value="open">Open</option>
+                                            <option value="in_progress">In Progress</option>
+                                            <option value="resolved">Resolved</option>
+                                            <option value="closed">Closed</option>
+                                        </select>
+                                        <button
+                                            onClick={() => setSelectedBugReport(null)}
+                                            className="px-6 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-sm rounded-lg"
+                                        >
+                                            Close
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
             </main>
         </div>
     );

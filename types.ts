@@ -11,15 +11,14 @@ export enum DashboardTab {
   EVENTS = 'EVENTS',
   KNOWLEDGE = 'KNOWLEDGE',
   PROFILE = 'PROFILE',
-  OUTREACH = 'OUTREACH',
-  NEWS = 'NEWS'
+  OUTREACH = 'OUTREACH'
 }
 
+// Simplified 5-stage pipeline: Lead → Contacted → Interested → Offered → Placed
 export enum PlayerStatus {
-  PROSPECT = 'Prospect', // Shadow Pipeline / Sandbox
   LEAD = 'Lead',
+  CONTACTED = 'Contacted',
   INTERESTED = 'Interested',
-  FINAL_REVIEW = 'Final Review',
   OFFERED = 'Offered',
   PLACED = 'Placed',
   ARCHIVED = 'Archived'

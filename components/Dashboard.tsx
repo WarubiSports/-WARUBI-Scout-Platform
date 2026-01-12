@@ -6,7 +6,6 @@ import EventHub from './EventHub';
 import KnowledgeTab from './KnowledgeTab';
 import ProfileTab from './ProfileTab';
 import OutreachTab from './OutreachTab';
-import NewsTab from './NewsTab';
 import PlayerSubmission from './PlayerSubmission';
 import SidelineBeam from './SidelineBeam';
 import TutorialOverlay from './TutorialOverlay';
@@ -18,15 +17,13 @@ import { ErrorBoundary } from './ErrorBoundary';
 import GlobalSearch from './GlobalSearch';
 import { haptic, useSwipeGesture } from '../hooks/useMobileFeatures';
 import { generateDailyStrategy } from '../services/geminiService';
-import { Users, CalendarDays, UserCircle, MessageSquare, Newspaper, Zap, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, Radio, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, Bug } from 'lucide-react';
+import { Users, CalendarDays, UserCircle, MessageSquare, Zap, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, Bug, LogOut } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
 
 interface DashboardProps {
     user: UserProfile;
     players: Player[];
     events: ScoutingEvent[];
-    newsItems: any[];
-    tickerItems: string[];
     notifications: AppNotification[];
     scoutScore?: number;
     onAddPlayer: (player: Player) => void;
@@ -38,14 +35,14 @@ interface DashboardProps {
     onMarkAllRead: () => void;
     onMessageSent?: (id: string, log: any) => void;
     onStatusChange?: (id: string, newStatus: PlayerStatus) => void;
+    onLogout?: () => void;
+    onReturnToAdmin?: () => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
     user,
     players,
     events,
-    newsItems,
-    tickerItems,
     notifications,
     scoutScore = 0,
     onAddPlayer,
@@ -56,7 +53,9 @@ const Dashboard: React.FC<DashboardProps> = ({
     onAddNotification,
     onMarkAllRead,
     onMessageSent,
-    onStatusChange
+    onStatusChange,
+    onLogout,
+    onReturnToAdmin
 }) => {
     const [activeTab, setActiveTab] = useState<DashboardTab>(DashboardTab.PLAYERS);
     const [viewMode, setViewMode] = useState<'board' | 'list' | 'stack'>('board');
@@ -95,8 +94,9 @@ const Dashboard: React.FC<DashboardProps> = ({
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-    const spotlights = players.filter(p => p.status === PlayerStatus.PROSPECT && (p.activityStatus === 'spotlight' || p.activityStatus === 'signal'));
-    const shadowCount = players.filter(p => p.status === PlayerStatus.PROSPECT).length;
+    // Hot leads are recently active leads with high engagement signals
+    const spotlights = players.filter(p => p.status === PlayerStatus.LEAD && (p.activityStatus === 'spotlight' || p.activityStatus === 'signal'));
+    const leadCount = players.filter(p => p.status === PlayerStatus.LEAD).length;
     const [reviewIdx, setReviewIdx] = useState(0);
     const currentSpotlight = spotlights[reviewIdx];
 
@@ -117,7 +117,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     };
 
     const promoteLead = (id: string) => {
-        handleStatusChange(id, PlayerStatus.LEAD);
+        handleStatusChange(id, PlayerStatus.CONTACTED);
         if (reviewIdx >= spotlights.length - 1) setReviewIdx(0);
     };
 
@@ -238,7 +238,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     };
 
     const PipelineStack = () => {
-        const activePlayers = players.filter(p => p.status !== PlayerStatus.PROSPECT && p.status !== PlayerStatus.ARCHIVED);
+        const activePlayers = players.filter(p => p.status !== PlayerStatus.ARCHIVED);
         const [stackIdx, setStackIdx] = useState(0);
         const currentPlayer = activePlayers[stackIdx];
 
@@ -275,8 +275,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
         const handlePromote = () => {
             if (currentPlayer) {
-                // Move to next stage
-                const stages = [PlayerStatus.LEAD, PlayerStatus.INTERESTED, PlayerStatus.FINAL_REVIEW, PlayerStatus.OFFERED, PlayerStatus.PLACED];
+                // Move to next stage: Lead → Contacted → Interested → Offered → Placed
+                const stages = [PlayerStatus.LEAD, PlayerStatus.CONTACTED, PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED];
                 const currentIndex = stages.indexOf(currentPlayer.status);
                 if (currentIndex < stages.length - 1) {
                     handleStatusChange(currentPlayer.id, stages[currentIndex + 1]);
@@ -325,7 +325,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     const ListView = () => {
         const filteredPlayers = players.filter(p =>
-            p.status !== PlayerStatus.PROSPECT &&
+            p.status !== PlayerStatus.ARCHIVED &&
             p.name.toLowerCase().includes(listSearch.toLowerCase())
         );
 
@@ -351,7 +351,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                     </td>
                                     <td className="px-6 py-4">
                                         <select value={p.status} onChange={(e) => handleStatusChange(p.id, e.target.value as PlayerStatus)} className="bg-scout-900/50 border border-scout-700/50 rounded-lg px-2 py-1 text-[10px] font-black uppercase text-gray-300 outline-none">
-                                            {Object.values(PlayerStatus).filter(s => s !== PlayerStatus.PROSPECT).map(status => <option key={status} value={status}>{status}</option>)}
+                                            {[PlayerStatus.LEAD, PlayerStatus.CONTACTED, PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED, PlayerStatus.ARCHIVED].map(status => <option key={status} value={status}>{status}</option>)}
                                         </select>
                                     </td>
                                     <td className="px-6 py-4 font-black text-scout-accent">{p.evaluation?.score || '?'}</td>
@@ -395,9 +395,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <button onClick={() => setActiveTab(DashboardTab.PLAYERS)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.PLAYERS ? 'bg-scout-700 text-white' : 'text-gray-500 hover:bg-scout-900/50'}`}><Users size={20} /> Pipeline</button>
                     <button onClick={() => setActiveTab(DashboardTab.OUTREACH)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.OUTREACH ? 'bg-scout-accent text-scout-900' : 'text-gray-300 hover:text-white'}`}><MessageSquare size={20} /> Outreach</button>
                     <button onClick={() => setActiveTab(DashboardTab.EVENTS)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.EVENTS ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><CalendarDays size={20} /> Events</button>
-                    <div className="text-[10px] font-black text-gray-600/50 px-5 mt-10 mb-2 uppercase tracking-[0.3em] flex items-center gap-2 border-t border-scout-800 pt-4"><Radio size={10} className="opacity-50" /> Intel Hub</div>
-                    <button onClick={() => setActiveTab(DashboardTab.NEWS)} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${activeTab === DashboardTab.NEWS ? 'bg-scout-700/50 text-white' : 'text-gray-600 hover:text-gray-400'}`}><Newspaper size={16} /> News</button>
-                    <button onClick={() => setActiveTab(DashboardTab.KNOWLEDGE)} className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-bold transition-all ${activeTab === DashboardTab.KNOWLEDGE ? 'bg-scout-700/50 text-white' : 'text-gray-600 hover:text-gray-400'}`}><Zap size={16} /> Training</button>
+                    <button onClick={() => setActiveTab(DashboardTab.KNOWLEDGE)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.KNOWLEDGE ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><Zap size={20} /> Training</button>
                 </nav>
                 <StrategyPanel persona={user.scoutPersona || 'The Scout'} tasks={strategyTasks} onAction={(link) => setActiveTab(DashboardTab.OUTREACH)} />
                 <div className="px-4 pb-2 space-y-2">
@@ -410,11 +408,21 @@ const Dashboard: React.FC<DashboardProps> = ({
                         Report a Bug
                     </button>
                 </div>
-                <div className="p-6 border-t border-scout-700 bg-scout-900/30">
+                <div className="p-6 border-t border-scout-700 bg-scout-900/30 space-y-3">
                     <div onClick={() => setActiveTab(DashboardTab.PROFILE)} className="flex items-center gap-4 p-3 bg-scout-800 rounded-2xl border border-scout-700 cursor-pointer hover:border-scout-accent transition-colors">
                         <div className="w-12 h-12 rounded-xl bg-scout-accent flex items-center justify-center font-black text-scout-900 text-xl">{user.name.charAt(0)}</div>
                         <div className="min-w-0"><p className="text-sm font-black text-white truncate mb-1">{user.name}</p><p className="text-[10px] text-scout-highlight font-black uppercase">{scoutScore} XP</p></div>
                     </div>
+                    {onReturnToAdmin && (
+                        <button onClick={onReturnToAdmin} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-xl text-xs font-bold transition-all border border-blue-500/30">
+                            <Users size={14} /> Return to Admin
+                        </button>
+                    )}
+                    {onLogout && (
+                        <button onClick={onLogout} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-gray-500 hover:text-white hover:bg-scout-700/50 rounded-xl text-xs font-bold transition-all">
+                            <LogOut size={14} /> Sign Out
+                        </button>
+                    )}
                 </div>
             </aside>
 
@@ -461,22 +469,22 @@ const Dashboard: React.FC<DashboardProps> = ({
                             // Determine the top priority action
                             const hotSignal = spotlights.find(p => p.activityStatus === 'signal' || p.activityStatus === 'spotlight');
                             const topLead = players
-                                .filter(p => p.status === PlayerStatus.LEAD || p.status === PlayerStatus.INTERESTED)
+                                .filter(p => p.status === PlayerStatus.LEAD || p.status === PlayerStatus.CONTACTED || p.status === PlayerStatus.INTERESTED)
                                 .sort((a, b) => (b.evaluation?.score || 0) - (a.evaluation?.score || 0))[0];
-                            const finalReviewPlayer = players.find(p => p.status === PlayerStatus.FINAL_REVIEW);
+                            const offeredPlayer = players.find(p => p.status === PlayerStatus.OFFERED);
 
-                            // Priority order: hot signal > final review > top lead > add players
+                            // Priority order: hot signal > offered (close to placement) > top lead > add players
                             let priority: { type: string; title: string; subtitle: string; action: () => void; actionLabel: string; icon: React.ReactNode } | null = null;
 
                             if (hotSignal && !spotlights.some(p => p.activityStatus === 'signal' || p.activityStatus === 'spotlight')) {
                                 // Hot signal already shown in banner above, skip
-                            } else if (finalReviewPlayer) {
+                            } else if (offeredPlayer) {
                                 priority = {
-                                    type: 'FINAL REVIEW',
-                                    title: `Submit ${finalReviewPlayer.name} for placement`,
-                                    subtitle: `Score: ${finalReviewPlayer.evaluation?.score || '?'} • ${finalReviewPlayer.evaluation?.scholarshipTier || 'Untiered'}`,
-                                    action: () => handleEditPlayer(finalReviewPlayer),
-                                    actionLabel: 'Review & Submit',
+                                    type: 'CLOSE TO PLACEMENT',
+                                    title: `Follow up on ${offeredPlayer.name}'s offer`,
+                                    subtitle: `Score: ${offeredPlayer.evaluation?.score || '?'} • ${offeredPlayer.evaluation?.scholarshipTier || 'Untiered'}`,
+                                    action: () => handleEditPlayer(offeredPlayer),
+                                    actionLabel: 'Review & Close',
                                     icon: <Trophy className="text-scout-highlight" size={24} />
                                 };
                             } else if (topLead) {
@@ -488,7 +496,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                     actionLabel: 'Send Message',
                                     icon: <Target className="text-scout-accent" size={24} />
                                 };
-                            } else if (players.filter(p => p.status !== PlayerStatus.PROSPECT && p.status !== PlayerStatus.ARCHIVED).length === 0) {
+                            } else if (players.filter(p => p.status !== PlayerStatus.ARCHIVED).length === 0) {
                                 priority = {
                                     type: 'GET STARTED',
                                     title: 'Add your first prospect',
@@ -568,7 +576,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
                         {viewMode === 'board' ? (
                             <div className="flex gap-6 overflow-x-auto pb-8 custom-scrollbar min-h-[500px]">
-                                {[PlayerStatus.LEAD, PlayerStatus.INTERESTED, PlayerStatus.FINAL_REVIEW, PlayerStatus.OFFERED, PlayerStatus.PLACED].map(status => (
+                                {[PlayerStatus.LEAD, PlayerStatus.CONTACTED, PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED].map(status => (
                                     <div key={status} onDragOver={(e) => onDragOver(e, status)} onDrop={(e) => onDrop(e, status)} className={`flex-1 min-w-[340px] flex flex-col bg-scout-800/20 rounded-[3rem] border ${draggedOverStatus === status ? 'border-scout-accent bg-scout-accent/5 shadow-glow' : 'border-scout-700/50'}`}>
                                         <div className="p-8 border-b border-scout-700/50 bg-scout-900/20 backdrop-blur-md flex justify-between items-center rounded-t-[3rem]"><h3 className="font-black uppercase text-[10px] tracking-[0.3em] opacity-50">{status}</h3><span className="text-[10px] bg-scout-900 border border-scout-700 px-3 py-1 rounded-full text-gray-500 font-black">{players.filter(p => p.status === status).length}</span></div>
                                         <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1 max-h-[calc(100vh-450px)]">
@@ -594,11 +602,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                 {activeTab === DashboardTab.EVENTS && (
                     <ErrorBoundary name="Events">
                         <EventHub events={events} user={user} onAddEvent={onAddEvent} onUpdateEvent={onUpdateEvent} />
-                    </ErrorBoundary>
-                )}
-                {activeTab === DashboardTab.NEWS && (
-                    <ErrorBoundary name="News">
-                        <NewsTab newsItems={newsItems} tickerItems={tickerItems} user={user} scoutScore={scoutScore} />
                     </ErrorBoundary>
                 )}
                 {activeTab === DashboardTab.PROFILE && (

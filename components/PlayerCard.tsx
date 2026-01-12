@@ -88,8 +88,8 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
         const tier = player.evaluation?.scholarshipTier;
         const college = player.evaluation?.collegeLevel;
 
-        if (player.status === PlayerStatus.FINAL_REVIEW) {
-            return `Score ${score}. ${tier || 'Untiered'}. Ready to submit.`;
+        if (player.status === PlayerStatus.OFFERED) {
+            return `Score ${score}. ${tier || 'Untiered'}. Offer extended - follow up!`;
         }
         if (player.status === PlayerStatus.INTERESTED && player.interestedProgram) {
             return `Matched to ${player.interestedProgram}. Awaiting response.`;
@@ -111,11 +111,8 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
 
     // Determine the primary action
     const getAction = () => {
-        if (player.status === PlayerStatus.FINAL_REVIEW) {
-            return { label: 'Submit to HQ', onClick: sendFinalReviewEmail, primary: true };
-        }
         if (player.status === PlayerStatus.OFFERED) {
-            return { label: 'Follow Up', onClick: () => onOutreach?.(player), primary: false };
+            return { label: 'Follow Up', onClick: () => onOutreach?.(player), primary: true };
         }
         if (player.activityStatus === 'signal' || player.activityStatus === 'spotlight') {
             return { label: 'Message Now', onClick: () => onOutreach?.(player), primary: true };
@@ -292,10 +289,9 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                         onChange={handleStatusChange}
                         className="appearance-none bg-scout-900/50 text-[9px] font-bold uppercase pl-2 pr-5 py-1.5 rounded-lg border border-scout-700/50 text-gray-400 focus:border-scout-accent focus:outline-none cursor-pointer hover:bg-scout-700/50"
                     >
-                        <option value={PlayerStatus.PROSPECT}>Undiscovered</option>
                         <option value={PlayerStatus.LEAD}>Lead</option>
+                        <option value={PlayerStatus.CONTACTED}>Contacted</option>
                         <option value={PlayerStatus.INTERESTED}>Interested</option>
-                        <option value={PlayerStatus.FINAL_REVIEW}>Final Review</option>
                         <option value={PlayerStatus.OFFERED}>Offered</option>
                         <option value={PlayerStatus.PLACED}>Placed</option>
                         <option value={PlayerStatus.ARCHIVED}>Archived</option>

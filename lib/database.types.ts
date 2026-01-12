@@ -12,6 +12,46 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      approved_scouts: {
+        Row: {
+          id: string
+          email: string
+          name: string | null
+          region: string | null
+          role: string
+          notes: string | null
+          approved_by: string | null
+          approved_at: string
+          created_at: string
+          has_registered: boolean
+          registered_at: string | null
+        }
+        Insert: {
+          id?: string
+          email: string
+          name?: string | null
+          region?: string | null
+          role?: string
+          notes?: string | null
+          approved_by?: string | null
+          approved_at?: string
+          created_at?: string
+          has_registered?: boolean
+          registered_at?: string | null
+        }
+        Update: {
+          id?: string
+          email?: string
+          name?: string | null
+          region?: string | null
+          role?: string
+          notes?: string | null
+          approved_by?: string | null
+          approved_at?: string
+          has_registered?: boolean
+          registered_at?: string | null
+        }
+      }
       scouts: {
         Row: {
           id: string

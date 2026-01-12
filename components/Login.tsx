@@ -2,13 +2,9 @@ import React, { useState } from 'react';
 import { Mail, Lock, ArrowRight, Loader2, Sparkles, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuthContext } from '../contexts/AuthContext';
 
-interface LoginProps {
-  onSkip: () => void; // For demo/anonymous access
-}
-
 type AuthMode = 'magic' | 'password' | 'signup';
 
-const Login: React.FC<LoginProps> = ({ onSkip }) => {
+const Login: React.FC = () => {
   const { signInWithMagicLink, signInWithPassword, signUp } = useAuthContext();
 
   const [mode, setMode] = useState<AuthMode>('magic');
@@ -278,15 +274,6 @@ const Login: React.FC<LoginProps> = ({ onSkip }) => {
           )}
         </div>
 
-        {/* Skip / Demo Access */}
-        <div className="mt-8 pt-6 border-t border-scout-700 text-center">
-          <button
-            onClick={onSkip}
-            className="text-gray-600 text-xs hover:text-gray-400 transition-colors"
-          >
-            Continue without signing in (Demo Mode)
-          </button>
-        </div>
       </div>
 
       {/* Footer */}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { isEmailApproved, markScoutRegistered, needsPasswordSetup, setUserPassword } from '../services/accessControlService'
 import type { User, Session } from '@supabase/supabase-js'
 
 interface AuthState {
@@ -7,6 +8,7 @@ interface AuthState {
   session: Session | null
   loading: boolean
   error: string | null
+  needsPasswordSetup: boolean
 }
 
 interface UseAuthReturn extends AuthState {
@@ -14,6 +16,8 @@ interface UseAuthReturn extends AuthState {
   signInWithPassword: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   signUp: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   signOut: () => Promise<void>
+  setupPassword: (password: string) => Promise<{ success: boolean; error?: string }>
+  dismissPasswordSetup: () => void
   isAuthenticated: boolean
   isDemo: boolean
 }
@@ -24,9 +28,18 @@ export function useAuth(): UseAuthReturn {
     session: null,
     loading: true,
     error: null,
+    needsPasswordSetup: false,
   })
 
   const isDemo = !isSupabaseConfigured
+
+  // Check if user needs to set up password
+  const checkPasswordSetup = useCallback(async () => {
+    if (!isSupabaseConfigured) return
+
+    const needsSetup = await needsPasswordSetup()
+    setState(prev => ({ ...prev, needsPasswordSetup: needsSetup }))
+  }, [])
 
   // Initialize auth state
   useEffect(() => {
@@ -35,8 +48,20 @@ export function useAuth(): UseAuthReturn {
       return
     }
 
+    // Add timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.warn('Auth session check timed out, proceeding without session')
+      setState(prev => {
+        if (prev.loading) {
+          return { ...prev, loading: false }
+        }
+        return prev
+      })
+    }, 5000)
+
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
+    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
+      clearTimeout(timeoutId)
       if (error) {
         console.error('Error getting session:', error)
         setState(prev => ({ ...prev, loading: false, error: error.message }))
@@ -47,7 +72,16 @@ export function useAuth(): UseAuthReturn {
           user: session?.user ?? null,
           loading: false,
         }))
+
+        // Check password setup status if user is logged in
+        if (session?.user) {
+          checkPasswordSetup()
+        }
       }
+    }).catch(err => {
+      clearTimeout(timeoutId)
+      console.error('Error in getSession:', err)
+      setState(prev => ({ ...prev, loading: false, error: 'Failed to check authentication' }))
     })
 
     // Listen for auth changes
@@ -60,22 +94,41 @@ export function useAuth(): UseAuthReturn {
           user: session?.user ?? null,
           loading: false,
         }))
+
+        // Check password setup on login events
+        if (event === 'SIGNED_IN' && session?.user) {
+          // Mark scout as registered
+          await markScoutRegistered(session.user.email || '')
+          checkPasswordSetup()
+        }
       }
     )
 
     return () => {
+      clearTimeout(timeoutId)
       subscription.unsubscribe()
     }
-  }, [])
+  }, [checkPasswordSetup])
 
   const signInWithMagicLink = useCallback(async (email: string) => {
     if (!isSupabaseConfigured) {
       return { success: false, error: 'Supabase not configured' }
     }
 
-    setState(prev => ({ ...prev, loading: true, error: null }))
+    // Don't set global loading state - Login component manages its own loading state
+    // This prevents App.tsx from showing loading screen and unmounting Login
 
     try {
+      // Check if email is in approved list
+      const { approved, error: approvalError } = await isEmailApproved(email)
+
+      if (!approved) {
+        return {
+          success: false,
+          error: approvalError || 'Access restricted. Contact your administrator to request access.'
+        }
+      }
+
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
@@ -87,15 +140,12 @@ export function useAuth(): UseAuthReturn {
       })
 
       if (error) {
-        setState(prev => ({ ...prev, loading: false, error: error.message }))
         return { success: false, error: error.message }
       }
 
-      setState(prev => ({ ...prev, loading: false }))
       return { success: true }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
-      setState(prev => ({ ...prev, loading: false, error: message }))
       return { success: false, error: message }
     }
   }, [])
@@ -105,24 +155,31 @@ export function useAuth(): UseAuthReturn {
       return { success: false, error: 'Supabase not configured' }
     }
 
-    setState(prev => ({ ...prev, loading: true, error: null }))
+    // Don't set global loading state - Login component manages its own loading state
 
     try {
+      // Check if email is in approved list
+      const { approved, error: approvalError } = await isEmailApproved(email)
+
+      if (!approved) {
+        return {
+          success: false,
+          error: approvalError || 'Access restricted. Contact your administrator to request access.'
+        }
+      }
+
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (error) {
-        setState(prev => ({ ...prev, loading: false, error: error.message }))
         return { success: false, error: error.message }
       }
 
-      setState(prev => ({ ...prev, loading: false }))
       return { success: true }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
-      setState(prev => ({ ...prev, loading: false, error: message }))
       return { success: false, error: message }
     }
   }, [])
@@ -132,9 +189,19 @@ export function useAuth(): UseAuthReturn {
       return { success: false, error: 'Supabase not configured' }
     }
 
-    setState(prev => ({ ...prev, loading: true, error: null }))
+    // Don't set global loading state - Login component manages its own loading state
 
     try {
+      // Check if email is in approved list
+      const { approved, error: approvalError } = await isEmailApproved(email)
+
+      if (!approved) {
+        return {
+          success: false,
+          error: approvalError || 'Access restricted. Contact your administrator to request access.'
+        }
+      }
+
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -142,21 +209,33 @@ export function useAuth(): UseAuthReturn {
           emailRedirectTo: typeof window !== 'undefined'
             ? `${window.location.origin}/auth/callback`
             : undefined,
+          data: {
+            has_set_password: true, // Mark password as set during signup
+          },
         },
       })
 
       if (error) {
-        setState(prev => ({ ...prev, loading: false, error: error.message }))
         return { success: false, error: error.message }
       }
 
-      setState(prev => ({ ...prev, loading: false }))
       return { success: true }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error'
-      setState(prev => ({ ...prev, loading: false, error: message }))
       return { success: false, error: message }
     }
+  }, [])
+
+  const setupPassword = useCallback(async (password: string) => {
+    const result = await setUserPassword(password)
+    if (result.success) {
+      setState(prev => ({ ...prev, needsPasswordSetup: false }))
+    }
+    return result
+  }, [])
+
+  const dismissPasswordSetup = useCallback(() => {
+    setState(prev => ({ ...prev, needsPasswordSetup: false }))
   }, [])
 
   const signOut = useCallback(async () => {
@@ -171,6 +250,7 @@ export function useAuth(): UseAuthReturn {
         session: null,
         loading: false,
         error: null,
+        needsPasswordSetup: false,
       })
     } catch (err) {
       console.error('Error signing out:', err)
@@ -184,6 +264,8 @@ export function useAuth(): UseAuthReturn {
     signInWithPassword,
     signUp,
     signOut,
+    setupPassword,
+    dismissPasswordSetup,
     isAuthenticated: !!state.user,
     isDemo,
   }

@@ -7,7 +7,6 @@ interface ScoutContextType {
   scout: Scout | null
   loading: boolean
   error: string | null
-  isDemo: boolean
   xpScore: number
   placementsCount: number
   initializeScout: (profile: UserProfile, userId?: string) => Promise<Scout | null>
@@ -20,84 +19,62 @@ interface ScoutContextType {
 
 const ScoutContext = createContext<ScoutContextType | undefined>(undefined)
 
-// Local storage key for demo mode
-const DEMO_SCOUT_KEY = 'warubi_demo_scout'
-
 interface ScoutProviderProps {
   children: ReactNode
   userId?: string | null
-  forceDemoMode?: boolean
 }
 
-export function ScoutProvider({ children, userId, forceDemoMode = false }: ScoutProviderProps) {
+export function ScoutProvider({ children, userId }: ScoutProviderProps) {
   const [scout, setScout] = useState<Scout | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isDemo, setIsDemo] = useState(!isSupabaseConfigured || forceDemoMode)
 
-  // Load scout on mount or when userId/forceDemoMode changes
+  // Load scout on mount or when userId changes
   useEffect(() => {
-    loadScout()
-  }, [userId, forceDemoMode])
+    // Add timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      console.warn('Scout loading timed out, proceeding without scout data')
+      setLoading(false)
+    }, 5000)
+
+    loadScout().finally(() => {
+      clearTimeout(timeoutId)
+    })
+
+    return () => clearTimeout(timeoutId)
+  }, [userId])
 
   const loadScout = async () => {
     setLoading(true)
     try {
-      // First, always check localStorage for a demo scout
-      const stored = localStorage.getItem(DEMO_SCOUT_KEY)
-      const demoScout = stored ? JSON.parse(stored) : null
-
-      // If demo mode is forced, use localStorage only
-      if (forceDemoMode) {
-        if (demoScout) {
-          setScout(demoScout)
-        }
-        setIsDemo(true)
+      if (!isSupabaseConfigured) {
+        console.warn('Supabase not configured')
         setLoading(false)
         return
       }
 
-      if (isSupabaseConfigured) {
-        let query = supabase.from('scouts').select('*')
+      // Only query if we have a userId (authenticated user)
+      if (!userId) {
+        setLoading(false)
+        return
+      }
 
-        // If authenticated, load scout by user_id
-        if (userId) {
-          query = query.eq('user_id', userId)
-        }
+      const { data, error } = await supabase
+        .from('scouts')
+        .select('*')
+        .eq('user_id', userId)
+        .limit(1)
+        .maybeSingle()
 
-        const { data, error } = await query.limit(1).maybeSingle()
-
-        if (error) {
-          console.warn('Supabase error, falling back to demo:', error.message)
-          // Fall back to demo mode if Supabase fails
-          if (demoScout) {
-            setScout(demoScout)
-            setIsDemo(true)
-          }
-        } else if (data) {
-          setScout(data)
-          setIsDemo(false)
-        } else if (demoScout) {
-          // No Supabase data, but we have a demo scout in localStorage
-          setScout(demoScout)
-          setIsDemo(true)
-        }
-      } else {
-        // Demo mode - use localStorage
-        if (demoScout) {
-          setScout(demoScout)
-        }
-        setIsDemo(true)
+      if (error) {
+        console.warn('Supabase error:', error.message)
+        setError(error.message)
+      } else if (data) {
+        setScout(data)
       }
     } catch (err) {
       console.error('Error loading scout:', err)
       setError(err instanceof Error ? err.message : 'Failed to load scout')
-      // Try demo scout as last resort
-      const stored = localStorage.getItem(DEMO_SCOUT_KEY)
-      if (stored) {
-        setScout(JSON.parse(stored))
-        setIsDemo(true)
-      }
     } finally {
       setLoading(false)
     }
@@ -106,7 +83,7 @@ export function ScoutProvider({ children, userId, forceDemoMode = false }: Scout
   const refreshScout = useCallback(async () => {
     if (!scout?.id) return
 
-    if (isSupabaseConfigured && !isDemo) {
+    if (isSupabaseConfigured) {
       const { data, error } = await supabase
         .from('scouts')
         .select('*')
@@ -117,11 +94,10 @@ export function ScoutProvider({ children, userId, forceDemoMode = false }: Scout
         setScout(data)
       }
     }
-  }, [scout?.id, isDemo])
+  }, [scout?.id])
 
   const clearScout = useCallback(() => {
     setScout(null)
-    localStorage.removeItem(DEMO_SCOUT_KEY)
   }, [])
 
   const initializeScout = async (profile: UserProfile, authUserId?: string): Promise<Scout | null> => {
@@ -141,60 +117,27 @@ export function ScoutProvider({ children, userId, forceDemoMode = false }: Scout
       status: 'active',
     }
 
-    // If in demo mode, always use localStorage
-    if (forceDemoMode || isDemo) {
-      return createDemoScout(scoutData)
+    if (!isSupabaseConfigured) {
+      console.error('Supabase not configured - cannot create scout')
+      setError('Database not configured')
+      return null
     }
 
-    if (isSupabaseConfigured) {
-      try {
-        const { data, error } = await supabase
-          .from('scouts')
-          .insert(scoutData)
-          .select()
-          .single()
+    try {
+      const { data, error } = await supabase
+        .from('scouts')
+        .insert(scoutData as any)
+        .select()
+        .single()
 
-        if (error) throw error
-        setScout(data)
-        setIsDemo(false)
-        return data
-      } catch (err) {
-        console.error('Error creating scout:', err)
-        setError(err instanceof Error ? err.message : 'Failed to create scout')
-        // Fall back to demo mode
-        return createDemoScout(scoutData)
-      }
-    } else {
-      return createDemoScout(scoutData)
+      if (error) throw error
+      setScout(data)
+      return data
+    } catch (err) {
+      console.error('Error creating scout:', err)
+      setError(err instanceof Error ? err.message : 'Failed to create scout')
+      return null
     }
-  }
-
-  const createDemoScout = (data: ScoutInsert): Scout => {
-    const demoScout: Scout = {
-      id: `demo-${Date.now()}`,
-      user_id: null,
-      name: data.name,
-      email: data.email || null,
-      phone: data.phone || null,
-      region: data.region,
-      affiliation: data.affiliation || null,
-      bio: data.bio || null,
-      roles: data.roles || ['Regional Scout'],
-      xp_score: 0,
-      level: 1,
-      placements_count: 0,
-      scout_persona: data.scout_persona || null,
-      lead_magnet_active: data.lead_magnet_active || false,
-      status: 'active',
-      is_admin: data.is_admin || false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }
-
-    localStorage.setItem(DEMO_SCOUT_KEY, JSON.stringify(demoScout))
-    setScout(demoScout)
-    setIsDemo(true)
-    return demoScout
   }
 
   const updateScout = async (updates: Partial<ScoutUpdate>) => {
@@ -202,10 +145,10 @@ export function ScoutProvider({ children, userId, forceDemoMode = false }: Scout
 
     const updatedScout = { ...scout, ...updates, updated_at: new Date().toISOString() }
 
-    if (isSupabaseConfigured && !isDemo) {
+    if (isSupabaseConfigured) {
       try {
-        const { error } = await supabase
-          .from('scouts')
+        const { error } = await (supabase
+          .from('scouts') as any)
           .update(updates)
           .eq('id', scout.id)
 
@@ -215,10 +158,6 @@ export function ScoutProvider({ children, userId, forceDemoMode = false }: Scout
         console.error('Error updating scout:', err)
         setError(err instanceof Error ? err.message : 'Failed to update scout')
       }
-    } else {
-      // Demo mode - update localStorage
-      localStorage.setItem(DEMO_SCOUT_KEY, JSON.stringify(updatedScout))
-      setScout(updatedScout as Scout)
     }
   }
 
@@ -244,7 +183,6 @@ export function ScoutProvider({ children, userId, forceDemoMode = false }: Scout
         scout,
         loading,
         error,
-        isDemo,
         xpScore: scout?.xp_score || 0,
         placementsCount: scout?.placements_count || 0,
         initializeScout,

@@ -3,15 +3,13 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { AuthProvider, useAuthContext } from './contexts/AuthContext';
 import { ScoutProvider } from './contexts/ScoutContext';
-import { DemoModeProvider, useDemoMode } from './contexts/DemoModeContext';
 
-// Wrapper component that connects Auth and DemoMode to Scout context
+// Wrapper component that connects Auth to Scout context
 function AppWithProviders() {
   const { user } = useAuthContext();
-  const { isDemoMode } = useDemoMode();
 
   return (
-    <ScoutProvider userId={user?.id} forceDemoMode={isDemoMode}>
+    <ScoutProvider userId={user?.id}>
       <App />
     </ScoutProvider>
   );
@@ -25,10 +23,8 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <DemoModeProvider>
-      <AuthProvider>
-        <AppWithProviders />
-      </AuthProvider>
-    </DemoModeProvider>
+    <AuthProvider>
+      <AppWithProviders />
+    </AuthProvider>
   </React.StrictMode>
 );

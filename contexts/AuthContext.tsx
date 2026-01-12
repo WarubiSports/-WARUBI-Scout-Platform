@@ -9,10 +9,13 @@ interface AuthContextType {
   error: string | null
   isAuthenticated: boolean
   isDemo: boolean
+  needsPasswordSetup: boolean
   signInWithMagicLink: (email: string) => Promise<{ success: boolean; error?: string }>
   signInWithPassword: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   signUp: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   signOut: () => Promise<void>
+  setupPassword: (password: string) => Promise<{ success: boolean; error?: string }>
+  dismissPasswordSetup: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)

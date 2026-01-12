@@ -35,24 +35,25 @@ export function useOutreach(scoutId: string | undefined, isDemo: boolean = false
 
           const { data, error } = await supabase
             .from('scout_outreach_logs')
-            .insert(logData)
+            .insert(logData as any)
             .select()
             .single()
 
           if (error) throw error
 
           // Also update prospect's last_contacted_at
-          await supabase
-            .from('scout_prospects')
+          await (supabase
+            .from('scout_prospects') as any)
             .update({ last_contacted_at: new Date().toISOString() })
             .eq('id', prospectId)
 
+          const logRecord = data as any
           return {
-            id: data.id,
-            date: data.created_at,
-            method: data.method as 'Email' | 'WhatsApp' | 'Clipboard',
-            templateName: data.template_name,
-            note: data.note || undefined,
+            id: logRecord.id,
+            date: logRecord.created_at,
+            method: logRecord.method as 'Email' | 'WhatsApp' | 'Clipboard',
+            templateName: logRecord.template_name,
+            note: logRecord.note || undefined,
           }
         } catch (err) {
           console.error('Error logging outreach:', err)
@@ -104,8 +105,8 @@ export function useOutreach(scoutId: string | undefined, isDemo: boolean = false
     async (logId: string, notes?: string): Promise<void> => {
       if (isSupabaseConfigured && !isDemo) {
         try {
-          await supabase
-            .from('scout_outreach_logs')
+          await (supabase
+            .from('scout_outreach_logs') as any)
             .update({
               response_received: true,
               response_date: new Date().toISOString(),

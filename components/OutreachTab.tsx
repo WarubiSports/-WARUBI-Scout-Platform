@@ -46,13 +46,13 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
   
   const selectedPlayer = players.find(p => p.id === selectedPlayerId);
 
-  // Grouping for the Sidebar
-  const undiscoveredTalent = players.filter(p => p.status === PlayerStatus.PROSPECT);
+  // Grouping for the Sidebar - leads with different activity levels
+  const leadPool = players.filter(p => p.status === PlayerStatus.LEAD);
   
-  const spotlights = undiscoveredTalent.filter(p => p.activityStatus === 'spotlight');
-  const signals = undiscoveredTalent.filter(p => p.activityStatus === 'signal');
-  const sparks = undiscoveredTalent.filter(p => p.activityStatus === 'spark');
-  const undiscovered = undiscoveredTalent.filter(p => !p.activityStatus || p.activityStatus === 'undiscovered');
+  const spotlights = leadPool.filter(p => p.activityStatus === 'spotlight');
+  const signals = leadPool.filter(p => p.activityStatus === 'signal');
+  const sparks = leadPool.filter(p => p.activityStatus === 'spark');
+  const undiscovered = leadPool.filter(p => !p.activityStatus || p.activityStatus === 'undiscovered');
 
   const filteredUndiscovered = undiscovered.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredSparks = sparks.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -175,7 +175,7 @@ ${user.name}`);
         name: p.name || 'Unknown Ghost',
         age: p.age || 17,
         position: p.position || 'ST',
-        status: PlayerStatus.PROSPECT,
+        status: PlayerStatus.LEAD,
         submittedAt: new Date().toISOString(),
         outreachLogs: [],
         evaluation: null,

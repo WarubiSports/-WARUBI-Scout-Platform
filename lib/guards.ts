@@ -154,5 +154,5 @@ export function checklistToJson(checklist: { task: string; completed: boolean }[
  * Convert typed evaluation to Json for database storage
  */
 export function evaluationToJson(evaluation: PlayerEvaluation | null | undefined): Json | null {
-  return evaluation ?? null
+  return (evaluation as unknown as Json) ?? null
 }
