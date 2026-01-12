@@ -121,7 +121,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
             return { label: 'Follow Up', onClick: () => onOutreach?.(player), primary: true };
         }
         if (player.status === PlayerStatus.INTERESTED) {
-            return { label: 'Send Offer', onClick: () => onOutreach?.(player), primary: true };
+            return { label: 'View Details', onClick: () => onEdit?.(player), primary: false };
         }
         if (player.activityStatus === 'signal' || player.activityStatus === 'spotlight') {
             return { label: 'Message Now', onClick: () => onOutreach?.(player), primary: true };
