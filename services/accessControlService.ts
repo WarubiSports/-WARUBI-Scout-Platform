@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, supabaseRest } from '../lib/supabase';
 
 export interface ApprovedScout {
   id: string;
@@ -206,24 +206,28 @@ export async function addApprovedScout(
       console.warn('Could not get user for approved_by, using default');
     }
 
-    const { data, error } = await (supabase.rpc as any)('add_approved_scout', {
-      p_email: email.toLowerCase().trim(),
-      p_name: name || null,
-      p_region: region || null,
-      p_notes: notes || null,
-      p_approved_by: approvedBy
+    // Use direct REST API instead of RPC
+    const { data, error } = await supabaseRest.insert('approved_scouts', {
+      email: email.toLowerCase().trim(),
+      name: name || null,
+      region: region || null,
+      notes: notes || null,
+      approved_by: approvedBy,
+      role: 'scout',
+      has_registered: false
     });
 
     if (error) {
-      if (error.code === '23505') {
+      if (error.message.includes('duplicate') || error.message.includes('23505')) {
         return { success: false, error: 'This email is already approved' };
       }
-      console.error('Error adding approved scout via RPC:', error);
+      console.error('Error adding approved scout:', error);
       return { success: false, error: error.message };
     }
 
     return { success: true };
   } catch (err) {
+    console.error('Exception in addApprovedScout:', err);
     return { success: false, error: 'Failed to add scout' };
   }
 }
@@ -241,17 +245,17 @@ export async function removeApprovedScout(id: string): Promise<{
   }
 
   try {
-    const { data, error } = await (supabase.rpc as any)('remove_approved_scout', {
-      p_id: id
-    });
+    // Use direct REST API instead of RPC
+    const { error } = await supabaseRest.delete('approved_scouts', `id=eq.${id}`);
 
     if (error) {
-      console.error('Error removing approved scout via RPC:', error);
+      console.error('Error removing approved scout:', error);
       return { success: false, error: error.message };
     }
 
-    return { success: data === true };
+    return { success: true };
   } catch (err) {
+    console.error('Exception in removeApprovedScout:', err);
     return { success: false, error: 'Failed to remove scout' };
   }
 }
