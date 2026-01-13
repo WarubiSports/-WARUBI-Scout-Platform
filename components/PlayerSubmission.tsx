@@ -25,6 +25,78 @@ const POSITIONS = ["GK", "CB", "LB", "RB", "CDM", "CM", "CAM", "LW", "RW", "ST"]
 const TEAM_LEVELS = ["MLS Next", "ECNL", "GA", "High School Varsity", "NPL", "Regional", "International Academy"];
 const FEET = ["Right", "Left", "Both"];
 
+// Moved OUTSIDE component to prevent re-creation on every render (fixes focus loss bug)
+const FormField = ({ label, icon: Icon, children }: { label: string; icon?: any; children: React.ReactNode }) => (
+    <div className="space-y-1.5">
+        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
+            {Icon && <Icon size={10} className="text-scout-accent" />} {label}
+        </label>
+        {children}
+    </div>
+);
+
+const ScoutInput = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>((props, ref) => (
+    <input
+        {...props}
+        ref={ref}
+        onFocus={(e: React.FocusEvent<HTMLInputElement>) => {
+            handleMobileFocus(e);
+            (props as any).onFocus?.(e);
+        }}
+        className="w-full bg-scout-800 border-2 border-scout-700 rounded-xl px-4 py-3 text-white focus:border-scout-accent outline-none font-bold placeholder-gray-600 transition-all"
+    />
+));
+
+const ScoutSelect = ({ options, ...props }: { options: string[] } & React.SelectHTMLAttributes<HTMLSelectElement>) => (
+    <select
+        {...props}
+        className="w-full bg-scout-800 border-2 border-scout-700 rounded-xl px-4 py-3 text-white focus:border-scout-accent outline-none font-bold appearance-none transition-all"
+    >
+        {options.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+    </select>
+);
+
+const getTrackColor = (val: number) => {
+    if (val >= 85) return 'bg-scout-accent';
+    if (val >= 70) return 'bg-scout-highlight';
+    return 'bg-blue-500';
+};
+
+const AuditSlider = ({ label, value, onChange, icon: Icon }: { label: string; value: number; onChange: (val: number) => void; icon?: any }) => (
+    <div className="space-y-3">
+        <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+                {Icon && <Icon size={14} className="text-gray-500" />}
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{label}</span>
+            </div>
+            <span className={`text-sm font-mono font-black ${value >= 85 ? 'text-scout-accent' : value >= 70 ? 'text-scout-highlight' : 'text-white'}`}>
+                {value}
+            </span>
+        </div>
+        <div className="relative h-8 flex items-center">
+            <div className="absolute inset-x-0 h-2 bg-scout-700 rounded-full" />
+            <div
+                className={`absolute left-0 h-2 rounded-full transition-all ${getTrackColor(value)}`}
+                style={{ width: `${value}%` }}
+            />
+            <div className="absolute left-[70%] top-1 bottom-1 w-px bg-gray-500/50 pointer-events-none" title="College Ready" />
+            <div className="absolute left-[85%] top-1 bottom-1 w-px bg-scout-accent/50 pointer-events-none" title="Pro Prospect" />
+            <input
+                type="range"
+                min="0"
+                max="100"
+                value={value}
+                onChange={(e) => onChange(parseInt(e.target.value))}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
+            <div
+                className={`absolute w-5 h-5 rounded-full border-2 border-white shadow-lg pointer-events-none transition-all ${getTrackColor(value)}`}
+                style={{ left: `calc(${value}% - 10px)` }}
+            />
+        </div>
+    </div>
+);
+
 const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlayer, onUpdatePlayer, existingPlayers, editingPlayer }) => {
     const [mode, setMode] = useState<SubmissionMode>(editingPlayer ? 'BUILD' : 'HUB');
     const [buildStep, setBuildStep] = useState(1);
@@ -263,83 +335,6 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
             onAddPlayer({ ...draftPlayer, id: Date.now().toString() });
         }
         onClose();
-    };
-
-    const FormField = ({ label, icon: Icon, children }: any) => (
-        <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
-                {Icon && <Icon size={10} className="text-scout-accent" />} {label}
-            </label>
-            {children}
-        </div>
-    );
-
-    const Input = (props: any) => (
-        <input
-            {...props}
-            onFocus={(e: React.FocusEvent<HTMLInputElement>) => {
-                handleMobileFocus(e);
-                props.onFocus?.(e);
-            }}
-            className="w-full bg-scout-800 border-2 border-scout-700 rounded-xl px-4 py-3 text-white focus:border-scout-accent outline-none font-bold placeholder-gray-600 transition-all"
-        />
-    );
-
-    const Select = ({ options, ...props }: any) => (
-        <select
-            {...props}
-            className="w-full bg-scout-800 border-2 border-scout-700 rounded-xl px-4 py-3 text-white focus:border-scout-accent outline-none font-bold appearance-none transition-all"
-        >
-            {options.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
-        </select>
-    );
-
-    const AuditSlider = ({ label, value, onChange, icon: Icon }: any) => {
-        const getTrackColor = (val: number) => {
-            if (val >= 85) return 'bg-scout-accent';
-            if (val >= 70) return 'bg-scout-highlight';
-            return 'bg-blue-500';
-        };
-
-        return (
-            <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                        {Icon && <Icon size={14} className="text-gray-500" />}
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{label}</span>
-                    </div>
-                    <span className={`text-sm font-mono font-black ${value >= 85 ? 'text-scout-accent' : value >= 70 ? 'text-scout-highlight' : 'text-white'}`}>
-                        {value}
-                    </span>
-                </div>
-                <div className="relative h-8 flex items-center">
-                    {/* Track background */}
-                    <div className="absolute inset-x-0 h-2 bg-scout-700 rounded-full" />
-                    {/* Filled track */}
-                    <div
-                        className={`absolute left-0 h-2 rounded-full transition-all ${getTrackColor(value)}`}
-                        style={{ width: `${value}%` }}
-                    />
-                    {/* Visual Benchmarks */}
-                    <div className="absolute left-[70%] top-1 bottom-1 w-px bg-gray-500/50 pointer-events-none" title="College Ready" />
-                    <div className="absolute left-[85%] top-1 bottom-1 w-px bg-scout-accent/50 pointer-events-none" title="Pro Prospect" />
-                    {/* Range input (invisible but handles interaction) */}
-                    <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={value}
-                        onChange={(e) => onChange(parseInt(e.target.value))}
-                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    />
-                    {/* Custom thumb */}
-                    <div
-                        className={`absolute w-5 h-5 rounded-full border-2 border-white shadow-lg pointer-events-none transition-all ${getTrackColor(value)}`}
-                        style={{ left: `calc(${value}% - 10px)` }}
-                    />
-                </div>
-            </div>
-        );
     };
 
     const StepIndicator = () => (
@@ -636,34 +631,34 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                                     {buildStep === 1 && (
                                         <div className="space-y-6 animate-fade-in">
                                             <div className="grid grid-cols-2 gap-4">
-                                                <FormField label="First Name" icon={User}><Input value={formData.firstName} onChange={(e: any) => handleInputChange('firstName', e.target.value)} placeholder="Christopher" /></FormField>
-                                                <FormField label="Last Name" icon={User}><Input value={formData.lastName} onChange={(e: any) => handleInputChange('lastName', e.target.value)} placeholder="Griebsch" /></FormField>
+                                                <FormField label="First Name" icon={User}><ScoutInput value={formData.firstName} onChange={(e: any) => handleInputChange('firstName', e.target.value)} placeholder="Christopher" /></FormField>
+                                                <FormField label="Last Name" icon={User}><ScoutInput value={formData.lastName} onChange={(e: any) => handleInputChange('lastName', e.target.value)} placeholder="Griebsch" /></FormField>
                                             </div>
                                             <div className="pt-2 border-t border-scout-700/50 space-y-6">
                                                 <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest ml-1 flex items-center gap-2"><SmartphoneIcon size={12} /> PLAYER CONTACT</h4>
                                                 <div className="grid grid-cols-2 gap-4">
-                                                    <FormField label="Player Email" icon={Mail}><Input value={formData.email} onChange={(e: any) => handleInputChange('email', e.target.value)} placeholder="player@email.com" /></FormField>
-                                                    <FormField label="Player Phone" icon={Phone}><Input value={formData.phone} onChange={(e: any) => handleInputChange('phone', e.target.value)} placeholder="+1..." /></FormField>
+                                                    <FormField label="Player Email" icon={Mail}><ScoutInput value={formData.email} onChange={(e: any) => handleInputChange('email', e.target.value)} placeholder="player@email.com" /></FormField>
+                                                    <FormField label="Player Phone" icon={Phone}><ScoutInput value={formData.phone} onChange={(e: any) => handleInputChange('phone', e.target.value)} placeholder="+1..." /></FormField>
                                                 </div>
                                             </div>
                                             <div className="pt-2 border-t border-scout-700/50 space-y-6">
                                                 <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-1 flex items-center gap-2"><Users size={12} /> REACHABILITY FIRST (Parent Contact)</h4>
-                                                <FormField label="Parent Name"><Input value={formData.parentName} onChange={(e: any) => handleInputChange('parentName', e.target.value)} placeholder="Guardian Name" /></FormField>
+                                                <FormField label="Parent Name"><ScoutInput value={formData.parentName} onChange={(e: any) => handleInputChange('parentName', e.target.value)} placeholder="Guardian Name" /></FormField>
                                                 <div className="grid grid-cols-2 gap-4">
-                                                    <FormField label="Parent Email" icon={Mail}><Input value={formData.parentEmail} onChange={(e: any) => handleInputChange('parentEmail', e.target.value)} placeholder="guardian@email.com" /></FormField>
-                                                    <FormField label="Parent Phone" icon={Phone}><Input value={formData.parentPhone} onChange={(e: any) => handleInputChange('parentPhone', e.target.value)} placeholder="+1..." /></FormField>
+                                                    <FormField label="Parent Email" icon={Mail}><ScoutInput value={formData.parentEmail} onChange={(e: any) => handleInputChange('parentEmail', e.target.value)} placeholder="guardian@email.com" /></FormField>
+                                                    <FormField label="Parent Phone" icon={Phone}><ScoutInput value={formData.parentPhone} onChange={(e: any) => handleInputChange('parentPhone', e.target.value)} placeholder="+1..." /></FormField>
                                                 </div>
                                             </div>
                                         </div>
                                     )}
                                     {buildStep === 2 && (
                                         <div className="space-y-6 animate-fade-in">
-                                            <FormField label="Primary Position" icon={Target}><Select options={POSITIONS} value={formData.position} onChange={(e: any) => handleInputChange('position', e.target.value)} /></FormField>
+                                            <FormField label="Primary Position" icon={Target}><ScoutSelect options={POSITIONS} value={formData.position} onChange={(e: any) => handleInputChange('position', e.target.value)} /></FormField>
                                             <div className="grid grid-cols-2 gap-4">
-                                                <FormField label="Current Club" icon={ShieldCheck}><Input value={formData.club} onChange={(e: any) => handleInputChange('club', e.target.value)} placeholder="FC Dallas" /></FormField>
-                                                <FormField label="Level" icon={Award}><Select options={TEAM_LEVELS} value={formData.teamLevel} onChange={(e: any) => handleInputChange('teamLevel', e.target.value)} /></FormField>
+                                                <FormField label="Current Club" icon={ShieldCheck}><ScoutInput value={formData.club} onChange={(e: any) => handleInputChange('club', e.target.value)} placeholder="FC Dallas" /></FormField>
+                                                <FormField label="Level" icon={Award}><ScoutSelect options={TEAM_LEVELS} value={formData.teamLevel} onChange={(e: any) => handleInputChange('teamLevel', e.target.value)} /></FormField>
                                             </div>
-                                            <FormField label="Dominant Foot" icon={Footprints}><Select options={FEET} value={formData.dominantFoot} onChange={(e: any) => handleInputChange('dominantFoot', e.target.value)} /></FormField>
+                                            <FormField label="Dominant Foot" icon={Footprints}><ScoutSelect options={FEET} value={formData.dominantFoot} onChange={(e: any) => handleInputChange('dominantFoot', e.target.value)} /></FormField>
                                         </div>
                                     )}
                                     {buildStep === 3 && (
@@ -700,14 +695,14 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                                             <div className="bg-scout-800/40 p-6 rounded-3xl border border-white/5 space-y-6">
                                                 <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] flex items-center gap-2"><GraduationCap size={14} /> Academic Profile</h4>
                                                 <div className="grid grid-cols-2 gap-4">
-                                                    <FormField label="HS Grad Year"><Input value={formData.gradYear} onChange={(e: any) => handleInputChange('gradYear', e.target.value)} placeholder="2026" /></FormField>
-                                                    <FormField label="Current GPA"><Input value={formData.gpa} onChange={(e: any) => handleInputChange('gpa', e.target.value)} placeholder="3.8" /></FormField>
+                                                    <FormField label="HS Grad Year"><ScoutInput value={formData.gradYear} onChange={(e: any) => handleInputChange('gradYear', e.target.value)} placeholder="2026" /></FormField>
+                                                    <FormField label="Current GPA"><ScoutInput value={formData.gpa} onChange={(e: any) => handleInputChange('gpa', e.target.value)} placeholder="3.8" /></FormField>
                                                 </div>
                                             </div>
 
                                             <div className="space-y-6">
                                                 <h4 className="text-[10px] font-black text-scout-highlight uppercase tracking-[0.2em] flex items-center gap-2"><Video size={14} /> Video Evidence</h4>
-                                                <FormField label="Highlight Link" icon={Video}><Input value={formData.videoLink} onChange={(e: any) => handleInputChange('videoLink', e.target.value)} placeholder="YouTube/Hudl URL" /></FormField>
+                                                <FormField label="Highlight Link" icon={Video}><ScoutInput value={formData.videoLink} onChange={(e: any) => handleInputChange('videoLink', e.target.value)} placeholder="YouTube/Hudl URL" /></FormField>
                                                 <div className="p-4 rounded-xl bg-scout-accent/5 border border-scout-accent/20 text-scout-accent text-[10px] font-black uppercase flex items-center gap-3">
                                                     <Sparkles size={16} className="shrink-0" />
                                                     <span>AI scanning will prioritize highlight tags matching audit scores.</span>
