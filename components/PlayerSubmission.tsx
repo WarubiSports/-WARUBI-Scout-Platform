@@ -406,11 +406,19 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                                                 }
                                             };
                                             try {
-                                                await onAddPlayer(quickPlayer);
-                                                onClose();
+                                                const result = await onAddPlayer(quickPlayer);
+                                                if (result) {
+                                                    onClose();
+                                                } else {
+                                                    // onAddPlayer returned null - failed silently
+                                                    console.error('Quick add failed: no result returned');
+                                                    setQuickAddLoading(false);
+                                                    alert('Failed to add player. Please check your connection and try again.');
+                                                }
                                             } catch (error) {
                                                 console.error('Quick add failed:', error);
                                                 setQuickAddLoading(false);
+                                                alert('Failed to add player: ' + (error instanceof Error ? error.message : 'Unknown error'));
                                             }
                                         }}
                                         disabled={!quickAddName.trim() || quickAddLoading}
