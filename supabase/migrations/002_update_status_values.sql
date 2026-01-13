@@ -13,3 +13,6 @@ ALTER TABLE scout_prospects DROP CONSTRAINT IF EXISTS scout_prospects_status_che
 ALTER TABLE scout_prospects
 ADD CONSTRAINT scout_prospects_status_check
 CHECK (status IN ('lead', 'contacted', 'interested', 'offered', 'placed', 'archived'));
+
+-- Update the default value to 'lead'
+ALTER TABLE scout_prospects ALTER COLUMN status SET DEFAULT 'lead';

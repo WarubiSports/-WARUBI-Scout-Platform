@@ -206,6 +206,8 @@ export function useProspects(scoutId: string | undefined) {
 
       try {
         const prospectData = playerToProspect(player, scoutId)
+        console.log('[addProspect] player.status:', player.status)
+        console.log('[addProspect] prospectData.status:', prospectData.status)
         console.log('[addProspect] Calling supabaseRest.insert...')
 
         // Use direct REST API to bypass Supabase JS client issues
@@ -218,6 +220,8 @@ export function useProspects(scoutId: string | undefined) {
 
         const newPlayer = prospectToPlayer(data)
         console.log('[addProspect] SUCCESS! New player ID:', newPlayer.id)
+        console.log('[addProspect] Returned data.status:', data.status)
+        console.log('[addProspect] newPlayer.status:', newPlayer.status)
         // Real-time will handle the update, but update locally too for immediate UI feedback
         setProspects((prev) => [newPlayer, ...prev])
         return newPlayer
