@@ -272,7 +272,12 @@ export function useProspects(scoutId: string | undefined) {
 
   const updateProspect = useCallback(
     async (playerId: string, updates: Partial<Player>): Promise<void> => {
-      if (!isSupabaseConfigured) return
+      console.log('[updateProspect] Updating player:', playerId, 'with:', updates)
+
+      if (!isSupabaseConfigured) {
+        console.error('[updateProspect] Supabase not configured')
+        return
+      }
 
       try {
         const dbUpdates: ScoutProspectUpdate = {}
@@ -311,20 +316,25 @@ export function useProspects(scoutId: string | undefined) {
         if (updates.lastContactedAt !== undefined) dbUpdates.last_contacted_at = updates.lastContactedAt
 
         // Use direct REST API to bypass Supabase JS client issues
-        const { error } = await supabaseRest.update('scout_prospects', `id=eq.${playerId}`, dbUpdates)
+        const { error, data } = await supabaseRest.update('scout_prospects', `id=eq.${playerId}`, dbUpdates)
 
-        if (error) throw new Error(error.message)
+        if (error) {
+          console.error('[updateProspect] REST API error:', error.message)
+          throw new Error(error.message)
+        }
+
+        console.log('[updateProspect] Success! Response:', data)
 
         // Update local state (real-time will also update)
         setProspects((prev) =>
           prev.map((p) => (p.id === playerId ? { ...p, ...updates } : p))
         )
       } catch (err) {
-        console.error('Error updating prospect:', err)
+        console.error('[updateProspect] Exception:', err)
         setError(err instanceof Error ? err.message : 'Failed to update prospect')
       }
     },
-    [prospects]
+    [] // No dependencies needed - uses only parameters and setProspects
   )
 
   const deleteProspect = useCallback(
@@ -343,7 +353,7 @@ export function useProspects(scoutId: string | undefined) {
         setError(err instanceof Error ? err.message : 'Failed to delete prospect')
       }
     },
-    [prospects]
+    [] // No dependencies needed
   )
 
   return {

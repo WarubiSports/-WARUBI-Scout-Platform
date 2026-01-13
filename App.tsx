@@ -7,6 +7,7 @@ import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
 import PasswordSetupModal from './components/PasswordSetupModal';
+import ResetPassword from './components/ResetPassword';
 import { evaluatePlayer } from './services/geminiService';
 import { sendProspectToTrial } from './services/trialService';
 import { isEmailApproved } from './services/accessControlService';
@@ -21,14 +22,25 @@ const App: React.FC = () => {
   const [view, setView] = useState<AppView>(AppView.LOGIN);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [approvedScoutInfo, setApprovedScoutInfo] = useState<{ isAdmin: boolean; name?: string; region?: string } | null>(null);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   // Auth context
   const { isAuthenticated, loading: authLoading, signOut, needsPasswordSetup, dismissPasswordSetup, user } = useAuthContext();
 
+  // Check for password reset token in URL
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      setIsResettingPassword(true);
+      // Clean up the URL
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, []);
+
   // Supabase integration
   const { scout, loading: scoutLoading, initializeScout, addXP, incrementPlacements } = useScoutContext();
   const { prospects, addProspect, updateProspect, deleteProspect } = useProspects(scout?.id);
-  const { events, addEvent, updateEvent } = useEvents(scout?.id);
+  const { events, addEvent, updateEvent, deleteEvent } = useEvents(scout?.id);
   const { logOutreach } = useOutreach(scout?.id);
 
   const [notifications, setNotifications] = useState<AppNotification[]>([
@@ -302,10 +314,8 @@ const App: React.FC = () => {
   };
 
   const handleAddEvent = async (event: ScoutingEvent) => {
-      console.log('[handleAddEvent] Called with event:', event.title);
       try {
         const newEvent = await addEvent(event);
-        console.log('[handleAddEvent] addEvent result:', newEvent);
         if (newEvent) {
           const isHost = event.role === 'HOST' || event.isMine;
           const points = isHost ? SCOUT_POINTS.EVENT_HOST : SCOUT_POINTS.EVENT_ATTEND;
@@ -336,6 +346,15 @@ const App: React.FC = () => {
       await updateEvent(updatedEvent.id, updatedEvent);
   };
 
+  const handleDeleteEvent = async (eventId: string) => {
+      await deleteEvent(eventId);
+      handleAddNotification({
+          type: 'INFO',
+          title: 'Event Deleted',
+          message: 'The event has been removed.'
+      });
+  };
+
   const handleLogout = async () => {
     await signOut();
     setUserProfile(null);
@@ -364,7 +383,16 @@ const App: React.FC = () => {
   return (
     <>
       <Toaster position="top-right" richColors closeButton />
-      {view === AppView.LOGIN && <Login />}
+
+      {isResettingPassword && (
+        <ResetPassword onComplete={() => {
+          setIsResettingPassword(false);
+          // Force a page reload to ensure proper session handling
+          window.location.href = '/';
+        }} />
+      )}
+
+      {!isResettingPassword && view === AppView.LOGIN && <Login />}
 
       {view === AppView.ONBOARDING && (
         <Onboarding
@@ -390,8 +418,8 @@ const App: React.FC = () => {
             onMarkAllRead={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
             onMessageSent={handleMessageSent}
             onStatusChange={async (id, status) => {
-                const p = prospects.find(player => player.id === id);
-                if (p) await handleUpdatePlayer({ ...p, status });
+                // Use updateProspect directly to avoid stale closure on prospects array
+                await updateProspect(id, { status });
             }}
             onLogout={handleLogout}
             onReturnToAdmin={userProfile?.isAdmin ? () => setView(AppView.ADMIN) : undefined}
@@ -406,6 +434,7 @@ const App: React.FC = () => {
             onUpdateEvent={handleUpdateEvent}
             onUpdatePlayer={handleUpdatePlayer}
             onAddEvent={handleAddEvent}
+            onDeleteEvent={handleDeleteEvent}
             onAddNotification={handleAddNotification}
             onMarkAllRead={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
             onLogout={handleLogout}
