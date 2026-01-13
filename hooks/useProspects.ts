@@ -129,49 +129,9 @@ export function useProspects(scoutId: string | undefined) {
     }
   }, [scoutId])
 
-  // Set up real-time subscription
-  useEffect(() => {
-    if (!scoutId || !isSupabaseConfigured) return
-
-    const subscription = supabase
-      .channel('prospect-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'scout_prospects',
-          filter: `scout_id=eq.${scoutId}`,
-        },
-        (payload) => {
-          handleRealtimeChange(payload)
-        }
-      )
-      .subscribe()
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [scoutId])
-
-  const handleRealtimeChange = (payload: any) => {
-    if (payload.eventType === 'INSERT') {
-      const newPlayer = prospectToPlayer(payload.new)
-      // Only add if not already in state (avoid duplicates from local insert + realtime)
-      setProspects((prev) => {
-        if (prev.some(p => p.id === newPlayer.id)) return prev
-        return [newPlayer, ...prev]
-      })
-    } else if (payload.eventType === 'UPDATE') {
-      setProspects((prev) =>
-        prev.map((p) =>
-          p.id === payload.new.id ? { ...p, ...prospectToPlayer(payload.new, p.outreachLogs) } : p
-        )
-      )
-    } else if (payload.eventType === 'DELETE') {
-      setProspects((prev) => prev.filter((p) => p.id !== payload.old.id))
-    }
-  }
+  // Real-time subscription disabled - using REST API only
+  // The WebSocket connection was failing repeatedly with "bad response from server"
+  // Local state updates are handled directly in addProspect/updateProspect/deleteProspect
 
   const loadProspects = async () => {
     setLoading(true)
