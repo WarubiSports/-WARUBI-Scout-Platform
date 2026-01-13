@@ -20,6 +20,7 @@ interface OutreachTabProps {
   onMessageSent: (id: string, log: Omit<OutreachLog, 'id'>) => void;
   onAddPlayers: (players: Player[]) => void;
   onStatusChange?: (id: string, newStatus: PlayerStatus) => void;
+  onDeletePlayer?: (id: string) => void;
 }
 
 const INTENTS = [
@@ -29,7 +30,7 @@ const INTENTS = [
   { id: 'follow_up', title: 'Follow-up', desc: 'Second spark after no signal', color: 'bg-amber-500/10 text-amber-400 border-amber-500/30' },
 ];
 
-const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerId, onMessageSent, onAddPlayers, onStatusChange }) => {
+const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerId, onMessageSent, onAddPlayers, onStatusChange, onDeletePlayer }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(initialPlayerId || null);
   const [draftedMessage, setDraftedMessage] = useState('');
@@ -301,7 +302,7 @@ ${user.name}`);
   };
 
   return (
-    <div className="flex h-full gap-6 animate-fade-in flex-col overflow-hidden relative z-0">
+    <div className="flex h-full gap-4 md:gap-6 animate-fade-in flex-col overflow-y-auto md:overflow-hidden relative z-0">
       
       {/* Workflow Ribbon */}
       <div className="bg-scout-800/50 border border-scout-700 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-6 shrink-0">
@@ -316,7 +317,7 @@ ${user.name}`);
           </div>
           <div className="flex gap-4 md:gap-12">
               {[
-                  { i: <Ghost size={16}/>, l: '1. Prospect', s: 'New Lead', c: 'text-gray-500' },
+                  { i: <Ghost size={16}/>, l: '1. Lead', s: 'New Lead', c: 'text-gray-500' },
                   { i: <Send size={16}/>, l: '2. Contacted', s: 'Outreach Sent', c: 'text-blue-500' },
                   { i: <Flame size={16} className="animate-pulse"/>, l: '3. Signal', s: 'Engaged', c: 'text-orange-500' },
                   { i: <Trophy size={16} className="text-scout-accent"/>, l: '4. My Players', s: 'Interested', c: 'text-scout-accent' }
@@ -332,10 +333,10 @@ ${user.name}`);
           <button onClick={() => setShowGuide(!showGuide)} className="text-gray-600 hover:text-white transition-colors"><HelpCircle size={18}/></button>
       </div>
 
-      <div className="flex flex-1 gap-6 overflow-hidden">
-        {/* LEFT: UNIFIED SIDEBAR */}
+      <div className="flex flex-col md:flex-row flex-1 gap-4 md:gap-6 overflow-visible md:overflow-hidden">
+        {/* LEFT: UNIFIED SIDEBAR - Hidden on mobile when player selected */}
         <CompactErrorBoundary name="Scouting Pool">
-        <div className="w-1/3 bg-scout-800 rounded-[2rem] border border-scout-700 flex flex-col overflow-hidden shadow-2xl shrink-0">
+        <div className={`${selectedPlayerId ? 'hidden md:flex' : 'flex'} w-full md:w-1/3 bg-scout-800 rounded-2xl md:rounded-[2rem] border border-scout-700 flex-col overflow-visible md:overflow-hidden shadow-2xl md:shrink-0 min-h-fit md:min-h-0`}>
             <div className="p-4 border-b border-scout-700 bg-scout-900/50">
                 <div className="flex justify-between items-center mb-4">
                     <div className="flex items-center gap-2">
@@ -447,13 +448,24 @@ ${user.name}`);
                                         <h4 className="text-sm font-bold truncate text-white">{p.name}</h4>
                                         <p className="text-[9px] text-gray-500 font-black uppercase">{p.position} • {p.age}yo</p>
                                     </div>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
-                                        className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
-                                        title="Move to My Players"
-                                    >
-                                        <span>→ My Players</span>
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        {onDeletePlayer && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onDeletePlayer(p.id); }}
+                                                className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                                                title="Delete player"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
+                                            className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
+                                            title="Move to My Players"
+                                        >
+                                            <span>→ My Players</span>
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -472,13 +484,24 @@ ${user.name}`);
                                                 <h4 className="text-sm font-bold truncate text-white">{p.name}</h4>
                                                 <p className="text-[9px] text-blue-400 font-black uppercase">{p.position} • Awaiting Response</p>
                                             </div>
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
-                                                className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
-                                                title="Move to My Players"
-                                            >
-                                                <span>→ My Players</span>
-                                            </button>
+                                            <div className="flex items-center gap-2">
+                                                {onDeletePlayer && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); onDeletePlayer(p.id); }}
+                                                        className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                                                        title="Delete player"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
+                                                    className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
+                                                    title="Move to My Players"
+                                                >
+                                                    <span>→ My Players</span>
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -616,7 +639,7 @@ ${user.name}`);
 
         {/* RIGHT: COMMAND CONSOLE */}
         <CompactErrorBoundary name="Message Console">
-        <div className="flex-1 flex flex-col gap-4 overflow-hidden relative">
+        <div className={`${selectedPlayerId ? 'flex' : 'hidden md:flex'} flex-1 flex-col gap-4 overflow-hidden relative`}>
             {!selectedPlayer ? (
                 <div className="flex-1 bg-scout-800/30 rounded-[3rem] border border-scout-700 border-dashed flex flex-col items-center justify-center text-center p-12 opacity-50">
                     <MousePointer size={64} className="text-gray-700 mb-6" />
@@ -624,6 +647,14 @@ ${user.name}`);
                 </div>
             ) : (
                 <div className="flex-1 flex flex-col gap-4 animate-fade-in overflow-hidden">
+                    {/* MOBILE BACK BUTTON */}
+                    <button
+                        onClick={() => setSelectedPlayerId(null)}
+                        className="md:hidden flex items-center gap-2 text-gray-400 hover:text-white text-xs font-bold uppercase tracking-wide py-2"
+                    >
+                        <ArrowRight size={14} className="rotate-180" /> Back to Pool
+                    </button>
+
                     {/* SPOTLIGHT PROMOTION BANNER */}
                     {(selectedPlayer.activityStatus === 'signal' || selectedPlayer.activityStatus === 'spotlight') && (
                         <div className="bg-emerald-500/10 border-2 border-scout-accent/30 rounded-3xl p-4 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0 overflow-hidden group">
@@ -662,7 +693,7 @@ ${user.name}`);
                                         <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest border border-gray-700 px-1.5 py-0.5 rounded">{selectedPlayer.position}</span>
                                         <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest border border-gray-700 px-1.5 py-0.5 rounded">{selectedPlayer.age} Years Old</span>
                                         <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${selectedPlayer.activityStatus === 'spotlight' ? 'bg-scout-accent/10 text-scout-accent' : 'bg-gray-700 text-gray-400'}`}>
-                                            {selectedPlayer.activityStatus === 'spotlight' ? 'Spotlight Verified' : selectedPlayer.activityStatus === 'signal' ? 'Signal Active' : selectedPlayer.activityStatus === 'spark' ? 'Spark Sent' : 'New Prospect'}
+                                            {selectedPlayer.activityStatus === 'spotlight' ? 'Spotlight Verified' : selectedPlayer.activityStatus === 'signal' ? 'Signal Active' : selectedPlayer.activityStatus === 'spark' ? 'Spark Sent' : 'New Lead'}
                                         </span>
                                     </div>
                                 </div>
