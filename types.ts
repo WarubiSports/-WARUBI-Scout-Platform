@@ -1,5 +1,6 @@
 
 export enum AppView {
+  LOGIN = 'LOGIN',
   ONBOARDING = 'ONBOARDING',
   DASHBOARD = 'DASHBOARD',
   ADMIN = 'ADMIN'

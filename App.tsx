@@ -1,20 +1,53 @@
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { AppView, UserProfile, Player, ScoutingEvent, NewsItem, AppNotification, PlayerStatus } from './types';
 import { INITIAL_NEWS_ITEMS, INITIAL_TICKER_ITEMS, SCOUT_POINTS } from './constants';
+import LoginPage from './components/LoginPage';
 import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
 import { evaluatePlayer } from './services/geminiService';
+import { supabase, isSupabaseConfigured } from './services/supabase';
 
 const App: React.FC = () => {
-  const [view, setView] = useState<AppView>(AppView.ONBOARDING);
+  const [view, setView] = useState<AppView>(isSupabaseConfigured ? AppView.LOGIN : AppView.ONBOARDING);
+  const [authLoading, setAuthLoading] = useState(isSupabaseConfigured);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
-  
+
   const [events, setEvents] = useState<ScoutingEvent[]>([]);
   const [newsItems, setNewsItems] = useState<NewsItem[]>(INITIAL_NEWS_ITEMS);
   const [tickerItems, setTickerItems] = useState<string[]>(INITIAL_TICKER_ITEMS);
+
+  // Check auth state on mount
+  useEffect(() => {
+    if (!supabase) {
+      setAuthLoading(false);
+      return;
+    }
+
+    // Check current session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setView(AppView.ONBOARDING);
+      }
+      setAuthLoading(false);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        setView(AppView.ONBOARDING);
+      } else if (event === 'SIGNED_OUT') {
+        setView(AppView.LOGIN);
+        setUserProfile(null);
+        setPlayers([]);
+        setEvents([]);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const [notifications, setNotifications] = useState<AppNotification[]>([
       {
@@ -196,8 +229,24 @@ const App: React.FC = () => {
       setEvents(prev => prev.map(e => e.id === updatedEvent.id ? updatedEvent : e));
   };
 
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#05080f]">
+        <div className="text-center">
+          <div className="animate-spin w-8 h-8 border-2 border-scout-accent border-t-transparent rounded-full mx-auto mb-4" />
+          <p className="text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
+      {view === AppView.LOGIN && (
+        <LoginPage onLoginSuccess={() => setView(AppView.ONBOARDING)} />
+      )}
+
       {view === AppView.ONBOARDING && (
         <Onboarding onComplete={handleOnboardingComplete} />
       )}
