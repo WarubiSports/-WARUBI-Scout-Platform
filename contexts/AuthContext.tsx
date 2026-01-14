@@ -13,6 +13,7 @@ interface AuthContextType {
   signInWithMagicLink: (email: string) => Promise<{ success: boolean; error?: string }>
   signInWithPassword: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   signUp: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>
   signOut: () => Promise<void>
   setupPassword: (password: string) => Promise<{ success: boolean; error?: string }>
   dismissPasswordSetup: () => void

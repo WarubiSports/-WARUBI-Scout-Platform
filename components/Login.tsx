@@ -1,32 +1,34 @@
 import React, { useState } from 'react';
-import { Mail, Lock, ArrowRight, Loader2, Sparkles, CheckCircle, AlertCircle } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuthContext } from '../contexts/AuthContext';
 
-type AuthMode = 'magic' | 'password' | 'signup';
+type AuthMode = 'password' | 'signup';
 
 const Login: React.FC = () => {
-  const { signInWithMagicLink, signInWithPassword, signUp } = useAuthContext();
+  const { signInWithPassword, signUp, resetPassword } = useAuthContext();
 
-  const [mode, setMode] = useState<AuthMode>('magic');
+  const [mode, setMode] = useState<AuthMode>('password');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
 
-  const handleMagicLink = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError('Please enter your email address first');
+      return;
+    }
 
     setLoading(true);
     setError(null);
 
-    const result = await signInWithMagicLink(email);
+    const result = await resetPassword(email);
 
     if (result.success) {
       setMagicLinkSent(true);
     } else {
-      setError(result.error || 'Failed to send magic link');
+      setError(result.error || 'Failed to send password reset email');
     }
     setLoading(false);
   };
@@ -74,7 +76,7 @@ const Login: React.FC = () => {
           </div>
           <h2 className="text-2xl font-black text-white uppercase tracking-tight">Check Your Email</h2>
           <p className="text-gray-400 text-sm">
-            We sent a {mode === 'signup' ? 'verification' : 'login'} link to <span className="text-white font-bold">{email}</span>
+            We sent a {mode === 'signup' ? 'verification' : 'password reset'} link to <span className="text-white font-bold">{email}</span>
           </p>
           <p className="text-gray-500 text-xs">Click the link in the email to continue. Check your spam folder if you don't see it.</p>
           <button
@@ -106,35 +108,6 @@ const Login: React.FC = () => {
             <AlertCircle size={18} />
             {error}
           </div>
-        )}
-
-        {/* Magic Link Form (Default) */}
-        {mode === 'magic' && (
-          <form onSubmit={handleMagicLink} className="space-y-6 animate-fade-in">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Email Address</label>
-              <div className="relative">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="scout@example.com"
-                  className="w-full bg-scout-900 border border-scout-700 rounded-xl pl-12 pr-4 py-4 text-white placeholder:text-gray-600 focus:outline-none focus:border-scout-accent transition-colors"
-                  required
-                />
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading || !email}
-              className="w-full py-4 bg-scout-accent text-scout-900 rounded-xl font-black uppercase text-sm flex items-center justify-center gap-3 shadow-glow hover:bg-emerald-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? <Loader2 size={20} className="animate-spin" /> : <Sparkles size={20} />}
-              Send Magic Link
-            </button>
-          </form>
         )}
 
         {/* Password Login Form */}
@@ -228,34 +201,18 @@ const Login: React.FC = () => {
 
         {/* Mode Toggle */}
         <div className="mt-8 text-center space-y-3">
-          {mode === 'magic' && (
-            <>
-              <button
-                onClick={() => setMode('password')}
-                className="text-gray-500 text-sm hover:text-white transition-colors"
-              >
-                Sign in with password instead
-              </button>
-              <div className="text-gray-600 text-xs">or</div>
-              <button
-                onClick={() => setMode('signup')}
-                className="text-scout-accent text-sm font-bold hover:underline"
-              >
-                Create new account
-              </button>
-            </>
-          )}
-
           {mode === 'password' && (
             <>
               <button
-                onClick={() => setMode('magic')}
-                className="text-gray-500 text-sm hover:text-white transition-colors"
+                type="button"
+                onClick={handleForgotPassword}
+                className="text-scout-highlight text-sm font-bold hover:underline"
               >
-                Use magic link instead
+                Forgot your password?
               </button>
               <div className="text-gray-600 text-xs">or</div>
               <button
+                type="button"
                 onClick={() => setMode('signup')}
                 className="text-scout-accent text-sm font-bold hover:underline"
               >
@@ -266,7 +223,8 @@ const Login: React.FC = () => {
 
           {mode === 'signup' && (
             <button
-              onClick={() => setMode('magic')}
+              type="button"
+              onClick={() => setMode('password')}
               className="text-gray-500 text-sm hover:text-white transition-colors"
             >
               Already have an account? Sign in

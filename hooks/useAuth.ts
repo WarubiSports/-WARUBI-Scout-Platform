@@ -15,6 +15,7 @@ interface UseAuthReturn extends AuthState {
   signInWithMagicLink: (email: string) => Promise<{ success: boolean; error?: string }>
   signInWithPassword: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   signUp: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  resetPassword: (email: string) => Promise<{ success: boolean; error?: string }>
   signOut: () => Promise<void>
   setupPassword: (password: string) => Promise<{ success: boolean; error?: string }>
   dismissPasswordSetup: () => void
@@ -240,6 +241,29 @@ export function useAuth(): UseAuthReturn {
     }
   }, [])
 
+  const resetPassword = useCallback(async (email: string) => {
+    if (!isSupabaseConfigured) {
+      return { success: false, error: 'Supabase not configured' }
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: typeof window !== 'undefined'
+          ? `${window.location.origin}/auth/callback`
+          : undefined,
+      })
+
+      if (error) {
+        return { success: false, error: error.message }
+      }
+
+      return { success: true }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      return { success: false, error: message }
+    }
+  }, [])
+
   const setupPassword = useCallback(async (password: string) => {
     const result = await setUserPassword(password)
     if (result.success) {
@@ -277,6 +301,7 @@ export function useAuth(): UseAuthReturn {
     signInWithMagicLink,
     signInWithPassword,
     signUp,
+    resetPassword,
     signOut,
     setupPassword,
     dismissPasswordSetup,
