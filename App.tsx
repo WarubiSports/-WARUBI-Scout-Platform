@@ -133,7 +133,10 @@ const App: React.FC = () => {
   }, [scout?.xp_score, prospects, events]);
 
   const handleOnboardingComplete = async (profile: UserProfile, initialPlayers: Player[], initialEvents: ScoutingEvent[]) => {
-    await initializeScout(profile);
+    const newScout = await initializeScout(profile);
+    if (!newScout) {
+      throw new Error('Failed to create scout profile. Please try again or contact support.');
+    }
     setUserProfile(profile);
     if (profile.isAdmin) {
         setView(AppView.ADMIN);

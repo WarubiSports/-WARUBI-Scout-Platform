@@ -20,6 +20,7 @@ const ROLES = [
 const Onboarding: React.FC<OnboardingProps> = ({ onComplete, approvedScoutInfo }) => {
     const [step, setStep] = useState(0);
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const { signOut } = useAuthContext();
 
     // Check if user is admin (can select roles) or regular scout (auto-assigned)
@@ -43,6 +44,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, approvedScoutInfo }
 
     const handleComplete = async () => {
         setLoading(true);
+        setError(null);
         try {
             const scoutId = `scout-${Math.random().toString(36).substr(2, 9)}`;
             const user: UserProfile = {
@@ -56,11 +58,12 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, approvedScoutInfo }
                 isAdmin: approvedScoutInfo?.isAdmin || false,
             };
 
-            setTimeout(() => {
-                onComplete(user, [], []);
-                setLoading(false);
-            }, 1500);
+            await onComplete(user, [], []);
+            // If we get here without error, the save worked
         } catch (e) {
+            console.error('Onboarding error:', e);
+            setError(e instanceof Error ? e.message : 'Failed to complete setup. Please try again.');
+        } finally {
             setLoading(false);
         }
     };
@@ -212,6 +215,12 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, approvedScoutInfo }
                                 ))}
                             </ul>
                         </div>
+
+                        {error && (
+                            <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm mb-4">
+                                {error}
+                            </div>
+                        )}
 
                         <button
                             onClick={handleComplete}
