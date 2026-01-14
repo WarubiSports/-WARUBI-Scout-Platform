@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Lock, ArrowRight, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -12,9 +12,47 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ onComplete }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  // Wait for Supabase to process the recovery token from URL hash
+  useEffect(() => {
+    let attempts = 0;
+    const maxAttempts = 20; // 10 seconds max wait
+
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session) {
+        setSessionReady(true);
+        setCheckingSession(false);
+        // Clean up the URL hash now that session is established
+        window.history.replaceState(null, '', window.location.pathname);
+        return;
+      }
+
+      attempts++;
+      if (attempts >= maxAttempts) {
+        setCheckingSession(false);
+        setError('Session expired or invalid. Please request a new password reset link.');
+        return;
+      }
+
+      // Keep checking every 500ms
+      setTimeout(checkSession, 500);
+    };
+
+    // Start checking after a brief delay to let Supabase initialize
+    setTimeout(checkSession, 500);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!sessionReady) {
+      setError('Please wait for the session to load');
+      return;
+    }
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters');
@@ -77,6 +115,14 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ onComplete }) => {
           <p className="text-gray-500 text-sm mt-2">Set your new password</p>
         </div>
 
+        {/* Loading Session */}
+        {checkingSession && (
+          <div className="mb-6 p-4 bg-scout-700/50 border border-scout-600 rounded-xl flex items-center gap-3 text-gray-300 text-sm">
+            <Loader2 size={18} className="animate-spin" />
+            Verifying reset link...
+          </div>
+        )}
+
         {/* Error Message */}
         {error && (
           <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-center gap-3 text-red-400 text-sm animate-fade-in">
@@ -98,6 +144,7 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ onComplete }) => {
                 className="w-full bg-scout-900 border border-scout-700 rounded-xl pl-12 pr-4 py-4 text-white placeholder:text-gray-600 focus:outline-none focus:border-scout-accent transition-colors"
                 minLength={6}
                 required
+                disabled={checkingSession || !sessionReady}
               />
             </div>
           </div>
@@ -114,13 +161,14 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ onComplete }) => {
                 className="w-full bg-scout-900 border border-scout-700 rounded-xl pl-12 pr-4 py-4 text-white placeholder:text-gray-600 focus:outline-none focus:border-scout-accent transition-colors"
                 minLength={6}
                 required
+                disabled={checkingSession || !sessionReady}
               />
             </div>
           </div>
 
           <button
             type="submit"
-            disabled={loading || !password || !confirmPassword}
+            disabled={loading || !password || !confirmPassword || checkingSession || !sessionReady}
             className="w-full py-4 bg-scout-accent text-scout-900 rounded-xl font-black uppercase text-sm flex items-center justify-center gap-3 shadow-glow hover:bg-emerald-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? <Loader2 size={20} className="animate-spin" /> : <ArrowRight size={20} />}

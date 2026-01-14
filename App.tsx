@@ -32,8 +32,8 @@ const App: React.FC = () => {
     const hash = window.location.hash;
     if (hash && hash.includes('type=recovery')) {
       setIsResettingPassword(true);
-      // Clean up the URL
-      window.history.replaceState(null, '', window.location.pathname);
+      // Don't clear the hash yet - Supabase needs it to establish the session
+      // It will be cleared after password is successfully reset
     }
   }, []);
 
