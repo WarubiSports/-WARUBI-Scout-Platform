@@ -28,6 +28,7 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
     const [mode, setMode] = useState<SubmissionMode>(editingPlayer ? 'BUILD' : 'HUB');
     const [buildStep, setBuildStep] = useState(1);
     const [loading, setLoading] = useState(false);
+    const [quickAddLoading, setQuickAddLoading] = useState(false);
     const [fieldInput, setFieldInput] = useState('');
 
     // Form State
@@ -284,20 +285,24 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                                         {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
                                     </select>
                                     <button
-                                        onClick={() => {
-                                            if (!formData.firstName.trim()) return;
+                                        onClick={async () => {
+                                            if (!formData.firstName.trim() || quickAddLoading) return;
+                                            setQuickAddLoading(true);
                                             const quickPlayer: Player = {
                                                 ...draftPlayer,
                                                 id: `player-${Date.now()}`,
                                                 status: PlayerStatus.LEAD,
                                             };
                                             onAddPlayer(quickPlayer);
+                                            // Small delay to ensure state propagation completes on mobile
+                                            await new Promise(resolve => setTimeout(resolve, 100));
                                             onClose();
                                         }}
-                                        disabled={!formData.firstName.trim()}
+                                        disabled={!formData.firstName.trim() || quickAddLoading}
                                         className="px-6 py-3 bg-scout-accent text-scout-900 rounded-xl font-black uppercase text-sm flex items-center gap-2 shadow-glow hover:bg-emerald-400 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        <Plus size={18} /> Add
+                                        {quickAddLoading ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
+                                        {quickAddLoading ? 'Adding...' : 'Add'}
                                     </button>
                                 </div>
                                 <p className="text-[10px] text-gray-500 mt-3">Add player now, enrich profile later. Score will be calculated when you add more details.</p>
