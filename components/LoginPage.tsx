@@ -3,28 +3,30 @@ import { Loader2, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../services/supabase';
 
 interface LoginPageProps {
-  onLoginSuccess: () => void;
+  onLoginSuccess: (isAdmin?: boolean) => void;
 }
 
 type LoginMode = 'password' | 'signup' | 'forgot';
 
 // Check if email is approved
 async function checkEmailApproved(email: string) {
-  if (!supabase) return { approved: true };
+  if (!supabase) return { approved: true, isAdmin: false };
   try {
     const { data, error } = await supabase.rpc('check_email_approved', {
       email_to_check: email.toLowerCase().trim()
     });
     if (error) {
       console.error('Error checking approved scouts:', error);
-      return { approved: false, error: error.message };
+      return { approved: false, isAdmin: false, error: error.message };
     }
     const result = data?.[0];
     if (!result || !result.is_approved) {
-      return { approved: false };
+      return { approved: false, isAdmin: false };
     }
+    const isAdmin = result.scout_role?.toLowerCase() === 'admin';
     return {
       approved: true,
+      isAdmin,
       scout: {
         email: email.toLowerCase().trim(),
         name: result.scout_name,
@@ -34,7 +36,7 @@ async function checkEmailApproved(email: string) {
     };
   } catch (e) {
     console.error('Error in checkEmailApproved:', e);
-    return { approved: false, error: 'Failed to check approval status' };
+    return { approved: false, isAdmin: false, error: 'Failed to check approval status' };
   }
 }
 

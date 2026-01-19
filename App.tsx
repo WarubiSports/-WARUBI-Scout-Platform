@@ -29,7 +29,19 @@ const App: React.FC = () => {
     // Check current session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        setView(AppView.ONBOARDING);
+        // Check if user has already completed onboarding
+        const savedProfile = localStorage.getItem('warubi_scout_profile');
+        if (savedProfile) {
+          try {
+            const profile = JSON.parse(savedProfile) as UserProfile;
+            setUserProfile(profile);
+            setView(profile.isAdmin ? AppView.ADMIN : AppView.DASHBOARD);
+          } catch {
+            setView(AppView.ONBOARDING);
+          }
+        } else {
+          setView(AppView.ONBOARDING);
+        }
       }
       setAuthLoading(false);
     });
@@ -37,12 +49,25 @@ const App: React.FC = () => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
-        setView(AppView.ONBOARDING);
+        // Check if user has already completed onboarding
+        const savedProfile = localStorage.getItem('warubi_scout_profile');
+        if (savedProfile) {
+          try {
+            const profile = JSON.parse(savedProfile) as UserProfile;
+            setUserProfile(profile);
+            setView(profile.isAdmin ? AppView.ADMIN : AppView.DASHBOARD);
+          } catch {
+            setView(AppView.ONBOARDING);
+          }
+        } else {
+          setView(AppView.ONBOARDING);
+        }
       } else if (event === 'SIGNED_OUT') {
         setView(AppView.LOGIN);
         setUserProfile(null);
         setPlayers([]);
         setEvents([]);
+        localStorage.removeItem('warubi_scout_profile');
       }
     });
 
@@ -126,6 +151,8 @@ const App: React.FC = () => {
 
   const handleOnboardingComplete = (profile: UserProfile, initialPlayers: Player[], initialEvents: ScoutingEvent[]) => {
     setUserProfile(profile);
+    // Persist profile to localStorage so we skip onboarding on next login
+    localStorage.setItem('warubi_scout_profile', JSON.stringify(profile));
     if (profile.isAdmin) {
         setView(AppView.ADMIN);
         return;
@@ -212,6 +239,7 @@ const App: React.FC = () => {
 
   const handleUpdateProfile = (updatedProfile: UserProfile) => {
       setUserProfile(updatedProfile);
+      localStorage.setItem('warubi_scout_profile', JSON.stringify(updatedProfile));
   };
 
   const handleAddEvent = (event: ScoutingEvent) => {
