@@ -40,26 +40,38 @@ async function checkEmailApproved(email: string) {
   }
 }
 
-// Mark scout as registered with retry
+// Mark scout as registered with retry - uses direct table update for reliability
 async function markScoutRegistered(email: string, retries = 2): Promise<boolean> {
   if (!supabase) return true;
   const normalizedEmail = email.toLowerCase().trim();
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      const { data, error } = await supabase.rpc('mark_scout_registered', {
-        p_email: normalizedEmail
-      });
+      const { data, error } = await supabase
+        .from('approved_scouts')
+        .update({
+          has_registered: true,
+          registered_at: new Date().toISOString()
+        })
+        .eq('email', normalizedEmail)
+        .select();
+
       if (error) {
         console.error(`[markScoutRegistered] Attempt ${attempt}/${retries} failed for ${normalizedEmail}:`, error.message);
         if (attempt < retries) {
-          await new Promise(r => setTimeout(r, 1000)); // Wait 1s before retry
+          await new Promise(r => setTimeout(r, 1000));
           continue;
         }
         return false;
       }
-      console.log(`[markScoutRegistered] Success for ${normalizedEmail}`);
-      return data === true;
+
+      if (!data || data.length === 0) {
+        console.error(`[markScoutRegistered] No record found for ${normalizedEmail}`);
+        return false;
+      }
+
+      console.log(`[markScoutRegistered] Success for ${normalizedEmail}:`, data[0]);
+      return true;
     } catch (e) {
       console.error(`[markScoutRegistered] Attempt ${attempt}/${retries} exception for ${normalizedEmail}:`, e);
       if (attempt < retries) {
