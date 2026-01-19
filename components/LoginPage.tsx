@@ -40,22 +40,36 @@ async function checkEmailApproved(email: string) {
   }
 }
 
-// Mark scout as registered
-async function markScoutRegistered(email: string) {
+// Mark scout as registered with retry
+async function markScoutRegistered(email: string, retries = 2): Promise<boolean> {
   if (!supabase) return true;
-  try {
-    const { data, error } = await supabase.rpc('mark_scout_registered', {
-      p_email: email.toLowerCase().trim()
-    });
-    if (error) {
-      console.error('Error marking scout registered:', error);
+  const normalizedEmail = email.toLowerCase().trim();
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const { data, error } = await supabase.rpc('mark_scout_registered', {
+        p_email: normalizedEmail
+      });
+      if (error) {
+        console.error(`[markScoutRegistered] Attempt ${attempt}/${retries} failed for ${normalizedEmail}:`, error.message);
+        if (attempt < retries) {
+          await new Promise(r => setTimeout(r, 1000)); // Wait 1s before retry
+          continue;
+        }
+        return false;
+      }
+      console.log(`[markScoutRegistered] Success for ${normalizedEmail}`);
+      return data === true;
+    } catch (e) {
+      console.error(`[markScoutRegistered] Attempt ${attempt}/${retries} exception for ${normalizedEmail}:`, e);
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 1000));
+        continue;
+      }
       return false;
     }
-    return data === true;
-  } catch (e) {
-    console.error('Error in markScoutRegistered:', e);
-    return false;
   }
+  return false;
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
@@ -140,7 +154,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       if (signUpError) {
         setError(signUpError.message);
       } else {
-        await markScoutRegistered(email);
+        const registered = await markScoutRegistered(email);
+        if (!registered) {
+          console.error('Failed to mark scout as registered - admin should check database');
+        }
         onLoginSuccess();
       }
     } catch (e) {
