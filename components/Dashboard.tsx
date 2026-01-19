@@ -616,7 +616,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 )}
                 {activeTab === DashboardTab.PROFILE && (
                     <ErrorBoundary name="Profile">
-                        <ProfileTab user={user} players={players} events={events} onUpdateUser={onUpdateProfile} onNavigate={setActiveTab} scoutScore={scoutScore} onOpenBeam={() => setIsBeamOpen(true)} />
+                        <ProfileTab user={user} players={players} events={events} onUpdateUser={onUpdateProfile} onNavigate={setActiveTab} scoutScore={scoutScore} onOpenBeam={() => setIsBeamOpen(true)} onLogout={onLogout} />
                     </ErrorBoundary>
                 )}
                 {activeTab === DashboardTab.KNOWLEDGE && (
@@ -634,24 +634,24 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className="flex justify-around items-end max-w-md mx-auto">
                     <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.PLAYERS); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.PLAYERS ? 'text-scout-accent' : 'text-gray-600'}`}>
                         <Users size={24} />
-                        <span className="text-[9px] font-black uppercase">My Players</span>
+                        <span className="text-[9px] font-black uppercase">Players</span>
                     </button>
-                    <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.EVENTS); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.EVENTS ? 'text-scout-accent' : 'text-gray-600'}`}>
-                        <CalendarDays size={24} />
-                        <span className="text-[9px] font-black uppercase">Events</span>
+                    <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.OUTREACH); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.OUTREACH ? 'text-scout-accent' : 'text-gray-600'}`}>
+                        <MessageSquare size={24} />
+                        <span className="text-[9px] font-black uppercase">Pool</span>
                     </button>
                     <div className="-mt-8 bg-[#05080f] p-2 rounded-full border border-scout-700/50 shadow-2xl">
                         <button onClick={() => { haptic.medium(); setIsSubmissionOpen(true); }} className="w-14 h-14 bg-scout-accent text-scout-900 rounded-full flex items-center justify-center shadow-glow border-2 border-scout-accent/50 active:scale-90 transition-transform">
                             <Plus size={28} />
                         </button>
                     </div>
-                    <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.OUTREACH); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.OUTREACH ? 'text-scout-accent' : 'text-gray-600'}`}>
-                        <MessageSquare size={24} />
-                        <span className="text-[9px] font-black uppercase">Pool</span>
+                    <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.EVENTS); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.EVENTS ? 'text-scout-accent' : 'text-gray-600'}`}>
+                        <CalendarDays size={24} />
+                        <span className="text-[9px] font-black uppercase">Events</span>
                     </button>
-                    <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.KNOWLEDGE); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.KNOWLEDGE ? 'text-scout-accent' : 'text-gray-600'}`}>
-                        <Zap size={24} />
-                        <span className="text-[9px] font-black uppercase">Training</span>
+                    <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.PROFILE); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.PROFILE ? 'text-scout-accent' : 'text-gray-600'}`}>
+                        <UserCircle size={24} />
+                        <span className="text-[9px] font-black uppercase">Profile</span>
                     </button>
                 </div>
             </nav>

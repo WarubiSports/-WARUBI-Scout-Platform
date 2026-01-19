@@ -1,10 +1,10 @@
 
 import React, { useState } from 'react';
 import { UserProfile, Player, ScoutingEvent, PlayerStatus, DashboardTab } from '../types';
-import { 
-  BadgeCheck, Share2, Award, MapPin, Users, Calendar, 
-  Briefcase, QrCode, TrendingUp, ChevronRight, 
-  ShieldCheck, Copy, CheckCircle2, Zap, Edit2, Save, X, Sparkles, Calculator, Info, MessageCircle, ChevronLeft, Instagram, Radio, Download, ExternalLink, Flame, Trophy, Globe, Smartphone, User, Phone, Mail
+import {
+  BadgeCheck, Share2, Award, MapPin, Users, Calendar,
+  Briefcase, QrCode, TrendingUp, ChevronRight,
+  ShieldCheck, Copy, CheckCircle2, Zap, Edit2, Save, X, Sparkles, Calculator, Info, MessageCircle, ChevronLeft, Instagram, Radio, Download, ExternalLink, Flame, Trophy, Globe, Smartphone, User, Phone, Mail, LogOut
 } from 'lucide-react';
 
 interface ProfileTabProps {
@@ -15,9 +15,10 @@ interface ProfileTabProps {
   onNavigate?: (tab: DashboardTab) => void;
   scoutScore?: number;
   onOpenBeam?: () => void;
+  onLogout?: () => void;
 }
 
-const ProfileTab: React.FC<ProfileTabProps> = ({ user, players, events, scoutScore = 0, onOpenBeam }) => {
+const ProfileTab: React.FC<ProfileTabProps> = ({ user, players, events, scoutScore = 0, onOpenBeam, onLogout }) => {
     const [cardIndex, setCardIndex] = useState(0);
     const [copied, setCopied] = useState(false);
     const applyLink = `warubi.com/apply/${user.scoutId || 'demo'}`;
@@ -198,6 +199,19 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ user, players, events, scoutSco
                     </div>
                 </div>
             </div>
+
+            {/* SIGN OUT (Mobile) */}
+            {onLogout && (
+                <div className="md:hidden pt-4 border-t border-scout-700/50">
+                    <button
+                        onClick={onLogout}
+                        className="w-full flex items-center justify-center gap-3 px-6 py-4 text-gray-400 hover:text-white hover:bg-scout-800/50 rounded-2xl text-sm font-bold transition-all border border-scout-700/50"
+                    >
+                        <LogOut size={18} />
+                        Sign Out
+                    </button>
+                </div>
+            )}
         </div>
     );
 };
