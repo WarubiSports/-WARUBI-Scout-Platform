@@ -728,8 +728,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         }
     };
 
-    // Filter global events (events without a specific scout or marked as global)
-    const globalEvents = events.filter(e => e.isGlobal);
+    // Filter global events (published events visible to all scouts)
+    const globalEvents = events.filter(e => e.status === 'Published');
 
     const NewsRoomTab = () => (
         <div className="space-y-6 animate-fade-in flex gap-6 h-[calc(100vh-140px)]">
