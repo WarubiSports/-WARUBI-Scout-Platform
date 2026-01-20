@@ -1,5 +1,18 @@
 # WARUBI Scout Platform
 
+## Quick Reference
+
+```bash
+npm run dev      # Start dev server (localhost:3000)
+npm run build    # Production build
+vercel --prod    # Deploy to Vercel
+```
+
+## Test Accounts
+- Admin: max.bisinger@warubi-sports.com / ITP2024
+
+---
+
 ## Project Overview
 Scouting CRM for Warubi Sports. Scouts manage player pipelines, send outreach, track events, and earn XP.
 
