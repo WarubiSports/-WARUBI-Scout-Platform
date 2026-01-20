@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ITP_REFERENCE_PLAYERS, WARUBI_PATHWAYS, WARUBI_TOOLS, WARUBI_PROTOCOLS, MARKET_DATA } from '../constants';
 import { askScoutAI } from '../services/geminiService';
 import {
@@ -82,6 +82,16 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
     const [aiQuestion, setAiQuestion] = useState('');
     const [aiChatHistory, setAiChatHistory] = useState<{ role: 'user' | 'ai', text: string }[]>([]);
     const [aiLoading, setAiLoading] = useState(false);
+
+    // Ref for scrollable content area
+    const contentRef = useRef<HTMLDivElement>(null);
+
+    // Scroll to top when view changes
+    useEffect(() => {
+        if (contentRef.current) {
+            contentRef.current.scrollTo({ top: 0, behavior: 'instant' });
+        }
+    }, [view]);
 
     // Tools State
     const [roiData, setRoiData] = useState({
@@ -408,14 +418,14 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
 
     return (
         <div className="flex h-screen gap-6 xl:gap-10 animate-fade-in relative">
-            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-32">
+            <div ref={contentRef} className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-32">
                 {view === 'HOME' && (
                     <div className="space-y-12 pb-10">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-white/5 pb-8 gap-6">
                             <div><h2 className="text-3xl lg:text-5xl font-black text-white tracking-tighter uppercase italic">Training Hub</h2><p className="text-gray-500 font-bold uppercase tracking-[0.2em] text-[10px] lg:text-xs">Master the network. Lead the talent.</p></div>
                             <div className="flex gap-3">
-                                <button onClick={() => setView('MODEL')} className="px-4 py-2.5 bg-scout-800 border border-scout-700 rounded-xl text-white font-black text-[10px] uppercase hover:border-scout-accent transition-all flex items-center gap-2 shrink-0"><Anchor size={14} /> The System Audit</button>
-                                <button onClick={() => setView('MASTERCLASS')} className="px-5 py-2.5 bg-scout-accent text-scout-900 rounded-xl font-black text-[10px] uppercase shadow-lg hover:bg-emerald-400 transition-all flex items-center gap-2 shrink-0"><Instagram size={14} /> Bio Masterclass</button>
+                                <button onClick={() => setView('MODEL')} className="px-5 py-2.5 bg-scout-accent text-scout-900 rounded-xl font-black text-[10px] uppercase shadow-glow hover:bg-emerald-400 transition-all flex items-center gap-2 shrink-0 animate-pulse hover:animate-none"><Anchor size={14} /> The System Audit</button>
+                                <button onClick={() => setView('MASTERCLASS')} className="px-4 py-2.5 bg-scout-800 border border-scout-700 rounded-xl text-white font-black text-[10px] uppercase hover:border-scout-accent transition-all flex items-center gap-2 shrink-0"><Instagram size={14} /> Bio Masterclass</button>
                             </div>
                         </div>
 

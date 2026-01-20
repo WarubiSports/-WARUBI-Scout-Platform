@@ -421,13 +421,24 @@ ${user.name}`);
                                             <p className="text-sm font-bold text-white truncate">{p.name}</p>
                                             <p className="text-[9px] text-scout-accent font-black uppercase">Verified • View Report</p>
                                         </div>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
-                                            className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
-                                            title="Move to My Players"
-                                        >
-                                            <span>→ My Players</span>
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            {onDeletePlayer && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); onDeletePlayer(p.id); }}
+                                                    className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                                                    title="Delete player"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
+                                                className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
+                                                title="Move to My Players"
+                                            >
+                                                <span>→ My Players</span>
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -446,13 +457,24 @@ ${user.name}`);
                                             <p className="text-sm font-bold text-white truncate">{p.name}</p>
                                             <p className="text-[9px] text-orange-400 font-black uppercase">Interacting • Live</p>
                                         </div>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
-                                            className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
-                                            title="Move to My Players"
-                                        >
-                                            <span>→ My Players</span>
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            {onDeletePlayer && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); onDeletePlayer(p.id); }}
+                                                    className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                                                    title="Delete player"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
+                                                className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
+                                                title="Move to My Players"
+                                            >
+                                                <span>→ My Players</span>
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -471,13 +493,24 @@ ${user.name}`);
                                             <p className="text-sm font-bold text-white truncate">{p.name}</p>
                                             <p className="text-[9px] text-gray-500 uppercase font-black">Waiting for Click</p>
                                         </div>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
-                                            className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
-                                            title="Move to My Players"
-                                        >
-                                            <span>→ My Players</span>
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            {onDeletePlayer && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); onDeletePlayer(p.id); }}
+                                                    className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                                                    title="Delete player"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
+                                                className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
+                                                title="Move to My Players"
+                                            >
+                                                <span>→ My Players</span>
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -499,7 +532,7 @@ ${user.name}`);
                                         {onDeletePlayer && (
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); onDeletePlayer(p.id); }}
-                                                className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                                                className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
                                                 title="Delete player"
                                             >
                                                 <Trash2 size={14} />
@@ -535,7 +568,7 @@ ${user.name}`);
                                                 {onDeletePlayer && (
                                                     <button
                                                         onClick={(e) => { e.stopPropagation(); onDeletePlayer(p.id); }}
-                                                        className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                                                        className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
                                                         title="Delete player"
                                                     >
                                                         <Trash2 size={14} />

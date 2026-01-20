@@ -610,7 +610,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
                 {activeTab === DashboardTab.OUTREACH && (
                     <ErrorBoundary name="Outreach">
-                        <OutreachTab players={players} user={user} initialPlayerId={outreachTargetId} onMessageSent={onMessageSent || (() => { })} onAddPlayers={(pls) => pls.forEach(p => onAddPlayer(p))} onStatusChange={handleStatusChange} />
+                        <OutreachTab players={players} user={user} initialPlayerId={outreachTargetId} onMessageSent={onMessageSent || (() => { })} onAddPlayers={(pls) => pls.forEach(p => onAddPlayer(p))} onStatusChange={handleStatusChange} onDeletePlayer={onDeletePlayer} />
                     </ErrorBoundary>
                 )}
                 {activeTab === DashboardTab.EVENTS && (
