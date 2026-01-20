@@ -8,7 +8,7 @@ import {
     ChevronDown, LayoutList, Plus, TrendingUp, Info, Trophy, FileText, Camera,
     RotateCcw, Users, Globe, FileUp, Clipboard
 } from 'lucide-react';
-import { generateOutreachMessage, extractPlayersFromBulkData, extractRosterFromPhoto, AIUsageLimitError } from '../services/geminiService';
+import { generateOutreachMessage, extractPlayersFromBulkData, extractRosterFromPhoto, AIUsageLimitError, OutreachOptions } from '../services/geminiService';
 import { CompactErrorBoundary } from './ErrorBoundary';
 import { handleMobileFocus, haptic } from '../hooks/useMobileFeatures';
 import { toast } from 'sonner';
@@ -45,6 +45,7 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
   const [copied, setCopied] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [outreachLang, setOutreachLang] = useState<'en' | 'de'>('en');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle drag and drop
@@ -190,9 +191,13 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
 
     const intent = INTENTS.find(i => i.id === intentId);
     const smartLink = includeSmartLink ? `app.warubi-sports.com/audit?sid=${user.scoutId || 'demo'}&pid=${selectedPlayer.id}` : undefined;
+    const outreachOptions: OutreachOptions = {
+        scoutBio: user.bio,
+        language: outreachLang
+    };
 
     try {
-        const message = await generateOutreachMessage(user.name, selectedPlayer, intent?.title || 'Intro', smartLink);
+        const message = await generateOutreachMessage(user.name, selectedPlayer, intent?.title || 'Intro', smartLink, outreachOptions);
         setDraftedMessage(message);
         setIsTyping(true);
     } catch (e) {
@@ -200,18 +205,60 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
         if (e instanceof AIUsageLimitError) {
             setAiError(e.message);
         }
-        // Use fallback template
-        const smartLink = includeSmartLink ? `app.warubi-sports.com/audit?sid=${user.scoutId || 'demo'}&pid=${selectedPlayer.id}` : '';
-        setDraftedMessage(`Hi ${selectedPlayer.name},
+        // Use fallback template - generate based on language and bio
+        const position = selectedPlayer.position || 'player';
+        const name = selectedPlayer.name;
+        const hasCollege = user.bio?.toLowerCase().includes('college') || user.bio?.toLowerCase().includes('university');
 
-I'm ${user.name} with Warubi Sports. I work with FC Köln's International Talent Program and over 200 college programs across the US.
+        if (outreachLang === 'de') {
+            if (hasCollege) {
+                setDraftedMessage(`Hey ${name},
 
-I came across your profile and wanted to reach out about some opportunities for a ${selectedPlayer.position || 'player'} with your potential. We've helped place over 200 players this year into pro development programs and college scholarships.
+ich bin ${user.name} und arbeite mit Warubi Sports zusammen. Ich hab selbst College-Fußball in den USA gespielt und helfe jetzt Spielern wie dir, den richtigen Weg dorthin zu finden.
 
-${smartLink ? `Take 2 minutes to complete your free talent assessment:\n${smartLink}\n` : ''}Would love to hear about your goals.
+Dein Profil ist mir aufgefallen und ich denke, du hast echtes Potenzial als ${position}. Falls dich ein Wechsel in die USA interessiert, würde ich mich gerne mal mit dir unterhalten, wie das aussehen könnte.
+
+${smartLink ? `Hier kannst du deine kostenlose Talent-Einschätzung machen:\n${smartLink}\n` : ''}Kein Druck - will nur schauen, ob es passt.
+
+Beste Grüße,
+${user.name}`);
+            } else {
+                setDraftedMessage(`Hey ${name},
+
+ich bin ${user.name} von Warubi Sports. Ich arbeite mit College-Trainern in den USA und dem International Talent Program von FC Köln zusammen, um Spielern die richtige Möglichkeit zu finden.
+
+Dein Profil ist mir aufgefallen und ich denke, du hast echtes Potenzial als ${position}. Falls dich ein Wechsel in die USA interessiert, würde ich mich gerne mal mit dir unterhalten, wie das aussehen könnte.
+
+${smartLink ? `Hier kannst du deine kostenlose Talent-Einschätzung machen:\n${smartLink}\n` : ''}Kein Druck - will nur schauen, ob es passt.
+
+Beste Grüße,
+${user.name}`);
+            }
+        } else {
+            if (hasCollege) {
+                setDraftedMessage(`Hey ${name},
+
+I'm ${user.name} and I work with Warubi Sports. I played college soccer in the US and now help players like you find the right path there.
+
+I came across your profile and think you've got real potential as a ${position}. If playing in the US is something you're interested in, I'd love to chat about what that could look like for you.
+
+${smartLink ? `Take 2 minutes to complete your free talent assessment:\n${smartLink}\n` : ''}No pressure - just want to see if it's a good fit.
 
 Best,
 ${user.name}`);
+            } else {
+                setDraftedMessage(`Hey ${name},
+
+I'm ${user.name} with Warubi Sports. I work with college coaches across the US and FC Köln's International Talent Program to help players find the right opportunity.
+
+I came across your profile and think you've got real potential as a ${position}. If playing in the US is something you're interested in, I'd love to chat about what that could look like for you.
+
+${smartLink ? `Take 2 minutes to complete your free talent assessment:\n${smartLink}\n` : ''}No pressure - just want to see if it's a good fit.
+
+Best,
+${user.name}`);
+            }
+        }
     } finally {
         setIsLoading(false);
     }
@@ -708,7 +755,26 @@ ${user.name}`);
                         </div>
                     </div>
 
-                    {/* INTENT BAR */}
+                    {/* LANGUAGE TOGGLE + INTENT BAR */}
+                    <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex bg-scout-800 rounded-xl p-1 border border-scout-700">
+                            <button
+                                onClick={() => setOutreachLang('en')}
+                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${outreachLang === 'en' ? 'bg-scout-accent text-scout-900' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                EN
+                            </button>
+                            <button
+                                onClick={() => setOutreachLang('de')}
+                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${outreachLang === 'de' ? 'bg-scout-accent text-scout-900' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                DE
+                            </button>
+                        </div>
+                        <span className="text-[9px] text-gray-600 font-bold uppercase tracking-widest hidden md:inline">
+                            {outreachLang === 'de' ? 'German Template' : 'English Template'}
+                        </span>
+                    </div>
                     <div className="grid grid-cols-4 gap-3 shrink-0 relative z-10">
                         {INTENTS.map(intent => (
                             <button 

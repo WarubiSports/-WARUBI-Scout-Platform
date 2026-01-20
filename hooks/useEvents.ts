@@ -39,6 +39,7 @@ function eventToDb(event: ScoutingEvent, scoutId: string): ScoutingEventInsert {
     title: event.title,
     event_type: event.type,
     event_date: event.date,
+    event_end_date: event.endDate || null,
     location: event.location,
     status: statusToDb(event.status),
     fee: event.fee || null,
@@ -58,6 +59,7 @@ function eventFromDb(dbEvent: DbEvent, scoutId?: string): ScoutingEvent {
     status: statusFromDb(dbEvent.status),
     title: dbEvent.title,
     date: dbEvent.event_date,
+    endDate: dbEvent.event_end_date || undefined,
     location: dbEvent.location,
     type: dbEvent.event_type as ScoutingEvent['type'],
     fee: dbEvent.fee || '',
@@ -192,6 +194,7 @@ export function useEvents(scoutId: string | undefined) {
 
         if (updates.title !== undefined) dbUpdates.title = updates.title
         if (updates.date !== undefined) dbUpdates.event_date = updates.date
+        if (updates.endDate !== undefined) dbUpdates.event_end_date = updates.endDate || null
         if (updates.location !== undefined) dbUpdates.location = updates.location
         if (updates.type !== undefined) dbUpdates.event_type = updates.type
         if (updates.status !== undefined) dbUpdates.status = statusToDb(updates.status)

@@ -2,11 +2,204 @@
 import { KnowledgeItem, PathwayDef, ToolDef, Player, PlayerStatus } from './types';
 
 export const SCOUT_POINTS = {
-  PLAYER_LOG: 10,
+  // Base player add (reduced from 10)
+  PLAYER_LOG: 5,
+
+  // Quality bonuses for complete profiles
+  PLAYER_HAS_VIDEO: 5,
+  PLAYER_COMPLETE_PROFILE: 5,
+  PLAYER_HAS_PARENT_CONTACT: 5,
+
+  // Pipeline progression rewards
+  PLAYER_CONTACTED: 5,
+  PLAYER_INTERESTED: 10,
+  PLAYER_OFFERED: 25,
+
+  // First outreach reward
+  FIRST_OUTREACH: 5,
+
+  // Events (unchanged)
   EVENT_ATTEND: 15,
   EVENT_HOST: 50,
+
+  // Placement (unchanged)
   PLACEMENT: 500
 };
+
+// Achievement Badge Definitions
+export interface BadgeDefinition {
+  id: string;
+  name: string;
+  description: string;
+  icon: string; // emoji or icon name
+  xpBonus: number;
+  category: 'pipeline' | 'events' | 'milestones' | 'social';
+  criteria: {
+    type: 'players_added' | 'placements' | 'events_hosted' | 'events_attended' | 'xp_total' | 'level' | 'first_action' | 'streak';
+    threshold: number;
+  };
+  tier: 'bronze' | 'silver' | 'gold' | 'platinum';
+}
+
+export const SCOUT_BADGES: BadgeDefinition[] = [
+  // Pipeline Badges
+  {
+    id: 'first_blood',
+    name: 'First Blood',
+    description: 'Add your first player to the pipeline',
+    icon: 'target',
+    xpBonus: 25,
+    category: 'pipeline',
+    criteria: { type: 'players_added', threshold: 1 },
+    tier: 'bronze'
+  },
+  {
+    id: 'pipeline_builder',
+    name: 'Pipeline Builder',
+    description: 'Add 10 players to your pipeline',
+    icon: 'users',
+    xpBonus: 50,
+    category: 'pipeline',
+    criteria: { type: 'players_added', threshold: 10 },
+    tier: 'silver'
+  },
+  {
+    id: 'talent_magnet',
+    name: 'Talent Magnet',
+    description: 'Add 25 players to your pipeline',
+    icon: 'magnet',
+    xpBonus: 100,
+    category: 'pipeline',
+    criteria: { type: 'players_added', threshold: 25 },
+    tier: 'gold'
+  },
+  {
+    id: 'scout_master',
+    name: 'Scout Master',
+    description: 'Add 50 players to your pipeline',
+    icon: 'crown',
+    xpBonus: 200,
+    category: 'pipeline',
+    criteria: { type: 'players_added', threshold: 50 },
+    tier: 'platinum'
+  },
+
+  // Placement Badges
+  {
+    id: 'closer',
+    name: 'Closer',
+    description: 'Complete your first placement',
+    icon: 'trophy',
+    xpBonus: 100,
+    category: 'milestones',
+    criteria: { type: 'placements', threshold: 1 },
+    tier: 'silver'
+  },
+  {
+    id: 'deal_maker',
+    name: 'Deal Maker',
+    description: 'Complete 5 placements',
+    icon: 'handshake',
+    xpBonus: 250,
+    category: 'milestones',
+    criteria: { type: 'placements', threshold: 5 },
+    tier: 'gold'
+  },
+  {
+    id: 'elite_agent',
+    name: 'Elite Agent',
+    description: 'Complete 10 placements',
+    icon: 'star',
+    xpBonus: 500,
+    category: 'milestones',
+    criteria: { type: 'placements', threshold: 10 },
+    tier: 'platinum'
+  },
+
+  // Event Badges
+  {
+    id: 'event_host',
+    name: 'Event Host',
+    description: 'Host your first event',
+    icon: 'calendar',
+    xpBonus: 50,
+    category: 'events',
+    criteria: { type: 'events_hosted', threshold: 1 },
+    tier: 'bronze'
+  },
+  {
+    id: 'event_organizer',
+    name: 'Event Organizer',
+    description: 'Host 5 events',
+    icon: 'megaphone',
+    xpBonus: 100,
+    category: 'events',
+    criteria: { type: 'events_hosted', threshold: 5 },
+    tier: 'silver'
+  },
+  {
+    id: 'networker',
+    name: 'Networker',
+    description: 'Attend 5 events',
+    icon: 'network',
+    xpBonus: 75,
+    category: 'events',
+    criteria: { type: 'events_attended', threshold: 5 },
+    tier: 'silver'
+  },
+
+  // XP/Level Milestones
+  {
+    id: 'rising_star',
+    name: 'Rising Star',
+    description: 'Reach 500 XP',
+    icon: 'trending-up',
+    xpBonus: 50,
+    category: 'milestones',
+    criteria: { type: 'xp_total', threshold: 500 },
+    tier: 'bronze'
+  },
+  {
+    id: 'veteran',
+    name: 'Veteran Scout',
+    description: 'Reach 2,000 XP',
+    icon: 'award',
+    xpBonus: 100,
+    category: 'milestones',
+    criteria: { type: 'xp_total', threshold: 2000 },
+    tier: 'silver'
+  },
+  {
+    id: 'legend',
+    name: 'Legend',
+    description: 'Reach 5,000 XP',
+    icon: 'flame',
+    xpBonus: 250,
+    category: 'milestones',
+    criteria: { type: 'xp_total', threshold: 5000 },
+    tier: 'gold'
+  },
+  {
+    id: 'level_5',
+    name: 'Level 5',
+    description: 'Reach Scout Level 5',
+    icon: 'zap',
+    xpBonus: 100,
+    category: 'milestones',
+    criteria: { type: 'level', threshold: 5 },
+    tier: 'silver'
+  },
+  {
+    id: 'level_10',
+    name: 'Level 10',
+    description: 'Reach Scout Level 10',
+    icon: 'bolt',
+    xpBonus: 250,
+    category: 'milestones',
+    criteria: { type: 'level', threshold: 10 },
+    tier: 'gold'
+  }
+];
 
 export const MARKET_DATA = {
   GLOBAL_MARKET: "$50B+",

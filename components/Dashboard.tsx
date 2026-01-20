@@ -12,6 +12,7 @@ import TutorialOverlay from './TutorialOverlay';
 import Confetti from './Confetti';
 import StrategyPanel from './StrategyPanel';
 import AIQuotaDisplay from './AIQuotaDisplay';
+import Leaderboard from './Leaderboard';
 import { ConnectionStatus } from './MobileEnhancements';
 import { ErrorBoundary } from './ErrorBoundary';
 import GlobalSearch from './GlobalSearch';
@@ -408,6 +409,9 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <button onClick={() => setActiveTab(DashboardTab.KNOWLEDGE)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.KNOWLEDGE ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><Zap size={20} /> Training</button>
                 </nav>
                 <StrategyPanel persona={user.scoutPersona || 'The Scout'} tasks={strategyTasks} onAction={(link) => setActiveTab(DashboardTab.OUTREACH)} />
+                <div className="px-4 py-3 border-t border-scout-700">
+                    <Leaderboard currentScoutId={user.scoutId} currentScoutXP={scoutScore} compact />
+                </div>
                 <div className="px-4 pb-2 space-y-2">
                     <AIQuotaDisplay />
                     <button

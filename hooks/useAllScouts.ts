@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { supabase, supabaseRest, isSupabaseConfigured } from '../lib/supabase'
 import type { Scout } from '../lib/database.types'
 
 interface ScoutWithStats extends Scout {
@@ -30,31 +30,19 @@ export function useAllScouts(): UseAllScoutsReturn {
     setError(null)
 
     try {
-      // Fetch all scouts
-      const { data: scoutsData, error: scoutsError } = await supabase
-        .from('scouts')
-        .select('*')
-        .order('created_at', { ascending: false })
+      // Fetch all scouts using REST API (Supabase JS client hangs)
+      const { data: scoutsData, error: scoutsError } = await supabaseRest.select<Scout>(
+        'scouts',
+        'order=created_at.desc'
+      )
 
       if (scoutsError) {
-        throw scoutsError
+        throw new Error(scoutsError.message)
       }
 
-      // Try to fetch prospect counts per scout (may not exist)
+      // Skip RPC call for prospect counts - Supabase JS client hangs
+      // The counts will be calculated from local state or remain at 0
       let countMap: Record<string, number> = {}
-      try {
-        const { data: prospectCounts, error: countsError } = await (supabase.rpc as any)(
-          'get_scout_prospect_counts'
-        )
-        if (!countsError && prospectCounts) {
-          for (const item of prospectCounts) {
-            countMap[item.scout_id] = item.prospect_count
-          }
-        }
-      } catch {
-        // RPC may not exist, that's okay
-        console.warn('get_scout_prospect_counts RPC not available')
-      }
 
       // Enrich scouts with stats
       const enrichedScouts: ScoutWithStats[] = (scoutsData || []).map((scout: Scout) => {

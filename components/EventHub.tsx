@@ -124,9 +124,14 @@ const HostGuideModal = ({ onClose }: { onClose: () => void }) => (
 // --- NEW COMPONENT: SCOUT LEDGER ROW ---
 const EventRow: React.FC<{ event: ScoutingEvent; isOpportunity?: boolean; isAdded?: boolean; onClick: (e: ScoutingEvent) => void; onAdd?: (e: ScoutingEvent) => void; onScan?: (e: ScoutingEvent) => void }> = ({ event, isOpportunity, isAdded, onClick, onAdd, onScan }) => {
     const isHost = event.role === 'HOST' || event.isMine;
-    const dateObj = new Date(event.date);
-    const endDateObj = event.endDate ? new Date(event.endDate) : null;
-    const isMultiDay = endDateObj && endDateObj.getTime() !== dateObj.getTime();
+    // Parse date parts directly to avoid timezone issues
+    const [year, month, day] = event.date.split('-').map(Number);
+    const dateObj = new Date(year, month - 1, day);
+    const endDateObj = event.endDate ? (() => {
+        const [ey, em, ed] = event.endDate.split('-').map(Number);
+        return new Date(ey, em - 1, ed);
+    })() : null;
+    const isMultiDay = endDateObj && event.endDate !== event.date;
 
     return (
         <div
@@ -140,9 +145,9 @@ const EventRow: React.FC<{ event: ScoutingEvent; isOpportunity?: boolean; isAdde
             <div className="flex flex-col items-center justify-center px-4 py-2 min-w-[70px] border-r border-scout-700/50">
                 <span className="text-[10px] font-black uppercase tracking-tighter text-gray-500">{dateObj.toLocaleString('default', { month: 'short' })}</span>
                 {isMultiDay ? (
-                    <span className="text-lg font-black text-white leading-none">{dateObj.getDate() + 1}-{endDateObj!.getDate() + 1}</span>
+                    <span className="text-lg font-black text-white leading-none">{day}-{endDateObj!.getDate()}</span>
                 ) : (
-                    <span className="text-xl font-black text-white leading-none">{dateObj.getDate() + 1}</span>
+                    <span className="text-xl font-black text-white leading-none">{day}</span>
                 )}
             </div>
 

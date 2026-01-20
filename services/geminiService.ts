@@ -221,37 +221,186 @@ export const askScoutAI = async (question: string): Promise<string> => {
     return result ?? "I'm having trouble connecting right now.";
 };
 
-export const generateOutreachMessage = async (scoutName: string, player: Player, templateType: string, assessmentLink?: string): Promise<string> => {
+export interface OutreachOptions {
+    scoutBio?: string;
+    language?: 'en' | 'de';
+}
+
+export const generateOutreachMessage = async (
+    scoutName: string,
+    player: Player,
+    templateType: string,
+    assessmentLink?: string,
+    options?: OutreachOptions
+): Promise<string> => {
     checkAndRecordUsage('outreach_message');
     const result = await callGeminiProxy('generateOutreachMessage', {
         scoutName,
         player,
         templateType,
-        assessmentLink
+        assessmentLink,
+        scoutBio: options?.scoutBio,
+        language: options?.language || 'en'
     });
-    return result ?? generateFallbackMessage(scoutName, player, templateType, assessmentLink);
+    return result ?? generateFallbackMessage(scoutName, player, templateType, assessmentLink, options);
 };
 
-const generateFallbackMessage = (scoutName: string, player: Player, templateType: string, assessmentLink?: string): string => {
+// Check if scout bio mentions college/university experience
+const hasCollegeExperience = (bio?: string): boolean => {
+    if (!bio) return false;
+    const collegePhrases = [
+        'college', 'university', 'ncaa', 'naia', 'juco', 'd1', 'd2', 'd3',
+        'division', 'played at', 'played for', 'student-athlete', 'student athlete',
+        'scholarship', 'varsity'
+    ];
+    const lowerBio = bio.toLowerCase();
+    return collegePhrases.some(phrase => lowerBio.includes(phrase));
+};
+
+const generateFallbackMessage = (
+    scoutName: string,
+    player: Player,
+    templateType: string,
+    assessmentLink?: string,
+    options?: OutreachOptions
+): string => {
     const position = player.position || 'player';
     const name = player.name || 'there';
+    const lang = options?.language || 'en';
+    const hasCollege = hasCollegeExperience(options?.scoutBio);
 
-    if (templateType === 'First Spark') {
-        return `Hi ${name},
+    // GERMAN TEMPLATES
+    if (lang === 'de') {
+        if (templateType === 'First Spark') {
+            if (hasCollege) {
+                return `Hey ${name},
 
-I'm ${scoutName} with Warubi Sports. I work with FC Köln's International Talent Program and over 200 college programs across the US.
+ich bin ${scoutName} und arbeite mit Warubi Sports zusammen. Ich hab selbst College-Fußball in den USA gespielt und helfe jetzt Spielern wie dir, den richtigen Weg dorthin zu finden.
 
-I came across your profile and wanted to reach out about some opportunities that might be a great fit for a ${position} with your potential. We've helped place over 200 players this year alone into pro development programs and college scholarships.
+Dein Profil ist mir aufgefallen und ich denke, du hast echtes Potenzial als ${position}. Falls dich ein Wechsel in die USA interessiert, würde ich mich gerne mal mit dir unterhalten, wie das aussehen könnte.
 
-${assessmentLink ? `Take 2 minutes to complete your free talent assessment here - it helps us match you with the right pathway:\n${assessmentLink}\n` : ''}
-Would love to hear about your goals and see if we can help you get there.
+${assessmentLink ? `Hier kannst du in 2 Minuten deine kostenlose Talent-Einschätzung machen:\n${assessmentLink}\n` : ''}Kein Druck - will nur schauen, ob es passt.
 
-Best,
-${scoutName}
-Warubi Sports`;
+Beste Grüße,
+${scoutName}`;
+            } else {
+                return `Hey ${name},
+
+ich bin ${scoutName} von Warubi Sports. Ich arbeite mit College-Trainern in den USA und dem International Talent Program von FC Köln zusammen, um Spielern die richtige Möglichkeit zu finden.
+
+Dein Profil ist mir aufgefallen und ich denke, du hast echtes Potenzial als ${position}. Falls dich ein Wechsel in die USA interessiert, würde ich mich gerne mal mit dir unterhalten, wie das aussehen könnte.
+
+${assessmentLink ? `Hier kannst du in 2 Minuten deine kostenlose Talent-Einschätzung machen:\n${assessmentLink}\n` : ''}Kein Druck - will nur schauen, ob es passt.
+
+Beste Grüße,
+${scoutName}`;
+            }
+        }
+
+        if (templateType === 'Follow-up') {
+            return `Hey ${name},
+
+wollte nur nochmal nachhaken - ich weiß, dass solche Nachrichten schnell untergehen können.
+
+Falls du Interesse hast, würde ich mich immer noch gerne mit dir über Möglichkeiten in den USA unterhalten. Beantworte gerne alle Fragen, die du zum Prozess hast.
+
+${scoutName}`;
+        }
+
+        if (templateType === 'Invite to ID') {
+            return `Hey ${name},
+
+wir veranstalten demnächst einen ID Day. Das ist eine Chance für Spieler, sich vor US-College-Trainern und Scouts zu zeigen.
+
+Nach dem was ich gesehen hab, denke ich, dass du gut abschneiden würdest. Keine Verpflichtung - komm einfach spielen und schau, welche Türen sich öffnen.
+
+Interesse?
+
+${scoutName}`;
+        }
+
+        if (templateType === 'Request Video') {
+            return `Hey ${name},
+
+hast du vielleicht aktuelles Spielmaterial oder Highlights, die ich mir anschauen könnte? Muss keine Profi-Qualität sein - Handyaufnahmen reichen völlig.
+
+Das würde mir helfen, dein Spiel besser einzuschätzen und zu sehen, welche Programme am besten passen könnten.
+
+${scoutName}`;
+        }
+
+        // Default German
+        return `Hey ${name},
+
+ich bin ${scoutName} von Warubi Sports. Ich würde mich gerne mit dir über deine Fußball-Zukunft unterhalten.
+
+${assessmentLink ? `Mehr Infos hier: ${assessmentLink}` : 'Meld dich, wenn du ein paar Minuten Zeit hast.'}
+
+Beste Grüße,
+${scoutName}`;
     }
 
-    return `Hi ${name},
+    // ENGLISH TEMPLATES
+    if (templateType === 'First Spark') {
+        if (hasCollege) {
+            return `Hey ${name},
+
+I'm ${scoutName} and I work with Warubi Sports. I played college soccer in the US and now help players like you find the right path there.
+
+I came across your profile and think you've got real potential as a ${position}. If playing in the US is something you're interested in, I'd love to chat about what that could look like for you.
+
+${assessmentLink ? `Take 2 minutes to complete your free talent assessment here:\n${assessmentLink}\n` : ''}No pressure - just want to see if it's a good fit.
+
+Best,
+${scoutName}`;
+        } else {
+            return `Hey ${name},
+
+I'm ${scoutName} with Warubi Sports. I work with college coaches across the US and FC Köln's International Talent Program to help players find the right opportunity.
+
+I came across your profile and think you've got real potential as a ${position}. If playing in the US is something you're interested in, I'd love to chat about what that could look like for you.
+
+${assessmentLink ? `Take 2 minutes to complete your free talent assessment here:\n${assessmentLink}\n` : ''}No pressure - just want to see if it's a good fit.
+
+Best,
+${scoutName}`;
+        }
+    }
+
+    if (templateType === 'Follow-up') {
+        return `Hey ${name},
+
+Just following up on my last message. I know these things can get lost in the shuffle.
+
+Still interested in chatting about opportunities in the US if you are. Happy to answer any questions you might have about the process.
+
+${scoutName}`;
+    }
+
+    if (templateType === 'Invite to ID') {
+        return `Hey ${name},
+
+We're hosting an ID Day soon. It's a chance for players to showcase their abilities in front of US college coaches and scouts.
+
+Based on what I've seen, I think you'd do well. No commitment needed - just come play and see what doors it opens.
+
+Interested?
+
+${scoutName}`;
+    }
+
+    if (templateType === 'Request Video') {
+        return `Hey ${name},
+
+Do you have any recent game footage or highlights I could take a look at? Doesn't need to be professional quality - phone recordings work fine.
+
+It would help me get a better sense of your game and see which programs might be the best fit.
+
+${scoutName}`;
+    }
+
+    // Default English
+    return `Hey ${name},
 
 I'm ${scoutName} with Warubi Sports. I'd love to connect about your football future and discuss some pathways that could be a great fit.
 

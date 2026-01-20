@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
-import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { supabase, isSupabaseConfigured, supabaseRest } from '../lib/supabase'
 import type { Scout, ScoutInsert, ScoutUpdate } from '../lib/database.types'
 import type { UserProfile } from '../types'
 
@@ -215,12 +215,14 @@ export function ScoutProvider({ children, userId }: ScoutProviderProps) {
 
     if (isSupabaseConfigured) {
       try {
-        const { error } = await (supabase
-          .from('scouts') as any)
-          .update(updates)
-          .eq('id', scout.id)
+        // Use REST API to avoid Supabase JS client hanging issues
+        const { error } = await supabaseRest.update<Scout>(
+          'scouts',
+          `id=eq.${scout.id}`,
+          { ...updates, updated_at: new Date().toISOString() }
+        )
 
-        if (error) throw error
+        if (error) throw new Error(error.message)
         setScout(updatedScout as Scout)
       } catch (err) {
         console.error('Error updating scout:', err)

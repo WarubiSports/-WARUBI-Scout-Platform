@@ -284,6 +284,7 @@ export interface Database {
           title: string
           event_type: 'ID Day' | 'Showcase' | 'Camp' | 'Tournament' | 'Trial'
           event_date: string
+          event_end_date: string | null
           start_time: string | null
           end_time: string | null
           location: string
@@ -305,6 +306,7 @@ export interface Database {
           title: string
           event_type: 'ID Day' | 'Showcase' | 'Camp' | 'Tournament' | 'Trial'
           event_date: string
+          event_end_date?: string | null
           start_time?: string | null
           end_time?: string | null
           location: string
@@ -326,6 +328,7 @@ export interface Database {
           title?: string
           event_type?: 'ID Day' | 'Showcase' | 'Camp' | 'Tournament' | 'Trial'
           event_date?: string
+          event_end_date?: string | null
           start_time?: string | null
           end_time?: string | null
           location?: string
@@ -499,6 +502,9 @@ export type OutreachLogInsert = Database['public']['Tables']['scout_outreach_log
 export type ScoutingEvent = Database['public']['Tables']['scouting_events']['Row']
 export type ScoutingEventInsert = Database['public']['Tables']['scouting_events']['Insert']
 export type ScoutingEventUpdate = Database['public']['Tables']['scouting_events']['Update']
+
+export type EventAttendee = Database['public']['Tables']['scout_event_attendees']['Row']
+export type EventAttendeeInsert = Database['public']['Tables']['scout_event_attendees']['Insert']
 
 export type Feedback = Database['public']['Tables']['feedback']['Row']
 export type FeedbackInsert = Database['public']['Tables']['feedback']['Insert']

@@ -10,6 +10,8 @@ import {
 import ApprovedScoutsManager from './ApprovedScoutsManager';
 import { getAllBugReports, updateBugReportStatus, generateClaudePrompt } from '../services/bugReportService';
 import { useAllScouts } from '../hooks/useAllScouts';
+import { useAllProspects, PlayerWithScout } from '../hooks/useAllProspects';
+import { supabase } from '../lib/supabase';
 import type { BugReport, BugReportStatus } from '../types';
 import type { Scout } from '../lib/database.types';
 
@@ -19,6 +21,7 @@ interface AdminDashboardProps {
     onUpdateEvent: (event: ScoutingEvent) => void;
     onUpdatePlayer: (player: Player) => void;
     onAddEvent?: (event: ScoutingEvent) => void;
+    onDeleteEvent?: (eventId: string) => void;
     onLogout: () => void;
     onSwitchToScoutView?: () => void;
     onImpersonate?: (scout: UserProfile) => void;
@@ -45,6 +48,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     onUpdateEvent,
     onUpdatePlayer,
     onAddEvent,
+    onDeleteEvent,
     onLogout,
     onSwitchToScoutView,
     onImpersonate,
@@ -62,6 +66,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     // Real scout data from Supabase
     const { scouts, loading: scoutsLoading, updateScout: updateScoutInDb, refresh: refreshScouts } = useAllScouts();
+
+    // All prospects from all scouts (for Global Talent view)
+    const { prospects: allProspects, loading: prospectsLoading, refresh: refreshProspects } = useAllProspects();
 
     // Scout Management State
     const [selectedScout, setSelectedScout] = useState<ScoutWithStats | null>(null);
@@ -89,6 +96,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const [bugReportsLoading, setBugReportsLoading] = useState(false);
     const [selectedBugReport, setSelectedBugReport] = useState<BugReport | null>(null);
     const [updatingBugId, setUpdatingBugId] = useState<string | null>(null);
+
+    // Historical Achievements State
+    const [historicalPlacements, setHistoricalPlacements] = useState(0);
+    const [historicalShowcases, setHistoricalShowcases] = useState(0);
+    const [historicalPlayerNames, setHistoricalPlayerNames] = useState('');
+    const [historicalEventNames, setHistoricalEventNames] = useState('');
+    const [awardingXP, setAwardingXP] = useState(false);
 
     // --- DERIVED STATS ---
     const pendingEvents = events.filter(e => e.status === 'Pending Approval');
@@ -152,6 +166,102 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             setIsEditingScout(false);
             refreshScouts();
         }
+    };
+
+    // XP values for historical achievements
+    const HISTORICAL_XP = {
+        PLACEMENT: 500,
+        SHOWCASE_HOSTED: 250, // High value - showcases generate many leads
+    };
+
+    const handleAwardHistorical = async () => {
+        if (!selectedScout || (historicalPlacements === 0 && historicalShowcases === 0)) return;
+
+        setAwardingXP(true);
+
+        // Calculate total XP to award
+        const placementXP = historicalPlacements * HISTORICAL_XP.PLACEMENT;
+        const showcaseXP = historicalShowcases * HISTORICAL_XP.SHOWCASE_HOSTED;
+        const totalXP = placementXP + showcaseXP;
+
+        // Parse player names (comma-separated)
+        const playerNames = historicalPlayerNames
+            .split(',')
+            .map(n => n.trim())
+            .filter(n => n.length > 0);
+
+        // Parse event names (comma-separated)
+        const eventNames = historicalEventNames
+            .split(',')
+            .map(n => n.trim())
+            .filter(n => n.length > 0);
+
+        // Create historical player records
+        if (historicalPlacements > 0) {
+            const playersToCreate = [];
+            for (let i = 0; i < historicalPlacements; i++) {
+                const playerName = playerNames[i] || `Historical Placement #${i + 1}`;
+                playersToCreate.push({
+                    scout_id: selectedScout.id,
+                    name: playerName,
+                    position: 'Unknown',
+                    status: 'placed',
+                    placed_location: 'Historical Record',
+                });
+            }
+            await supabase.from('scout_prospects').insert(playersToCreate);
+        }
+
+        // Create historical event records
+        if (historicalShowcases > 0) {
+            const eventsToCreate = [];
+            for (let i = 0; i < historicalShowcases; i++) {
+                const eventName = eventNames[i] || `Historical Showcase #${i + 1}`;
+                eventsToCreate.push({
+                    host_scout_id: selectedScout.id,
+                    title: eventName,
+                    event_type: 'Showcase',
+                    event_date: new Date().toISOString().split('T')[0],
+                    location: 'Historical Record',
+                    status: 'completed',
+                });
+            }
+            await supabase.from('scouting_events').insert(eventsToCreate);
+        }
+
+        // Update scout's XP and placements count
+        const newXPScore = (selectedScout.xp_score || 0) + totalXP;
+        const newPlacementsCount = (selectedScout.placements_count || 0) + historicalPlacements;
+        const newLevel = Math.floor(newXPScore / 100) + 1;
+
+        const success = await updateScoutInDb(selectedScout.id, {
+            xp_score: newXPScore,
+            placements_count: newPlacementsCount,
+            level: newLevel,
+        });
+
+        if (success) {
+            // Update local state
+            const updatedScout = {
+                ...selectedScout,
+                xp_score: newXPScore,
+                placements_count: newPlacementsCount,
+                level: newLevel,
+            };
+            setSelectedScout(updatedScout);
+            setScoutFormData(updatedScout);
+
+            // Reset inputs
+            setHistoricalPlacements(0);
+            setHistoricalShowcases(0);
+            setHistoricalPlayerNames('');
+            setHistoricalEventNames('');
+
+            // Refresh scouts list
+            refreshScouts();
+        }
+
+        setAwardingXP(false);
     };
 
     const scoutToUserProfile = (scout: ScoutWithStats): UserProfile => ({
@@ -387,76 +497,100 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="space-y-6 animate-fade-in">
             <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-gray-900">Global Talent Pool</h2>
-                <div className="flex gap-2">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
-                        <input 
-                            placeholder="Search all players..." 
-                            className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm w-64 focus:ring-2 focus:ring-blue-500 outline-none"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
+                <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-500">
+                        {prospectsLoading ? 'Loading...' : `${allProspects.length} players from all scouts`}
+                    </span>
+                    <div className="flex gap-2">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
+                            <input
+                                placeholder="Search all players..."
+                                className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm w-64 focus:ring-2 focus:ring-blue-500 outline-none"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                        <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50">
+                            <Filter size={16} /> Filter
+                        </button>
                     </div>
-                    <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50">
-                        <Filter size={16} /> Filter
-                    </button>
                 </div>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <table className="w-full text-left">
-                    <thead className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold">
-                        <tr>
-                            <th className="p-4">Player</th>
-                            <th className="p-4">Position</th>
-                            <th className="p-4">Scout</th>
-                            <th className="p-4">Tier</th>
-                            <th className="p-4">Status</th>
-                            <th className="p-4 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {players.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map(p => {
-                            const scoutName = scouts.find(s => s.id === p.scoutId)?.name || 'Unknown';
-                            return (
-                            <tr key={p.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="p-4 font-bold text-gray-900">{p.name}</td>
-                                <td className="p-4 text-gray-600">{p.position}</td>
-                                <td className="p-4 text-gray-600 text-sm">{scoutName}</td>
-                                <td className="p-4">
-                                    <span className={`text-[10px] px-2 py-1 rounded font-bold uppercase ${
-                                        p.evaluation?.scholarshipTier === 'Tier 1' ? 'bg-purple-100 text-purple-700' :
-                                        p.evaluation?.scholarshipTier === 'Tier 2' ? 'bg-blue-100 text-blue-700' :
-                                        'bg-gray-100 text-gray-600'
-                                    }`}>
-                                        {p.evaluation?.scholarshipTier || 'N/A'}
-                                    </span>
-                                </td>
-                                <td className="p-4 text-sm font-medium text-gray-700">
-                                    {p.status === PlayerStatus.PLACED ? (
-                                        <span className="text-green-600 flex items-center gap-1"><CheckCircle size={14}/> Placed</span>
-                                    ) : p.status}
-                                </td>
-                                <td className="p-4 text-right">
-                                    {p.status !== PlayerStatus.PLACED && (
-                                        <button
-                                            onClick={() => placePlayer(p)}
-                                            className="text-xs bg-gray-900 hover:bg-gray-700 text-white px-3 py-1.5 rounded font-bold transition-colors"
-                                        >
-                                            Mark Placed
-                                        </button>
-                                    )}
-                                </td>
+                {prospectsLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                        <Loader2 className="animate-spin text-gray-400" size={24} />
+                        <span className="ml-2 text-gray-500">Loading all prospects...</span>
+                    </div>
+                ) : allProspects.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">
+                        <Users size={48} className="mx-auto mb-4 text-gray-300" />
+                        <p className="font-medium">No players in the pipeline yet</p>
+                        <p className="text-sm">Players added by scouts will appear here</p>
+                    </div>
+                ) : (
+                    <table className="w-full text-left">
+                        <thead className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold">
+                            <tr>
+                                <th className="p-4">Player</th>
+                                <th className="p-4">Position</th>
+                                <th className="p-4">Scout</th>
+                                <th className="p-4">Tier</th>
+                                <th className="p-4">Status</th>
+                                <th className="p-4 text-right">Actions</th>
                             </tr>
-                        )})}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {allProspects
+                                .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                           p.scoutName.toLowerCase().includes(searchQuery.toLowerCase()))
+                                .map(p => (
+                                <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                                    <td className="p-4 font-bold text-gray-900">{p.name}</td>
+                                    <td className="p-4 text-gray-600">{p.position || '-'}</td>
+                                    <td className="p-4">
+                                        <span className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                                            {p.scoutName}
+                                        </span>
+                                    </td>
+                                    <td className="p-4">
+                                        <span className={`text-[10px] px-2 py-1 rounded font-bold uppercase ${
+                                            p.evaluation?.scholarshipTier === 'Tier 1' ? 'bg-purple-100 text-purple-700' :
+                                            p.evaluation?.scholarshipTier === 'Tier 2' ? 'bg-blue-100 text-blue-700' :
+                                            'bg-gray-100 text-gray-600'
+                                        }`}>
+                                            {p.evaluation?.scholarshipTier || 'N/A'}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 text-sm font-medium text-gray-700">
+                                        {p.status === PlayerStatus.PLACED ? (
+                                            <span className="text-green-600 flex items-center gap-1"><CheckCircle size={14}/> Placed</span>
+                                        ) : p.status}
+                                    </td>
+                                    <td className="p-4 text-right">
+                                        {p.status !== PlayerStatus.PLACED && (
+                                            <button
+                                                onClick={() => placePlayer(p)}
+                                                className="text-xs bg-gray-900 hover:bg-gray-700 text-white px-3 py-1.5 rounded font-bold transition-colors"
+                                            >
+                                                Mark Placed
+                                            </button>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
             </div>
         </div>
     );
 
     // Global Events State
     const [isAddingGlobalEvent, setIsAddingGlobalEvent] = useState(false);
+    const [editingEvent, setEditingEvent] = useState<ScoutingEvent | null>(null);
     const [globalEventForm, setGlobalEventForm] = useState({
         title: '',
         location: '',
@@ -516,6 +650,80 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 }
             } catch (error) {
                 alert('Failed to create event: ' + (error instanceof Error ? error.message : String(error)));
+            }
+        }
+    };
+
+    const handleEditEvent = (event: ScoutingEvent) => {
+        setEditingEvent(event);
+        setGlobalEventForm({
+            title: event.title,
+            location: event.location,
+            date: event.date,
+            endDate: event.endDate || '',
+            time: event.time || '',
+            type: event.type,
+            fee: event.fee ? String(event.fee) : ''
+        });
+    };
+
+    const handleUpdateGlobalEvent = async () => {
+        if (!editingEvent) return;
+        if (!globalEventForm.title || !globalEventForm.location || !globalEventForm.date) {
+            alert('Please fill in title, location, and date');
+            return;
+        }
+
+        const updatedEvent: ScoutingEvent = {
+            ...editingEvent,
+            title: globalEventForm.title,
+            location: globalEventForm.location,
+            date: globalEventForm.date,
+            endDate: globalEventForm.endDate || undefined,
+            time: globalEventForm.time || 'TBD',
+            type: globalEventForm.type,
+            fee: globalEventForm.fee ? parseFloat(globalEventForm.fee) : undefined,
+        };
+
+        try {
+            onUpdateEvent(updatedEvent);
+            setEditingEvent(null);
+            setGlobalEventForm({
+                title: '',
+                location: '',
+                date: '',
+                endDate: '',
+                time: '',
+                type: 'Showcase',
+                fee: ''
+            });
+            if (onAddNotification) {
+                onAddNotification({
+                    type: 'SUCCESS',
+                    title: 'Event Updated',
+                    message: `${updatedEvent.title} has been updated.`
+                });
+            }
+        } catch (error) {
+            alert('Failed to update event: ' + (error instanceof Error ? error.message : String(error)));
+        }
+    };
+
+    const handleDeleteGlobalEvent = async (eventId: string) => {
+        if (!confirm('Are you sure you want to delete this event?')) return;
+
+        if (onDeleteEvent) {
+            try {
+                await onDeleteEvent(eventId);
+                if (onAddNotification) {
+                    onAddNotification({
+                        type: 'INFO',
+                        title: 'Event Deleted',
+                        message: 'The event has been removed.'
+                    });
+                }
+            } catch (error) {
+                alert('Failed to delete event: ' + (error instanceof Error ? error.message : String(error)));
             }
         }
     };
@@ -765,6 +973,112 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                     placeholder="Scout bio..."
                                 />
                             </div>
+                        </div>
+
+                        {/* Historical Achievements */}
+                        <div className="mt-8 pt-6 border-t border-gray-200 space-y-4">
+                            <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
+                                <Award size={16} className="text-yellow-500" /> Award Historical Achievements
+                            </h4>
+                            <p className="text-xs text-gray-500">
+                                Credit this scout for past placements and showcases they hosted before joining the platform.
+                            </p>
+                            <div className="grid md:grid-cols-2 gap-4">
+                                <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
+                                    <label className="block text-xs font-bold text-green-700 mb-2">
+                                        Historical Placements (+500 XP each)
+                                    </label>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            value={historicalPlacements}
+                                            onChange={e => setHistoricalPlacements(Math.max(0, parseInt(e.target.value) || 0))}
+                                            className="w-20 border border-green-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-green-500 outline-none text-center font-bold"
+                                        />
+                                        <span className="text-xs text-green-600 font-medium">
+                                            = {historicalPlacements * 500} XP
+                                        </span>
+                                    </div>
+                                    {historicalPlacements > 0 && (
+                                        <div>
+                                            <label className="block text-[10px] text-green-600 mb-1">
+                                                Player names (comma-separated, optional)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={historicalPlayerNames}
+                                                onChange={e => setHistoricalPlayerNames(e.target.value)}
+                                                placeholder="John Smith, Mike Jones, Alex Chen"
+                                                className="w-full border border-green-300 rounded p-2 text-xs text-gray-900 focus:ring-2 focus:ring-green-500 outline-none placeholder:text-gray-400"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 space-y-3">
+                                    <label className="block text-xs font-bold text-orange-700 mb-2">
+                                        Historical Showcases Hosted (+250 XP each)
+                                    </label>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            value={historicalShowcases}
+                                            onChange={e => setHistoricalShowcases(Math.max(0, parseInt(e.target.value) || 0))}
+                                            className="w-20 border border-orange-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-orange-500 outline-none text-center font-bold"
+                                        />
+                                        <span className="text-xs text-orange-600 font-medium">
+                                            = {historicalShowcases * 250} XP
+                                        </span>
+                                    </div>
+                                    {historicalShowcases > 0 && (
+                                        <div>
+                                            <label className="block text-[10px] text-orange-600 mb-1">
+                                                Event names (comma-separated, optional)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={historicalEventNames}
+                                                onChange={e => setHistoricalEventNames(e.target.value)}
+                                                placeholder="Miami Spring Showcase, Atlanta ID Day"
+                                                className="w-full border border-orange-300 rounded p-2 text-xs text-gray-900 focus:ring-2 focus:ring-orange-500 outline-none placeholder:text-gray-400"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            {(historicalPlacements > 0 || historicalShowcases > 0) && (
+                                <div className="flex items-center justify-between bg-purple-50 border border-purple-200 rounded-lg p-4">
+                                    <div>
+                                        <p className="text-xs text-purple-600 font-medium">Total XP to Award</p>
+                                        <p className="text-2xl font-black text-purple-700">
+                                            +{(historicalPlacements * 500) + (historicalShowcases * 250)} XP
+                                        </p>
+                                        <p className="text-[10px] text-purple-500">
+                                            {historicalPlacements > 0 && `${historicalPlacements} placement${historicalPlacements > 1 ? 's' : ''}`}
+                                            {historicalPlacements > 0 && historicalShowcases > 0 && ' + '}
+                                            {historicalShowcases > 0 && `${historicalShowcases} showcase${historicalShowcases > 1 ? 's' : ''}`}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={handleAwardHistorical}
+                                        disabled={awardingXP}
+                                        className="px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white font-bold text-sm rounded-lg shadow-lg flex items-center gap-2 transition-all"
+                                    >
+                                        {awardingXP ? (
+                                            <>
+                                                <Loader2 size={16} className="animate-spin" /> Awarding...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <TrendingUp size={16} /> Award XP
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -1221,6 +1535,119 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             </div>
                         )}
 
+                        {/* Edit Event Modal */}
+                        {editingEvent && (
+                            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                                <div className="bg-white p-6 rounded-xl shadow-xl max-w-2xl w-full mx-4 space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                                            <Edit2 size={20} className="text-blue-500" /> Edit Event
+                                        </h3>
+                                        <button
+                                            onClick={() => setEditingEvent(null)}
+                                            className="p-1 text-gray-400 hover:text-gray-600"
+                                        >
+                                            <X size={20} />
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Title *</label>
+                                            <input
+                                                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={globalEventForm.title}
+                                                onChange={e => setGlobalEventForm({ ...globalEventForm, title: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Location *</label>
+                                            <input
+                                                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={globalEventForm.location}
+                                                onChange={e => setGlobalEventForm({ ...globalEventForm, location: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-4 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Start Date *</label>
+                                            <input
+                                                type="date"
+                                                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={globalEventForm.date}
+                                                onChange={e => setGlobalEventForm({ ...globalEventForm, date: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">End Date</label>
+                                            <input
+                                                type="date"
+                                                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={globalEventForm.endDate}
+                                                onChange={e => setGlobalEventForm({ ...globalEventForm, endDate: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Time</label>
+                                            <input
+                                                type="time"
+                                                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={globalEventForm.time}
+                                                onChange={e => setGlobalEventForm({ ...globalEventForm, time: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Type</label>
+                                            <select
+                                                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={globalEventForm.type}
+                                                onChange={e => setGlobalEventForm({ ...globalEventForm, type: e.target.value as 'ID Day' | 'Showcase' | 'Camp' | 'Tournament' | 'Trial' })}
+                                            >
+                                                <option value="ID Day">ID Day</option>
+                                                <option value="Showcase">Showcase</option>
+                                                <option value="Camp">Camp</option>
+                                                <option value="Tournament">Tournament</option>
+                                                <option value="Trial">Trial</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Fee (Optional)</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-2.5 text-gray-400">$</span>
+                                                <input
+                                                    type="number"
+                                                    className="w-full border border-gray-300 rounded-lg p-2.5 pl-7 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                    value={globalEventForm.fee}
+                                                    onChange={e => setGlobalEventForm({ ...globalEventForm, fee: e.target.value })}
+                                                    placeholder="0"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                                        <button
+                                            onClick={() => setEditingEvent(null)}
+                                            className="px-4 py-2 text-gray-500 hover:text-gray-700 font-bold text-sm"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={handleUpdateGlobalEvent}
+                                            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-lg flex items-center gap-2"
+                                        >
+                                            <Save size={16} /> Save Changes
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* Events List */}
                         {globalEvents.length === 0 && !isAddingGlobalEvent ? (
                             <div className="bg-white p-12 rounded-xl border border-gray-200 text-center">
@@ -1245,6 +1672,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                             <th className="p-4">Type</th>
                                             <th className="p-4">Fee</th>
                                             <th className="p-4">Status</th>
+                                            <th className="p-4 text-right">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
@@ -1271,6 +1699,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                                     }`}>
                                                         {event.status}
                                                     </span>
+                                                </td>
+                                                <td className="p-4 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={() => handleEditEvent(event)}
+                                                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                            title="Edit event"
+                                                        >
+                                                            <Edit2 size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteGlobalEvent(event.id)}
+                                                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                            title="Delete event"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}

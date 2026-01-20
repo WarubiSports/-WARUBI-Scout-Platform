@@ -155,11 +155,36 @@ const App: React.FC = () => {
     try {
       const newPlayer = await addProspect(player);
       if (newPlayer) {
-        await addXP(SCOUT_POINTS.PLAYER_LOG);
+        // Calculate XP with quality bonuses
+        let totalXP = SCOUT_POINTS.PLAYER_LOG;
+        const bonuses: string[] = [];
+
+        // Video bonus
+        if (player.videoLink) {
+          totalXP += SCOUT_POINTS.PLAYER_HAS_VIDEO;
+          bonuses.push('video');
+        }
+
+        // Complete profile bonus (position, club, GPA, graduation year)
+        const hasCompleteProfile = player.position && player.club && player.gpa && player.graduationYear;
+        if (hasCompleteProfile) {
+          totalXP += SCOUT_POINTS.PLAYER_COMPLETE_PROFILE;
+          bonuses.push('complete profile');
+        }
+
+        // Parent contact bonus
+        if (player.parentEmail || player.parentPhone) {
+          totalXP += SCOUT_POINTS.PLAYER_HAS_PARENT_CONTACT;
+          bonuses.push('parent contact');
+        }
+
+        await addXP(totalXP);
+
+        const bonusText = bonuses.length > 0 ? ` (${bonuses.join(', ')})` : '';
         handleAddNotification({
             type: 'SUCCESS',
-            title: `+${SCOUT_POINTS.PLAYER_LOG} XP | Player Added`,
-            message: `${player.name} added to your pipeline.`
+            title: `+${totalXP} XP | Player Added`,
+            message: `${player.name} added to your pipeline${bonusText}.`
         });
         return newPlayer;
       } else {
@@ -192,18 +217,32 @@ const App: React.FC = () => {
 
       const player = prospects.find(p => p.id === playerId);
       if (player) {
+        // Check if this is the first outreach (for XP bonus)
+        const isFirstOutreach = player.outreachLogs.length === 0;
+
         await updateProspect(playerId, {
           outreachLogs: [...player.outreachLogs, outreachLog || log],
           lastContactedAt: new Date().toISOString(),
           activityStatus: 'spark'
         });
 
+        // Award XP for first outreach
+        if (isFirstOutreach) {
+          await addXP(SCOUT_POINTS.FIRST_OUTREACH);
+          handleAddNotification({
+              type: 'SUCCESS',
+              title: `+${SCOUT_POINTS.FIRST_OUTREACH} XP | First Outreach`,
+              message: `First message sent to ${player.name}.`
+          });
+        }
+
         // Auto-advance from Lead to Contacted on first message
         if (player.status === PlayerStatus.LEAD) {
+          await addXP(SCOUT_POINTS.PLAYER_CONTACTED);
           await updateProspect(playerId, { status: PlayerStatus.CONTACTED });
           handleAddNotification({
-              type: 'INFO',
-              title: 'Player Contacted',
+              type: 'SUCCESS',
+              title: `+${SCOUT_POINTS.PLAYER_CONTACTED} XP | Pipeline Progress`,
               message: `${player.name} moved to Contacted stage.`
           });
         }
@@ -214,7 +253,42 @@ const App: React.FC = () => {
       const oldPlayer = prospects.find(p => p.id === updatedPlayer.id);
       if (!oldPlayer) return;
 
-      // Check for placement
+      // Pipeline progression XP rewards
+      const statusChanged = oldPlayer.status !== updatedPlayer.status;
+
+      if (statusChanged) {
+        // LEAD → CONTACTED (usually handled in handleMessageSent, but support manual change)
+        if (oldPlayer.status === PlayerStatus.LEAD && updatedPlayer.status === PlayerStatus.CONTACTED) {
+          await addXP(SCOUT_POINTS.PLAYER_CONTACTED);
+          handleAddNotification({
+              type: 'SUCCESS',
+              title: `+${SCOUT_POINTS.PLAYER_CONTACTED} XP | Pipeline Progress`,
+              message: `${updatedPlayer.name} moved to Contacted.`
+          });
+        }
+
+        // CONTACTED → INTERESTED
+        if (oldPlayer.status === PlayerStatus.CONTACTED && updatedPlayer.status === PlayerStatus.INTERESTED) {
+          await addXP(SCOUT_POINTS.PLAYER_INTERESTED);
+          handleAddNotification({
+              type: 'SUCCESS',
+              title: `+${SCOUT_POINTS.PLAYER_INTERESTED} XP | Pipeline Progress`,
+              message: `${updatedPlayer.name} is now Interested!`
+          });
+        }
+
+        // INTERESTED → OFFERED
+        if (oldPlayer.status === PlayerStatus.INTERESTED && updatedPlayer.status === PlayerStatus.OFFERED) {
+          await addXP(SCOUT_POINTS.PLAYER_OFFERED);
+          handleAddNotification({
+              type: 'SUCCESS',
+              title: `+${SCOUT_POINTS.PLAYER_OFFERED} XP | Pipeline Progress`,
+              message: `${updatedPlayer.name} has been Offered!`
+          });
+        }
+      }
+
+      // Check for placement (final stage)
       if (oldPlayer.status !== PlayerStatus.PLACED && updatedPlayer.status === PlayerStatus.PLACED) {
           await addXP(SCOUT_POINTS.PLACEMENT);
           await incrementPlacements();
@@ -420,9 +494,49 @@ const App: React.FC = () => {
             onAddNotification={handleAddNotification}
             onMarkAllRead={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
             onMessageSent={handleMessageSent}
-            onStatusChange={async (id, status) => {
-                // Use updateProspect directly to avoid stale closure on prospects array
-                await updateProspect(id, { status });
+            onStatusChange={async (id, newStatus) => {
+                // Find old player to check status transition for XP
+                const oldPlayer = prospects.find(p => p.id === id);
+                if (!oldPlayer) return;
+
+                const oldStatus = oldPlayer.status;
+
+                // Award pipeline progression XP
+                if (oldStatus === PlayerStatus.LEAD && newStatus === PlayerStatus.CONTACTED) {
+                  await addXP(SCOUT_POINTS.PLAYER_CONTACTED);
+                  handleAddNotification({
+                    type: 'SUCCESS',
+                    title: `+${SCOUT_POINTS.PLAYER_CONTACTED} XP | Pipeline Progress`,
+                    message: `${oldPlayer.name} moved to Contacted.`
+                  });
+                }
+                if (oldStatus === PlayerStatus.CONTACTED && newStatus === PlayerStatus.INTERESTED) {
+                  await addXP(SCOUT_POINTS.PLAYER_INTERESTED);
+                  handleAddNotification({
+                    type: 'SUCCESS',
+                    title: `+${SCOUT_POINTS.PLAYER_INTERESTED} XP | Pipeline Progress`,
+                    message: `${oldPlayer.name} is now Interested!`
+                  });
+                }
+                if (oldStatus === PlayerStatus.INTERESTED && newStatus === PlayerStatus.OFFERED) {
+                  await addXP(SCOUT_POINTS.PLAYER_OFFERED);
+                  handleAddNotification({
+                    type: 'SUCCESS',
+                    title: `+${SCOUT_POINTS.PLAYER_OFFERED} XP | Pipeline Progress`,
+                    message: `${oldPlayer.name} has been Offered!`
+                  });
+                }
+                if (oldStatus !== PlayerStatus.PLACED && newStatus === PlayerStatus.PLACED) {
+                  await addXP(SCOUT_POINTS.PLACEMENT);
+                  await incrementPlacements();
+                  handleAddNotification({
+                    type: 'SUCCESS',
+                    title: `+${SCOUT_POINTS.PLACEMENT} XP | PLACEMENT CONFIRMED!`,
+                    message: `Incredible work placing ${oldPlayer.name}.`
+                  });
+                }
+
+                await updateProspect(id, { status: newStatus });
             }}
             onLogout={handleLogout}
             onReturnToAdmin={userProfile?.isAdmin ? () => setView(AppView.ADMIN) : undefined}
