@@ -26,8 +26,9 @@ Lead → Contacted → Interested → Offered → Placed
 - **AI Features:** Gemini-powered evaluation, outreach generation, bulk import
 
 ## Related Projects
-- **ITP Staff App:** `/Applications/Apps/itp-staff-app` - Staff management for ITP trials
-- **ITP Player App:** `/Applications/Apps/ITP-Player-App` - Player-facing trial app
+- **ITP Staff App:** `~/projects/ITP-Staff-App` - Staff management for ITP trials
+- **ITP Player App:** `~/projects/ITP-Player-App` - Player-facing trial app
+- **ExposureEngine V2:** `~/projects/ExposureEngineV2` - Public recruiting visibility tool
 
 ## Test Credentials
 - Admin: max.bisinger@warubi-sports.com / ITP2024
