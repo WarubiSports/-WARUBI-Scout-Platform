@@ -3,6 +3,7 @@ import { ScoutingEvent, UserProfile, EventStatus } from '../types';
 import { generateEventPlan } from '../services/geminiService';
 import { haptic, handleMobileFocus } from '../hooks/useMobileFeatures';
 import { parseEventType } from '../lib/guards';
+import { useEventAttendees, AttendeeWithScout } from '../hooks/useEventAttendees';
 import {
   Calendar, MapPin, Sparkles, Plus, Copy, CheckCircle,
   Share2, Users, FileText, CheckSquare, Loader2, ArrowRight,
@@ -326,9 +327,9 @@ const CreateEventForm = ({ formData, setFormData, loading, handleCreate, onCance
     </div>
 );
 
-const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateAttendance, copyToClipboard, copied, onSubmitForApproval, onPublishEvent }: any) => {
+const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateAttendance, copyToClipboard, copied, onSubmitForApproval, onPublishEvent, attendees, attendeeCount, isUserAttending, onRegisterAttendance, onCancelAttendance, currentScoutId }: any) => {
     const isMine = event.role === 'HOST' || event.isMine;
-    const isAttending = isMine || events.some((e: any) => e.id === event.id || (e.title === event.title && e.date === event.date));
+    const isAttending = isUserAttending || isMine || events.some((e: any) => e.id === event.id || (e.title === event.title && e.date === event.date));
     const [mobileTab, setMobileTab] = useState<'overview' | 'agenda' | 'tasks'>('overview');
     const [isEditing, setIsEditing] = useState(false);
     const [editData, setEditData] = useState({
@@ -511,17 +512,50 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                               </div>
                           ) : (
                               <div className="bg-scout-900/50 p-4 rounded-lg border border-scout-700">
-                                  {!isAttending ? (
+                                  {!isUserAttending ? (
                                       <>
                                           <p className="text-xs text-gray-400 mb-4">Interested in scouting at this event?</p>
-                                          <button onClick={() => initiateAttendance(event)} className="w-full bg-scout-700 hover:bg-scout-600 text-white font-bold py-2 rounded-lg transition-all border border-scout-600 text-sm">Mark Attendance</button>
+                                          <button onClick={onRegisterAttendance} className="w-full bg-scout-700 hover:bg-scout-600 text-white font-bold py-2 rounded-lg transition-all border border-scout-600 text-sm">Mark Attendance</button>
                                       </>
                                   ) : (
                                       <div className="text-center py-2">
                                           <div className="inline-block p-2 bg-green-500/10 rounded-full text-green-400 mb-2"><CheckCircle size={24} /></div>
-                                          <p className="text-white font-bold text-sm">Attendance Logged</p>
+                                          <p className="text-white font-bold text-sm">You&apos;re Attending</p>
+                                          <button onClick={onCancelAttendance} className="text-xs text-gray-500 hover:text-red-400 mt-2 transition-colors">Cancel attendance</button>
                                       </div>
                                   )}
+                              </div>
+                          )}
+
+                          {/* Scouts Attending */}
+                          {attendeeCount > 0 && (
+                              <div className="bg-scout-900/50 p-4 rounded-lg border border-scout-700 mt-4">
+                                  <div className="flex items-center justify-between mb-3">
+                                      <span className="text-xs font-bold text-gray-400 uppercase flex items-center gap-2">
+                                          <Users size={14} /> Scouts Attending
+                                      </span>
+                                      <span className="text-xs bg-scout-700 text-white px-2 py-0.5 rounded-full font-bold">{attendeeCount}</span>
+                                  </div>
+                                  <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
+                                      {attendees?.map((a: any) => (
+                                          <div key={a.id} className="flex items-center gap-2 text-sm">
+                                              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                                                  a.scout_id === currentScoutId
+                                                      ? 'bg-scout-accent text-white'
+                                                      : 'bg-scout-700 text-gray-300'
+                                              }`}>
+                                                  {a.scout?.name?.charAt(0) || '?'}
+                                              </div>
+                                              <span className="text-gray-300">
+                                                  {a.scout?.name || 'Unknown Scout'}
+                                                  {a.scout_id === currentScoutId && <span className="text-scout-accent ml-1">(you)</span>}
+                                              </span>
+                                              {a.scout?.region && (
+                                                  <span className="text-[10px] text-gray-500 ml-auto">{a.scout.region}</span>
+                                              )}
+                                          </div>
+                                      ))}
+                                  </div>
                               </div>
                           )}
                       </div>
@@ -674,6 +708,35 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                 </div>
                             </div>
                         )}
+
+                        {/* Scouts Attending - Mobile */}
+                        {attendeeCount > 0 && (
+                            <div className="bg-scout-800 rounded-xl p-4 border border-scout-700">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-xs font-bold text-gray-400 uppercase flex items-center gap-2">
+                                        <Users size={14} /> Scouts Attending
+                                    </span>
+                                    <span className="text-xs bg-scout-700 text-white px-2 py-0.5 rounded-full font-bold">{attendeeCount}</span>
+                                </div>
+                                <div className="space-y-2">
+                                    {attendees?.map((a: any) => (
+                                        <div key={a.id} className="flex items-center gap-2 text-sm">
+                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                                                a.scout_id === currentScoutId
+                                                    ? 'bg-scout-accent text-white'
+                                                    : 'bg-scout-700 text-gray-300'
+                                            }`}>
+                                                {a.scout?.name?.charAt(0) || '?'}
+                                            </div>
+                                            <span className="text-gray-300">
+                                                {a.scout?.name || 'Unknown Scout'}
+                                                {a.scout_id === currentScoutId && <span className="text-scout-accent ml-1">(you)</span>}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -739,6 +802,16 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
   const [showGuide, setShowGuide] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
+  // Attendees management
+  const {
+    loadEventAttendees,
+    isAttending: checkIsAttending,
+    getAttendees,
+    getAttendeeCount,
+    registerAttendance,
+    cancelAttendance,
+  } = useEventAttendees(user.scoutId);
+
   // Wrapper to sync selectedEvent when an event is updated
   const handleUpdateEvent = (updatedEvent: ScoutingEvent) => {
     onUpdateEvent(updatedEvent);
@@ -753,6 +826,13 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Load attendees when viewing event detail
+  useEffect(() => {
+    if (selectedEvent && view === 'detail') {
+      loadEventAttendees(selectedEvent.id);
+    }
+  }, [selectedEvent?.id, view, loadEventAttendees]);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -910,7 +990,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
                 onCancel={() => setView('list')}
             />
         ) : view === 'detail' && selectedEvent ? (
-            <DetailView 
+            <DetailView
                 event={selectedEvent}
                 events={events}
                 isMobile={isMobile}
@@ -921,6 +1001,12 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
                 copied={copied}
                 onSubmitForApproval={submitForApproval}
                 onPublishEvent={publishEvent}
+                attendees={getAttendees(selectedEvent.id)}
+                attendeeCount={getAttendeeCount(selectedEvent.id)}
+                isUserAttending={checkIsAttending(selectedEvent.id)}
+                onRegisterAttendance={() => registerAttendance(selectedEvent.id)}
+                onCancelAttendance={() => cancelAttendance(selectedEvent.id)}
+                currentScoutId={user.scoutId}
             />
         ) : (
             <div className="h-full flex flex-col animate-fade-in">
