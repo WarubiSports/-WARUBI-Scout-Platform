@@ -20,7 +20,6 @@ import { haptic, useSwipeGesture } from '../hooks/useMobileFeatures';
 import { generateDailyStrategy } from '../services/geminiService';
 import { Users, CalendarDays, UserCircle, MessageSquare, Zap, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, MessageSquarePlus, LogOut } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
-import ScoutToolkit from './ScoutToolkit';
 
 interface DashboardProps {
     user: UserProfile;
@@ -573,9 +572,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                                 </div>
                             </div>
                         )}
-
-                        {/* SCOUT TOOLKIT - Resources & Guides */}
-                        <ScoutToolkit />
 
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                             <div>
