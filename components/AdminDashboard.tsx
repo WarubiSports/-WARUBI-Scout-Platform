@@ -1001,20 +1001,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                             = {historicalPlacements * 500} XP
                                         </span>
                                     </div>
-                                    {historicalPlacements > 0 && (
-                                        <div>
-                                            <label className="block text-[10px] text-green-600 mb-1">
-                                                Player names (comma-separated, optional)
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={historicalPlayerNames}
-                                                onChange={e => setHistoricalPlayerNames(e.target.value)}
-                                                placeholder="John Smith, Mike Jones, Alex Chen"
-                                                className="w-full border border-green-300 rounded p-2 text-xs text-gray-900 focus:ring-2 focus:ring-green-500 outline-none placeholder:text-gray-400"
-                                            />
-                                        </div>
-                                    )}
+                                    <div className={historicalPlacements > 0 ? '' : 'hidden'}>
+                                        <label className="block text-[10px] text-green-600 mb-1">
+                                            Player names (comma-separated, optional)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={historicalPlayerNames}
+                                            onChange={e => setHistoricalPlayerNames(e.target.value)}
+                                            placeholder="John Smith, Mike Jones, Alex Chen"
+                                            className="w-full border border-green-300 rounded p-2 text-xs text-gray-900 focus:ring-2 focus:ring-green-500 outline-none placeholder:text-gray-400"
+                                        />
+                                    </div>
                                 </div>
                                 <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 space-y-3">
                                     <label className="block text-xs font-bold text-orange-700 mb-2">
@@ -1033,20 +1031,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                             = {historicalShowcases * 250} XP
                                         </span>
                                     </div>
-                                    {historicalShowcases > 0 && (
-                                        <div>
-                                            <label className="block text-[10px] text-orange-600 mb-1">
-                                                Event names (comma-separated, optional)
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={historicalEventNames}
-                                                onChange={e => setHistoricalEventNames(e.target.value)}
-                                                placeholder="Miami Spring Showcase, Atlanta ID Day"
-                                                className="w-full border border-orange-300 rounded p-2 text-xs text-gray-900 focus:ring-2 focus:ring-orange-500 outline-none placeholder:text-gray-400"
-                                            />
-                                        </div>
-                                    )}
+                                    <div className={historicalShowcases > 0 ? '' : 'hidden'}>
+                                        <label className="block text-[10px] text-orange-600 mb-1">
+                                            Event names (comma-separated, optional)
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={historicalEventNames}
+                                            onChange={e => setHistoricalEventNames(e.target.value)}
+                                            placeholder="Miami Spring Showcase, Atlanta ID Day"
+                                            className="w-full border border-orange-300 rounded p-2 text-xs text-gray-900 focus:ring-2 focus:ring-orange-500 outline-none placeholder:text-gray-400"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                             {(historicalPlacements > 0 || historicalShowcases > 0) && (
