@@ -15,7 +15,7 @@ export interface ApprovedScout {
 
 /**
  * Check if an email is in the approved scouts list
- * Uses RPC function to bypass table-level REST API access issues
+ * Uses direct table query (RLS policy allows SELECT for anyone)
  */
 export async function isEmailApproved(email: string): Promise<{
   approved: boolean;
@@ -28,30 +28,29 @@ export async function isEmailApproved(email: string): Promise<{
   }
 
   try {
-    // Use RPC function instead of direct table query
-    const { data, error } = await (supabase.rpc as any)('check_email_approved', {
-      email_to_check: email.toLowerCase().trim()
-    });
+    // Direct query - RLS policy allows anyone to SELECT from approved_scouts
+    const { data, error } = await supabase
+      .from('approved_scouts')
+      .select('email, name, region, role')
+      .eq('email', email.toLowerCase().trim())
+      .maybeSingle();
 
     if (error) {
-      console.error('Error checking approved scouts via RPC:', error);
+      console.error('Error checking approved scouts:', error);
       return { approved: false, error: error.message };
     }
 
-    // RPC returns array with single row: { is_approved, scout_role, scout_name, scout_region }
-    const result = (data as any[])?.[0];
-
-    if (!result || !result.is_approved) {
+    if (!data) {
       return { approved: false };
     }
 
     return {
       approved: true,
       scout: {
-        email: email.toLowerCase().trim(),
-        name: result.scout_name,
-        region: result.scout_region,
-        role: result.scout_role
+        email: data.email,
+        name: data.name,
+        region: data.region,
+        role: data.role
       }
     };
   } catch (err) {
@@ -62,21 +61,24 @@ export async function isEmailApproved(email: string): Promise<{
 
 /**
  * Mark a scout as registered (after they complete signup)
- * Uses RPC function to bypass table-level access issues
  */
 export async function markScoutRegistered(email: string): Promise<boolean> {
   if (!isSupabaseConfigured) return true;
 
   try {
-    const { data, error } = await (supabase.rpc as any)('mark_scout_registered', {
-      p_email: email.toLowerCase().trim()
-    });
+    const { error } = await supabase
+      .from('approved_scouts')
+      .update({
+        has_registered: true,
+        registered_at: new Date().toISOString()
+      })
+      .eq('email', email.toLowerCase().trim());
 
     if (error) {
-      console.error('Error marking scout registered via RPC:', error);
+      console.error('Error marking scout registered:', error);
       return false;
     }
-    return data === true;
+    return true;
   } catch (err) {
     console.error('Error in markScoutRegistered:', err);
     return false;
@@ -266,7 +268,6 @@ export async function removeApprovedScout(id: string): Promise<{
 
 /**
  * Update an approved scout's details (admin only)
- * Uses RPC function to bypass table-level access issues
  */
 export async function updateApprovedScout(
   id: string,
@@ -277,20 +278,17 @@ export async function updateApprovedScout(
   }
 
   try {
-    const { data, error } = await (supabase.rpc as any)('update_approved_scout', {
-      p_id: id,
-      p_name: updates.name || null,
-      p_region: updates.region || null,
-      p_notes: updates.notes || null,
-      p_role: updates.role || null
-    });
+    const { error } = await supabase
+      .from('approved_scouts')
+      .update(updates)
+      .eq('id', id);
 
     if (error) {
-      console.error('Error updating approved scout via RPC:', error);
+      console.error('Error updating approved scout:', error);
       return { success: false, error: error.message };
     }
 
-    return { success: data === true };
+    return { success: true };
   } catch (err) {
     return { success: false, error: 'Failed to update scout' };
   }

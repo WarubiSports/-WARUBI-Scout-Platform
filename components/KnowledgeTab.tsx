@@ -403,15 +403,43 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
 
     const PathwayCard: React.FC<{ pathway: PathwayDef }> = ({ pathway }) => {
         const Icon = pathway.icon === 'Globe' ? Globe : pathway.icon === 'GraduationCap' ? GraduationCap : pathway.icon === 'Calendar' ? Calendar : BookOpen;
+        // Extract YouTube video ID for thumbnail
+        const videoId = pathway.videoUrl?.split('/embed/')[1]?.split('?')[0];
+        const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : null;
+
         return (
             <div
                 onClick={() => { setSelectedPathway(pathway); setView('PATHWAY_DETAIL'); }}
-                className={`bg-scout-800 rounded-3xl p-5 border-2 transition-all cursor-pointer group hover:shadow-2xl relative overflow-hidden flex flex-col h-full min-h-[180px] ${pathway.color.includes('red') ? 'border-red-500/20 hover:border-red-500/50' : pathway.color.includes('blue') ? 'border-blue-500/20 hover:border-blue-500/50' : pathway.color.includes('orange') ? 'border-orange-500/20 hover:border-orange-500/50' : 'border-gray-500/20 hover:border-gray-500/50'}`}
+                className={`rounded-3xl border-2 transition-all duration-300 cursor-pointer group hover:shadow-2xl hover:scale-[1.02] relative overflow-hidden flex flex-col h-full min-h-[220px] ${pathway.color.includes('red') ? 'border-red-500/30 hover:border-red-500' : pathway.color.includes('blue') ? 'border-blue-500/30 hover:border-blue-500' : pathway.color.includes('orange') ? 'border-orange-500/30 hover:border-orange-500' : 'border-gray-500/30 hover:border-gray-400'}`}
             >
-                <div className="p-2.5 bg-scout-900 rounded-xl group-hover:scale-110 transition-transform w-fit mb-3 shrink-0"><Icon size={22} /></div>
-                <h3 className="text-sm font-black text-white leading-tight uppercase tracking-tight mb-2">{pathway.title}</h3>
-                <p className="text-gray-400 text-[11px] mb-4 flex-1 line-clamp-3 leading-relaxed">{pathway.shortDesc}</p>
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/50 group-hover:text-white transition-colors mt-auto">View Strategy <ArrowRight size={12} /></div>
+                {/* Background thumbnail - always visible, slightly brighter on hover */}
+                {thumbnailUrl && (
+                    <div
+                        className="absolute inset-0 bg-cover bg-center opacity-25"
+                        style={{ backgroundImage: `url(${thumbnailUrl})` }}
+                    />
+                )}
+                {/* Gradient overlay - lightens on hover */}
+                <div className={`absolute inset-0 transition-opacity duration-300 bg-gradient-to-t ${pathway.color.includes('red') ? 'from-scout-900 via-scout-900/90 to-red-900/40 group-hover:opacity-80' : pathway.color.includes('blue') ? 'from-scout-900 via-scout-900/90 to-blue-900/40 group-hover:opacity-80' : pathway.color.includes('orange') ? 'from-scout-900 via-scout-900/90 to-orange-900/40 group-hover:opacity-80' : 'from-scout-900 via-scout-900/90 to-gray-800/40 group-hover:opacity-80'}`} />
+
+                {/* Content */}
+                <div className="relative z-10 p-5 flex flex-col h-full">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className={`p-2.5 rounded-xl group-hover:scale-110 transition-transform duration-300 ${pathway.color.includes('red') ? 'bg-red-500/20 text-red-400' : pathway.color.includes('blue') ? 'bg-blue-500/20 text-blue-400' : pathway.color.includes('orange') ? 'bg-orange-500/20 text-orange-400' : 'bg-gray-500/20 text-gray-400'}`}>
+                            <Icon size={22} />
+                        </div>
+                        {videoId && (
+                            <div className="p-2 bg-white/10 rounded-full group-hover:bg-white/20 transition-colors duration-300">
+                                <PlayCircle size={16} className="text-white" />
+                            </div>
+                        )}
+                    </div>
+                    <h3 className="text-sm font-black text-white leading-tight uppercase tracking-tight mb-2">{pathway.title}</h3>
+                    <p className="text-gray-400 text-[11px] mb-4 flex-1 line-clamp-3 leading-relaxed">{pathway.shortDesc}</p>
+                    <div className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-colors duration-300 mt-auto ${pathway.color.includes('red') ? 'text-red-400/70 group-hover:text-red-400' : pathway.color.includes('blue') ? 'text-blue-400/70 group-hover:text-blue-400' : pathway.color.includes('orange') ? 'text-orange-400/70 group-hover:text-orange-400' : 'text-gray-400/70 group-hover:text-gray-400'}`}>
+                        View Strategy <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform duration-300" />
+                    </div>
+                </div>
             </div>
         );
     };

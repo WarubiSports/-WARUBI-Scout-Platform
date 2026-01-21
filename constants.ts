@@ -343,7 +343,7 @@ export const WARUBI_PATHWAYS: PathwayDef[] = [
             'The only way to truly test "Pro Level"'
         ],
         scriptSnippet: '"This isn\'t a vacation. It\'s a 6-month residency at a Bundesliga club partner to see if you have what it takes. It\'s cheaper than one year of US college tuition."',
-        videoUrl: '', // Add YouTube embed URL here
+        videoUrl: 'https://www.youtube.com/embed/dyiMulYAzdo',
         websiteUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     },
     {
@@ -369,7 +369,7 @@ export const WARUBI_PATHWAYS: PathwayDef[] = [
             'Access to "Hidden" roster spots in mid-major programs'
         ],
         scriptSnippet: '"You have the talent, but the window is closing. Let\'s use the Warubi Network to get your film directly to coaches who are still recruiting for your position."',
-        videoUrl: '', // Add YouTube embed URL here
+        videoUrl: 'https://www.youtube.com/embed/jKNtijhnzC0',
         websiteUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     },
     {
@@ -395,7 +395,7 @@ export const WARUBI_PATHWAYS: PathwayDef[] = [
             'Direct comparison against other recruits'
         ],
         scriptSnippet: '"Coaches need to see you live. We have 15 colleges confirmed for the Miami Showcase. It\'s the fastest way to get an offer."',
-        videoUrl: '', // Add YouTube embed URL here
+        videoUrl: 'https://www.youtube.com/embed/BPwV72OJbdE',
         websiteUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     },
     {
@@ -419,7 +419,7 @@ export const WARUBI_PATHWAYS: PathwayDef[] = [
             'Network with Bundesliga staff'
         ],
         scriptSnippet: '"Your playing career is just chapter one. The Warubi Coaching Course gives you the credentials to build a career in the game for the next 40 years."',
-        videoUrl: '', // Add YouTube embed URL here
+        videoUrl: 'https://www.youtube.com/embed/kP3KuKfHYKs',
         websiteUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     }
 ];
