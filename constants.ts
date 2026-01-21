@@ -342,7 +342,9 @@ export const WARUBI_PATHWAYS: PathwayDef[] = [
             'Save $$ on US University costs by earning credits in Germany',
             'The only way to truly test "Pro Level"'
         ],
-        scriptSnippet: '"This isn\'t a vacation. It\'s a 6-month residency at a Bundesliga club partner to see if you have what it takes. It\'s cheaper than one year of US college tuition."'
+        scriptSnippet: '"This isn\'t a vacation. It\'s a 6-month residency at a Bundesliga club partner to see if you have what it takes. It\'s cheaper than one year of US college tuition."',
+        videoUrl: '', // Add YouTube embed URL here
+        websiteUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     },
     {
         id: 'college',
@@ -366,7 +368,9 @@ export const WARUBI_PATHWAYS: PathwayDef[] = [
             'We negotiate the scholarship package',
             'Access to "Hidden" roster spots in mid-major programs'
         ],
-        scriptSnippet: '"You have the talent, but the window is closing. Let\'s use the Warubi Network to get your film directly to coaches who are still recruiting for your position."'
+        scriptSnippet: '"You have the talent, but the window is closing. Let\'s use the Warubi Network to get your film directly to coaches who are still recruiting for your position."',
+        videoUrl: '', // Add YouTube embed URL here
+        websiteUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     },
     {
         id: 'events',
@@ -390,7 +394,9 @@ export const WARUBI_PATHWAYS: PathwayDef[] = [
             'Professional video package included',
             'Direct comparison against other recruits'
         ],
-        scriptSnippet: '"Coaches need to see you live. We have 15 colleges confirmed for the Miami Showcase. It\'s the fastest way to get an offer."'
+        scriptSnippet: '"Coaches need to see you live. We have 15 colleges confirmed for the Miami Showcase. It\'s the fastest way to get an offer."',
+        videoUrl: '', // Add YouTube embed URL here
+        websiteUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     },
     {
         id: 'coaching',
@@ -412,7 +418,9 @@ export const WARUBI_PATHWAYS: PathwayDef[] = [
             'Earn globally recognized licenses',
             'Network with Bundesliga staff'
         ],
-        scriptSnippet: '"Your playing career is just chapter one. The Warubi Coaching Course gives you the credentials to build a career in the game for the next 40 years."'
+        scriptSnippet: '"Your playing career is just chapter one. The Warubi Coaching Course gives you the credentials to build a career in the game for the next 40 years."',
+        videoUrl: '', // Add YouTube embed URL here
+        websiteUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     }
 ];
 

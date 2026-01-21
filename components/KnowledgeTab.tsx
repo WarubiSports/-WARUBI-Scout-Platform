@@ -492,12 +492,86 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
                 {view === 'PATHWAY_DETAIL' && selectedPathway && (
                     <div className="animate-fade-in space-y-8 pb-10">
                         <button onClick={() => setView('HOME')} className="text-gray-400 hover:text-white flex items-center gap-1 text-sm"><X size={16} /> Back</button>
-                        <div className={`p-8 md:p-12 rounded-[2.5rem] md:rounded-[3.5rem] border-2 ${selectedPathway.color.includes('red') ? 'bg-red-500/5 border-red-500/20' : selectedPathway.color.includes('blue') ? 'bg-blue-500/5 border-blue-500/20' : 'bg-orange-500/5 border-orange-500/20'}`}>
-                            <div className="max-w-2xl">
-                                <h2 className="text-3xl lg:text-5xl font-black text-white uppercase tracking-tighter italic mb-4">{selectedPathway.title}</h2>
-                                <p className="text-gray-300 text-lg md:text-xl font-medium">{selectedPathway.shortDesc}</p>
+                        <div className={`p-8 md:p-12 rounded-[2.5rem] md:rounded-[3.5rem] border-2 ${selectedPathway.color.includes('red') ? 'bg-red-500/5 border-red-500/20' : selectedPathway.color.includes('blue') ? 'bg-blue-500/5 border-blue-500/20' : selectedPathway.color.includes('orange') ? 'bg-orange-500/5 border-orange-500/20' : 'bg-gray-500/5 border-gray-500/20'}`}>
+                            <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
+                                <div className="max-w-2xl">
+                                    <h2 className="text-3xl lg:text-5xl font-black text-white uppercase tracking-tighter italic mb-4">{selectedPathway.title}</h2>
+                                    <p className="text-gray-300 text-lg md:text-xl font-medium">{selectedPathway.shortDesc}</p>
+                                </div>
+                                {selectedPathway.websiteUrl && (
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(selectedPathway.websiteUrl || '');
+                                                alert('Link copied! Share with your player.');
+                                            }}
+                                            className="px-5 py-3 bg-scout-accent text-scout-900 font-black rounded-xl uppercase text-[10px] tracking-widest shadow-glow hover:bg-emerald-400 transition-all flex items-center gap-2"
+                                        >
+                                            <Share2 size={14} /> Share with Player
+                                        </button>
+                                        <a
+                                            href={selectedPathway.websiteUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="px-5 py-3 bg-scout-800 text-white font-black rounded-xl uppercase text-[10px] tracking-widest border border-scout-700 hover:border-scout-accent transition-all flex items-center gap-2"
+                                        >
+                                            <ExternalLink size={14} /> View on Website
+                                        </a>
+                                    </div>
+                                )}
                             </div>
                         </div>
+
+                        {/* Video Section */}
+                        {selectedPathway.videoUrl && (
+                            <div className="bg-scout-800 rounded-[2rem] border border-scout-700 overflow-hidden">
+                                <div className="aspect-video w-full">
+                                    <iframe
+                                        src={selectedPathway.videoUrl}
+                                        className="w-full h-full"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowFullScreen
+                                        title={`${selectedPathway.title} Video`}
+                                    />
+                                </div>
+                                <div className="p-4 flex justify-between items-center border-t border-scout-700">
+                                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                                        <PlayCircle size={14} className="text-scout-accent" /> Pathway Overview Video
+                                    </span>
+                                    <button
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(selectedPathway.videoUrl || '');
+                                            alert('Video link copied!');
+                                        }}
+                                        className="text-[10px] font-black text-scout-accent hover:text-white transition-colors flex items-center gap-1"
+                                    >
+                                        <Link size={12} /> Copy Video Link
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Placeholder when no video */}
+                        {!selectedPathway.videoUrl && (
+                            <div className="bg-scout-800/50 rounded-[2rem] border border-dashed border-scout-700 p-12 flex flex-col items-center justify-center text-center">
+                                <div className="w-16 h-16 bg-scout-900 rounded-2xl flex items-center justify-center mb-4">
+                                    <PlayCircle size={32} className="text-gray-600" />
+                                </div>
+                                <p className="text-gray-500 text-sm font-bold">Video coming soon</p>
+                                <p className="text-gray-600 text-xs mt-1">Check the website for the latest content</p>
+                                {selectedPathway.websiteUrl && (
+                                    <a
+                                        href={selectedPathway.websiteUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="mt-4 text-scout-accent text-xs font-bold hover:underline flex items-center gap-1"
+                                    >
+                                        <ExternalLink size={12} /> warubi-sports.com
+                                    </a>
+                                )}
+                            </div>
+                        )}
+
                         <div className="grid md:grid-cols-2 gap-8 font-mono">
                             <div className="bg-scout-800 p-8 rounded-[2rem] border border-scout-700">
                                 <h3 className="text-white font-black uppercase text-[10px] tracking-widest mb-6 flex items-center gap-2"><CheckCircle2 size={16} className="text-scout-accent" /> Ideal Profile</h3>

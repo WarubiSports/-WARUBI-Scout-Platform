@@ -175,6 +175,8 @@ export interface PathwayDef {
     redFlags: string[];
     keySellingPoints: string[];
     scriptSnippet: string;
+    videoUrl?: string; // YouTube or Vimeo embed URL
+    websiteUrl?: string; // Link to warubi-sports.com pathway page
 }
 
 export interface ToolDef {
