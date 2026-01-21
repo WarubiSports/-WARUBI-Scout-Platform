@@ -11,7 +11,7 @@ import ApprovedScoutsManager from './ApprovedScoutsManager';
 import { getAllBugReports, updateBugReportStatus, generateClaudePrompt } from '../services/bugReportService';
 import { useAllScouts } from '../hooks/useAllScouts';
 import { useAllProspects, PlayerWithScout } from '../hooks/useAllProspects';
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseRest } from '../lib/supabase';
 import type { BugReport, BugReportStatus } from '../types';
 import type { Scout } from '../lib/database.types';
 
@@ -103,6 +103,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const [historicalPlayerNames, setHistoricalPlayerNames] = useState('');
     const [historicalEventNames, setHistoricalEventNames] = useState('');
     const [awardingXP, setAwardingXP] = useState(false);
+    const [savingScout, setSavingScout] = useState(false);
 
     // --- DERIVED STATS ---
     const pendingEvents = events.filter(e => e.status === 'Pending Approval');
@@ -153,18 +154,28 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     const handleScoutUpdate = async () => {
         if (!scoutFormData) return;
-        // Save to Supabase
-        const success = await updateScoutInDb(scoutFormData.id, {
-            name: scoutFormData.name,
-            region: scoutFormData.region,
-            roles: scoutFormData.roles,
-            status: scoutFormData.status,
-            bio: scoutFormData.bio,
-        });
-        if (success) {
-            setSelectedScout(scoutFormData);
-            setIsEditingScout(false);
-            refreshScouts();
+        setSavingScout(true);
+        try {
+            // Save to Supabase
+            const success = await updateScoutInDb(scoutFormData.id, {
+                name: scoutFormData.name,
+                region: scoutFormData.region,
+                roles: scoutFormData.roles,
+                status: scoutFormData.status,
+                bio: scoutFormData.bio,
+            });
+            if (success) {
+                setSelectedScout(scoutFormData);
+                setIsEditingScout(false);
+                refreshScouts();
+            } else {
+                alert('Failed to save scout. Please try again.');
+            }
+        } catch (err) {
+            console.error('Error saving scout:', err);
+            alert('Error saving scout. Please try again.');
+        } finally {
+            setSavingScout(false);
         }
     };
 
@@ -196,12 +207,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             .map(n => n.trim())
             .filter(n => n.length > 0);
 
-        // Create historical player records
+        // Create historical player records (use REST API to avoid hanging)
         if (historicalPlacements > 0) {
-            const playersToCreate = [];
             for (let i = 0; i < historicalPlacements; i++) {
                 const playerName = playerNames[i] || `Historical Placement #${i + 1}`;
-                playersToCreate.push({
+                await supabaseRest.insert('scout_prospects', {
                     scout_id: selectedScout.id,
                     name: playerName,
                     position: 'Unknown',
@@ -209,15 +219,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     placed_location: 'Historical Record',
                 });
             }
-            await supabase.from('scout_prospects').insert(playersToCreate);
         }
 
-        // Create historical event records
+        // Create historical event records (use REST API to avoid hanging)
         if (historicalShowcases > 0) {
-            const eventsToCreate = [];
             for (let i = 0; i < historicalShowcases; i++) {
                 const eventName = eventNames[i] || `Historical Showcase #${i + 1}`;
-                eventsToCreate.push({
+                await supabaseRest.insert('scouting_events', {
                     host_scout_id: selectedScout.id,
                     title: eventName,
                     event_type: 'Showcase',
@@ -226,7 +234,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     status: 'completed',
                 });
             }
-            await supabase.from('scouting_events').insert(eventsToCreate);
         }
 
         // Update scout's XP and placements count
@@ -1088,9 +1095,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             </button>
                             <button
                                 onClick={handleScoutUpdate}
-                                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded shadow-lg flex items-center gap-2"
+                                disabled={savingScout}
+                                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold text-sm rounded shadow-lg flex items-center gap-2"
                             >
-                                <Save size={16} /> Save Changes
+                                {savingScout ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : <><Save size={16} /> Save Changes</>}
                             </button>
                         </div>
                     </div>
