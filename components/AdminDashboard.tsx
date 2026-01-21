@@ -11,7 +11,7 @@ import ApprovedScoutsManager from './ApprovedScoutsManager';
 import { getAllBugReports, updateBugReportStatus, generateClaudePrompt } from '../services/bugReportService';
 import { useAllScouts } from '../hooks/useAllScouts';
 import { useAllProspects, PlayerWithScout } from '../hooks/useAllProspects';
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseRest } from '../lib/supabase';
 import type { BugReport, BugReportStatus } from '../types';
 import type { Scout } from '../lib/database.types';
 
@@ -76,6 +76,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const [scoutFormData, setScoutFormData] = useState<ScoutWithStats | null>(null);
     const [newBadge, setNewBadge] = useState('');
     const [scoutViewMode, setScoutViewMode] = useState<'grid' | 'list'>('grid');
+    const [savingScout, setSavingScout] = useState(false);
 
     // News Management State
     const [isAddingNews, setIsAddingNews] = useState(false);
@@ -153,18 +154,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     const handleScoutUpdate = async () => {
         if (!scoutFormData) return;
-        // Save to Supabase
-        const success = await updateScoutInDb(scoutFormData.id, {
-            name: scoutFormData.name,
-            region: scoutFormData.region,
-            roles: scoutFormData.roles,
-            status: scoutFormData.status,
-            bio: scoutFormData.bio,
-        });
-        if (success) {
-            setSelectedScout(scoutFormData);
-            setIsEditingScout(false);
-            refreshScouts();
+        setSavingScout(true);
+        try {
+            // Save to Supabase
+            const success = await updateScoutInDb(scoutFormData.id, {
+                name: scoutFormData.name,
+                region: scoutFormData.region,
+                roles: scoutFormData.roles,
+                status: scoutFormData.status,
+                bio: scoutFormData.bio,
+            });
+            if (success) {
+                setSelectedScout(scoutFormData);
+                setIsEditingScout(false);
+                refreshScouts();
+                setSelectedScout(null); // Close modal on success
+            } else {
+                alert('Failed to save changes. Please try again.');
+            }
+        } catch (err) {
+            console.error('Error saving scout:', err);
+            alert('Error saving changes: ' + (err instanceof Error ? err.message : 'Unknown error'));
+        } finally {
+            setSavingScout(false);
         }
     };
 
@@ -179,89 +191,100 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         setAwardingXP(true);
 
-        // Calculate total XP to award
-        const placementXP = historicalPlacements * HISTORICAL_XP.PLACEMENT;
-        const showcaseXP = historicalShowcases * HISTORICAL_XP.SHOWCASE_HOSTED;
-        const totalXP = placementXP + showcaseXP;
+        try {
+            // Calculate total XP to award
+            const placementXP = historicalPlacements * HISTORICAL_XP.PLACEMENT;
+            const showcaseXP = historicalShowcases * HISTORICAL_XP.SHOWCASE_HOSTED;
+            const totalXP = placementXP + showcaseXP;
 
-        // Parse player names (comma-separated)
-        const playerNames = historicalPlayerNames
-            .split(',')
-            .map(n => n.trim())
-            .filter(n => n.length > 0);
+            // Parse player names (comma-separated)
+            const playerNames = historicalPlayerNames
+                .split(',')
+                .map(n => n.trim())
+                .filter(n => n.length > 0);
 
-        // Parse event names (comma-separated)
-        const eventNames = historicalEventNames
-            .split(',')
-            .map(n => n.trim())
-            .filter(n => n.length > 0);
+            // Parse event names (comma-separated)
+            const eventNames = historicalEventNames
+                .split(',')
+                .map(n => n.trim())
+                .filter(n => n.length > 0);
 
-        // Create historical player records
-        if (historicalPlacements > 0) {
-            const playersToCreate = [];
-            for (let i = 0; i < historicalPlacements; i++) {
-                const playerName = playerNames[i] || `Historical Placement #${i + 1}`;
-                playersToCreate.push({
-                    scout_id: selectedScout.id,
-                    name: playerName,
-                    position: 'Unknown',
-                    status: 'placed',
-                    placed_location: 'Historical Record',
-                });
+            // Create historical player records using REST API (supabase client hangs)
+            if (historicalPlacements > 0) {
+                for (let i = 0; i < historicalPlacements; i++) {
+                    const playerName = playerNames[i] || `Historical Placement #${i + 1}`;
+                    const { error } = await supabaseRest.insert('scout_prospects', {
+                        scout_id: selectedScout.id,
+                        name: playerName,
+                        position: 'Unknown',
+                        status: 'placed',
+                        placed_location: 'Historical Record',
+                    });
+                    if (error) {
+                        console.error('Error creating prospect:', error);
+                    }
+                }
             }
-            await supabase.from('scout_prospects').insert(playersToCreate);
-        }
 
-        // Create historical event records
-        if (historicalShowcases > 0) {
-            const eventsToCreate = [];
-            for (let i = 0; i < historicalShowcases; i++) {
-                const eventName = eventNames[i] || `Historical Showcase #${i + 1}`;
-                eventsToCreate.push({
-                    host_scout_id: selectedScout.id,
-                    title: eventName,
-                    event_type: 'Showcase',
-                    event_date: new Date().toISOString().split('T')[0],
-                    location: 'Historical Record',
-                    status: 'completed',
-                });
+            // Create historical event records using REST API
+            if (historicalShowcases > 0) {
+                for (let i = 0; i < historicalShowcases; i++) {
+                    const eventName = eventNames[i] || `Historical Showcase #${i + 1}`;
+                    const { error } = await supabaseRest.insert('scouting_events', {
+                        host_scout_id: selectedScout.id,
+                        title: eventName,
+                        event_type: 'Showcase',
+                        event_date: new Date().toISOString().split('T')[0],
+                        location: 'Historical Record',
+                        status: 'completed',
+                    });
+                    if (error) {
+                        console.error('Error creating event:', error);
+                    }
+                }
             }
-            await supabase.from('scouting_events').insert(eventsToCreate);
-        }
 
-        // Update scout's XP and placements count
-        const newXPScore = (selectedScout.xp_score || 0) + totalXP;
-        const newPlacementsCount = (selectedScout.placements_count || 0) + historicalPlacements;
-        const newLevel = Math.floor(newXPScore / 100) + 1;
+            // Update scout's XP and placements count
+            const newXPScore = (selectedScout.xp_score || 0) + totalXP;
+            const newPlacementsCount = (selectedScout.placements_count || 0) + historicalPlacements;
+            const newLevel = Math.floor(newXPScore / 100) + 1;
 
-        const success = await updateScoutInDb(selectedScout.id, {
-            xp_score: newXPScore,
-            placements_count: newPlacementsCount,
-            level: newLevel,
-        });
-
-        if (success) {
-            // Update local state
-            const updatedScout = {
-                ...selectedScout,
+            const success = await updateScoutInDb(selectedScout.id, {
                 xp_score: newXPScore,
                 placements_count: newPlacementsCount,
                 level: newLevel,
-            };
-            setSelectedScout(updatedScout);
-            setScoutFormData(updatedScout);
+            });
 
-            // Reset inputs
-            setHistoricalPlacements(0);
-            setHistoricalShowcases(0);
-            setHistoricalPlayerNames('');
-            setHistoricalEventNames('');
+            if (success) {
+                // Update local state
+                const updatedScout = {
+                    ...selectedScout,
+                    xp_score: newXPScore,
+                    placements_count: newPlacementsCount,
+                    level: newLevel,
+                };
+                setSelectedScout(updatedScout);
+                setScoutFormData(updatedScout);
 
-            // Refresh scouts list
-            refreshScouts();
+                // Reset inputs
+                setHistoricalPlacements(0);
+                setHistoricalShowcases(0);
+                setHistoricalPlayerNames('');
+                setHistoricalEventNames('');
+
+                // Refresh scouts list
+                refreshScouts();
+
+                alert(`Successfully awarded ${totalXP} XP!`);
+            } else {
+                alert('Failed to update scout XP. Please try again.');
+            }
+        } catch (err) {
+            console.error('Error awarding XP:', err);
+            alert('Error awarding XP: ' + (err instanceof Error ? err.message : 'Unknown error'));
+        } finally {
+            setAwardingXP(false);
         }
-
-        setAwardingXP(false);
     };
 
     const scoutToUserProfile = (scout: ScoutWithStats): UserProfile => ({
@@ -1088,9 +1111,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             </button>
                             <button
                                 onClick={handleScoutUpdate}
-                                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded shadow-lg flex items-center gap-2"
+                                disabled={savingScout}
+                                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold text-sm rounded shadow-lg flex items-center gap-2"
                             >
-                                <Save size={16} /> Save Changes
+                                {savingScout ? (
+                                    <><Loader2 size={16} className="animate-spin" /> Saving...</>
+                                ) : (
+                                    <><Save size={16} /> Save Changes</>
+                                )}
                             </button>
                         </div>
                     </div>
@@ -1261,48 +1289,99 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             </div>
                         ) : scoutViewMode === 'grid' ? (
                             <div className="grid grid-cols-3 gap-6">
-                                {scouts.map(scout => (
-                                    <div
-                                        key={scout.id}
-                                        onClick={() => handleScoutClick(scout)}
-                                        className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col items-center text-center cursor-pointer hover:border-blue-300 hover:shadow-md transition-all group relative"
-                                    >
-                                        {scout.is_admin && (
-                                            <div className="absolute top-3 right-3 text-blue-500" title="Admin">
-                                                <BadgeCheck size={18} />
-                                            </div>
-                                        )}
-                                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-xl font-bold text-gray-600 mb-3 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                                            {scout.name.charAt(0)}
-                                        </div>
-                                        <h3 className="font-bold text-gray-900">{scout.name}</h3>
-                                        <p className="text-xs text-gray-500 mb-4">{scout.roles?.join(', ') || 'Scout'} • {scout.region}</p>
+                                {scouts.map(scout => {
+                                    // Generate gradient based on name
+                                    const gradients = [
+                                        'from-blue-500 to-indigo-600',
+                                        'from-purple-500 to-pink-600',
+                                        'from-emerald-500 to-teal-600',
+                                        'from-orange-500 to-red-600',
+                                        'from-cyan-500 to-blue-600',
+                                        'from-rose-500 to-purple-600',
+                                    ];
+                                    const gradientIndex = scout.name.charCodeAt(0) % gradients.length;
+                                    const gradient = gradients[gradientIndex];
+                                    const level = scout.level || Math.floor((scout.xp_score || 0) / 1000) + 1;
+                                    const xpInLevel = (scout.xp_score || 0) % 1000;
+                                    const xpProgress = (xpInLevel / 1000) * 100;
 
-                                        <div className="flex justify-center gap-4 w-full mb-4 border-t border-b border-gray-50 py-3">
-                                            <div>
-                                                <div className="text-lg font-bold text-gray-900">{scout.prospects_count || 0}</div>
-                                                <div className="text-[10px] text-gray-400 uppercase">Prospects</div>
+                                    return (
+                                        <div
+                                            key={scout.id}
+                                            onClick={() => handleScoutClick(scout)}
+                                            className="bg-white rounded-2xl border border-gray-100 shadow-lg hover:shadow-xl cursor-pointer transition-all duration-300 group relative overflow-hidden"
+                                        >
+                                            {/* Top gradient banner */}
+                                            <div className={`h-20 bg-gradient-to-r ${gradient} relative`}>
+                                                {scout.is_admin && (
+                                                    <div className="absolute top-3 right-3 bg-white/20 backdrop-blur-sm rounded-full p-1" title="Admin">
+                                                        <BadgeCheck size={16} className="text-white" />
+                                                    </div>
+                                                )}
+                                                {/* Level badge */}
+                                                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-white rounded-full px-3 py-1 shadow-lg border-2 border-white">
+                                                    <span className="text-xs font-black text-gray-700">LVL {level}</span>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <div className="text-lg font-bold text-green-600">{scout.placements_count || 0}</div>
-                                                <div className="text-[10px] text-gray-400 uppercase">Placed</div>
-                                            </div>
-                                            <div>
-                                                <div className="text-lg font-bold text-purple-600">{scout.xp_score || 0}</div>
-                                                <div className="text-[10px] text-gray-400 uppercase">XP</div>
-                                            </div>
-                                        </div>
 
-                                        <div className="flex justify-center items-center gap-2">
-                                            <span className={`text-xs px-2 py-1 rounded font-bold uppercase ${scout.status === 'active' ? 'bg-green-100 text-green-700' : scout.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
-                                                {scout.status}
-                                            </span>
-                                            <span className="text-xs text-blue-600 font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                                                Manage <MoreHorizontal size={12} />
-                                            </span>
+                                            {/* Avatar */}
+                                            <div className="flex justify-center -mt-8">
+                                                <div className={`w-16 h-16 bg-gradient-to-br ${gradient} rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-lg ring-4 ring-white`}>
+                                                    {scout.name.charAt(0)}
+                                                </div>
+                                            </div>
+
+                                            {/* Content */}
+                                            <div className="p-5 pt-3 text-center">
+                                                <h3 className="font-bold text-gray-900 text-lg">{scout.name}</h3>
+                                                <p className="text-xs text-gray-500 mb-1">{scout.roles?.join(', ') || 'Scout'}</p>
+                                                <p className="text-xs text-gray-400 mb-4 flex items-center justify-center gap-1">
+                                                    <Globe size={10} /> {scout.region}
+                                                </p>
+
+                                                {/* XP Progress Bar */}
+                                                <div className="mb-4">
+                                                    <div className="flex justify-between text-[10px] text-gray-500 mb-1">
+                                                        <span>{scout.xp_score || 0} XP</span>
+                                                        <span>{1000 - xpInLevel} to next level</span>
+                                                    </div>
+                                                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                                        <div
+                                                            className={`h-full bg-gradient-to-r ${gradient} transition-all duration-500`}
+                                                            style={{ width: `${xpProgress}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {/* Stats */}
+                                                <div className="grid grid-cols-3 gap-2 mb-4">
+                                                    <div className="bg-gray-50 rounded-lg p-2">
+                                                        <div className="text-lg font-black text-gray-700">{scout.prospects_count || 0}</div>
+                                                        <div className="text-[9px] text-gray-400 uppercase font-semibold">Prospects</div>
+                                                    </div>
+                                                    <div className="bg-emerald-50 rounded-lg p-2">
+                                                        <div className="text-lg font-black text-emerald-600">{scout.placements_count || 0}</div>
+                                                        <div className="text-[9px] text-emerald-500 uppercase font-semibold">Placed</div>
+                                                    </div>
+                                                    <div className="bg-purple-50 rounded-lg p-2">
+                                                        <div className="text-lg font-black text-purple-600">{scout.xp_score || 0}</div>
+                                                        <div className="text-[9px] text-purple-500 uppercase font-semibold">XP</div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Footer */}
+                                                <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                                                    <span className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase ${scout.status === 'active' ? 'bg-emerald-100 text-emerald-700' : scout.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'}`}>
+                                                        {scout.status}
+                                                    </span>
+                                                    <span className="text-xs text-blue-600 font-bold opacity-0 group-hover:opacity-100 transition-all flex items-center gap-1">
+                                                        View Profile <MoreHorizontal size={14} />
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         ) : (
                             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
