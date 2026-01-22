@@ -430,27 +430,12 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                                 <p className="text-[10px] text-gray-500 mt-3">Add player now, enrich profile later. Score will be calculated when you add more details.</p>
                             </div>
 
-                            <div className="text-center mb-6">
-                                <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Or add full details</p>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
-                                <button onClick={() => setMode('FIELD')} className="group flex flex-col items-center p-8 md:p-10 bg-scout-800 border-2 border-scout-accent/30 rounded-[2.5rem] hover:border-scout-accent transition-all active:scale-95 shadow-2xl">
-                                    <Smartphone size={40} className="text-scout-accent mb-3 group-hover:scale-110" />
-                                    <h4 className="text-white font-black uppercase text-sm">Field Mode</h4>
-                                    <p className="text-gray-500 text-[10px] mt-2 text-center">One-line data tagger</p>
-                                </button>
-                                <button onClick={() => setMode('BUILD')} className="group flex flex-col items-center p-8 md:p-10 bg-scout-800 border-2 border-scout-700 rounded-[2.5rem] hover:border-white transition-all active:scale-95 shadow-2xl">
-                                    <Keyboard size={40} className="text-gray-400 mb-3 group-hover:scale-110" />
-                                    <h4 className="text-white font-black uppercase text-sm">Office Mode</h4>
-                                    <p className="text-gray-500 text-[10px] mt-2 text-center">Full intelligence build</p>
-                                </button>
-                                <button onClick={() => setMode('BULK')} className="group flex flex-col items-center p-8 md:p-10 bg-scout-800 border-2 border-orange-500/30 rounded-[2.5rem] hover:border-orange-400 transition-all active:scale-95 shadow-2xl">
-                                    <FileUp size={40} className="text-orange-400 mb-3 group-hover:scale-110" />
-                                    <h4 className="text-white font-black uppercase text-sm">Bulk Import</h4>
-                                    <p className="text-gray-500 text-[10px] mt-2 text-center">Roster file or URL</p>
-                                </button>
-                            </div>
+                            <button
+                                onClick={() => setMode('BUILD')}
+                                className="w-full mt-6 py-4 bg-scout-800 border border-scout-700 rounded-xl text-gray-400 hover:text-white hover:bg-scout-700 font-bold text-sm transition-all flex items-center justify-center gap-2"
+                            >
+                                <Keyboard size={16} /> Add with full details
+                            </button>
                         </div>
                     )}
 

@@ -83,45 +83,6 @@ export function useEvents(scoutId: string | undefined) {
     }
   }, [scoutId])
 
-  // Set up real-time subscription
-  useEffect(() => {
-    if (!scoutId || !isSupabaseConfigured) return
-
-    const subscription = supabase
-      .channel('event-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'scouting_events',
-        },
-        (payload) => {
-          handleRealtimeChange(payload)
-        }
-      )
-      .subscribe()
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [scoutId])
-
-  const handleRealtimeChange = (payload: any) => {
-    if (payload.eventType === 'INSERT') {
-      const newEvent = eventFromDb(payload.new, scoutId)
-      setEvents((prev) => [newEvent, ...prev])
-    } else if (payload.eventType === 'UPDATE') {
-      setEvents((prev) =>
-        prev.map((e) =>
-          e.id === payload.new.id ? eventFromDb(payload.new, scoutId) : e
-        )
-      )
-    } else if (payload.eventType === 'DELETE') {
-      setEvents((prev) => prev.filter((e) => e.id !== payload.old.id))
-    }
-  }
-
   const loadEvents = async () => {
     if (!scoutId || !isSupabaseConfigured) {
       setLoading(false)

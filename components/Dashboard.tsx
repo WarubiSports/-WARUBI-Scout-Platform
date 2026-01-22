@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
-import { UserProfile, Player, DashboardTab, ScoutingEvent, PlayerStatus, AppNotification, StrategyTask } from '../types';
+import { UserProfile, Player, DashboardTab, ScoutingEvent, PlayerStatus, AppNotification } from '../types';
 import PlayerCard from './PlayerCard';
 import EventHub from './EventHub';
 import KnowledgeTab from './KnowledgeTab';
@@ -10,15 +10,11 @@ import PlayerSubmission from './PlayerSubmission';
 import SidelineBeam from './SidelineBeam';
 import TutorialOverlay from './TutorialOverlay';
 import Confetti from './Confetti';
-import StrategyPanel from './StrategyPanel';
-import AIQuotaDisplay from './AIQuotaDisplay';
-import Leaderboard from './Leaderboard';
 import { ConnectionStatus } from './MobileEnhancements';
 import { ErrorBoundary } from './ErrorBoundary';
 import GlobalSearch from './GlobalSearch';
 import PathwaySelectionModal from './PathwaySelectionModal';
 import { haptic, useSwipeGesture } from '../hooks/useMobileFeatures';
-import { generateDailyStrategy } from '../services/geminiService';
 import { Users, CalendarDays, UserCircle, MessageSquare, Zap, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, MessageSquarePlus, LogOut } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
 
@@ -68,7 +64,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
     const [showCelebration, setShowCelebration] = useState(false);
     const [outreachTargetId, setOutreachTargetId] = useState<string | null>(null);
-    const [strategyTasks, setStrategyTasks] = useState<StrategyTask[]>([]);
     const [draggedOverStatus, setDraggedOverStatus] = useState<PlayerStatus | null>(null);
     const [listSearch, setListSearch] = useState('');
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -105,9 +100,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     const [reviewIdx, setReviewIdx] = useState(0);
     const currentSpotlight = spotlights[reviewIdx];
 
-    useEffect(() => {
-        setStrategyTasks(generateDailyStrategy(players, events));
-    }, [players, events]);
 
     const handleStatusChange = (id: string, newStatus: PlayerStatus) => {
         // Intercept OFFERED status to show pathway selection modal
@@ -431,20 +423,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <button onClick={() => setActiveTab(DashboardTab.EVENTS)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.EVENTS ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><CalendarDays size={20} /> Events</button>
                     <button onClick={() => setActiveTab(DashboardTab.KNOWLEDGE)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.KNOWLEDGE ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><Zap size={20} /> Training</button>
                 </nav>
-                <StrategyPanel persona={user.scoutPersona || 'The Scout'} tasks={strategyTasks} onAction={(link) => setActiveTab(DashboardTab.OUTREACH)} />
-                <div className="px-4 py-3 border-t border-scout-700">
-                    <Leaderboard currentScoutId={user.scoutId} currentScoutXP={scoutScore} compact />
-                </div>
-                <div className="px-4 pb-2 space-y-2">
-                    <AIQuotaDisplay />
-                    <button
-                        onClick={() => setIsBugReportOpen(true)}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold text-scout-accent hover:text-white bg-scout-accent/10 hover:bg-scout-accent/20 border border-scout-accent/30 hover:border-scout-accent/50 rounded-xl transition-all"
-                    >
-                        <MessageSquarePlus size={16} />
-                        <span>Feedback & Ideas</span>
-                    </button>
-                </div>
+                <div className="flex-1" /> {/* Spacer */}
                 <div className="p-6 border-t border-scout-700 bg-scout-900/30 space-y-3">
                     <div onClick={() => setActiveTab(DashboardTab.PROFILE)} className="flex items-center gap-4 p-3 bg-scout-800 rounded-2xl border border-scout-700 cursor-pointer hover:border-scout-accent transition-colors">
                         <div className="w-12 h-12 rounded-xl bg-scout-accent flex items-center justify-center font-black text-scout-900 text-xl">{user.name.charAt(0)}</div>
@@ -607,7 +586,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                     <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-all flex items-center gap-2 text-[10px] font-black uppercase ${viewMode === 'list' ? 'bg-scout-accent text-scout-900' : 'text-gray-500'}`}><List size={16} /> List</button>
                                     {isMobile && <button onClick={() => setViewMode('stack')} className={`p-2 rounded-lg transition-all flex items-center gap-2 text-[10px] font-black uppercase ${viewMode === 'stack' ? 'bg-scout-accent text-scout-900' : 'text-gray-500'}`}><LayoutGrid size={16} /> Stack</button>}
                                 </div>
-                                <button onClick={() => setIsSubmissionOpen(true)} className="bg-scout-accent hover:bg-emerald-600 text-scout-900 p-4 md:px-8 md:py-4 rounded-2xl font-black shadow-glow flex items-center gap-3 active:scale-95 transition-all"><PlusCircle size={24} /> <span className="hidden md:inline">New Manual Lead</span></button>
+                                <button onClick={() => setIsSubmissionOpen(true)} className="bg-scout-accent hover:bg-emerald-600 text-scout-900 p-4 md:px-8 md:py-4 rounded-2xl font-black shadow-glow flex items-center gap-3 active:scale-95 transition-all"><PlusCircle size={24} /> <span className="hidden md:inline">Add Player</span></button>
                             </div>
                         </div>
 
@@ -659,14 +638,14 @@ const Dashboard: React.FC<DashboardProps> = ({
             </main>
 
             <nav className="md:hidden fixed bottom-0 w-full bg-[#05080f]/95 backdrop-blur-2xl border-t border-scout-700 z-[110] px-2 pt-2 pb-6">
-                <div className="flex justify-around items-end max-w-md mx-auto">
+                <div className="flex justify-around items-end max-w-lg mx-auto">
                     <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.PLAYERS); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.PLAYERS ? 'text-scout-accent' : 'text-gray-600'}`}>
-                        <Users size={24} />
-                        <span className="text-[9px] font-black uppercase">Players</span>
+                        <Users size={22} />
+                        <span className="text-[8px] font-black uppercase">Players</span>
                     </button>
                     <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.OUTREACH); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.OUTREACH ? 'text-scout-accent' : 'text-gray-600'}`}>
-                        <MessageSquare size={24} />
-                        <span className="text-[9px] font-black uppercase">Pool</span>
+                        <MessageSquare size={22} />
+                        <span className="text-[8px] font-black uppercase">Pool</span>
                     </button>
                     <div className="-mt-8 bg-[#05080f] p-2 rounded-full border border-scout-700/50 shadow-2xl">
                         <button onClick={() => { haptic.medium(); setIsSubmissionOpen(true); }} className="w-14 h-14 bg-scout-accent text-scout-900 rounded-full flex items-center justify-center shadow-glow border-2 border-scout-accent/50 active:scale-90 transition-transform">
@@ -674,12 +653,16 @@ const Dashboard: React.FC<DashboardProps> = ({
                         </button>
                     </div>
                     <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.EVENTS); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.EVENTS ? 'text-scout-accent' : 'text-gray-600'}`}>
-                        <CalendarDays size={24} />
-                        <span className="text-[9px] font-black uppercase">Events</span>
+                        <CalendarDays size={22} />
+                        <span className="text-[8px] font-black uppercase">Events</span>
+                    </button>
+                    <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.KNOWLEDGE); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.KNOWLEDGE ? 'text-scout-accent' : 'text-gray-600'}`}>
+                        <Zap size={22} />
+                        <span className="text-[8px] font-black uppercase">Training</span>
                     </button>
                     <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.PROFILE); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.PROFILE ? 'text-scout-accent' : 'text-gray-600'}`}>
-                        <UserCircle size={24} />
-                        <span className="text-[9px] font-black uppercase">Profile</span>
+                        <UserCircle size={22} />
+                        <span className="text-[8px] font-black uppercase">Profile</span>
                     </button>
                 </div>
             </nav>

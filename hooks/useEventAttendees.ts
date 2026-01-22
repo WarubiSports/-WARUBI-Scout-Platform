@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
-import type { EventAttendee, EventAttendeeInsert, Scout } from '../lib/database.types'
+import type { EventAttendee, EventAttendeeInsert } from '../lib/database.types'
 
 // Attendee with scout info for display
 export interface AttendeeWithScout extends EventAttendee {
@@ -138,34 +138,6 @@ export function useEventAttendees(scoutId: string | undefined) {
       return false
     }
   }, [scoutId])
-
-  // Set up realtime subscription for attendee changes
-  useEffect(() => {
-    if (!isSupabaseConfigured) return
-
-    const subscription = supabase
-      .channel('attendee-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'scout_event_attendees',
-        },
-        async (payload) => {
-          const eventId = (payload.new as EventAttendee)?.event_id || (payload.old as EventAttendee)?.event_id
-          if (eventId) {
-            // Reload attendees for the affected event
-            await loadEventAttendees(eventId)
-          }
-        }
-      )
-      .subscribe()
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [loadEventAttendees])
 
   return {
     attendeesByEvent,
