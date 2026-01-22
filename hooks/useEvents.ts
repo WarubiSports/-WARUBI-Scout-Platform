@@ -34,7 +34,7 @@ function statusFromDb(status: DbEvent['status']): EventStatus {
 // Map frontend event to database format
 function eventToDb(event: ScoutingEvent, scoutId: string): ScoutingEventInsert {
   return {
-    host_scout_id: event.isMine ? scoutId : null,
+    host_scout_id: event.isMine && scoutId ? scoutId : null,
     host_name: event.hostName || null,
     title: event.title,
     event_type: event.type,
@@ -113,15 +113,22 @@ export function useEvents(scoutId: string | undefined) {
 
   const addEvent = useCallback(
     async (event: ScoutingEvent): Promise<ScoutingEvent | null> => {
-      console.log('[addEvent] Starting with scoutId:', scoutId, 'isSupabaseConfigured:', isSupabaseConfigured)
+      console.log('[addEvent] Starting with scoutId:', scoutId, 'isSupabaseConfigured:', isSupabaseConfigured, 'isGlobal:', (event as any).isGlobal)
 
-      if (!scoutId || !isSupabaseConfigured) {
-        console.error('[addEvent] Missing scoutId or Supabase not configured')
+      if (!isSupabaseConfigured) {
+        console.error('[addEvent] Supabase not configured')
+        return null
+      }
+
+      // Allow global events to be created without a scoutId (admin creating for all scouts)
+      const isGlobalEvent = (event as any).isGlobal === true
+      if (!scoutId && !isGlobalEvent) {
+        console.error('[addEvent] Missing scoutId for non-global event')
         return null
       }
 
       try {
-        const eventData = eventToDb(event, scoutId)
+        const eventData = eventToDb(event, scoutId || '')
         console.log('[addEvent] Inserting:', eventData)
 
         const { data, error } = await supabase
