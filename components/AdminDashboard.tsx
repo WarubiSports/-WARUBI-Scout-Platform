@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { Player, ScoutingEvent, PlayerStatus, UserProfile, NewsItem, AppNotification } from '../types';
 import {
     LayoutDashboard, Users, Calendar, CheckCircle, XCircle,
@@ -1959,4 +1959,5 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     );
 };
 
-export default AdminDashboard;
+// Memoize to prevent unnecessary re-renders when parent state changes
+export default memo(AdminDashboard);

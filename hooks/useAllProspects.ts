@@ -1,9 +1,13 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { isSupabaseConfigured, supabaseRest } from '../lib/supabase'
 import type { ScoutProspect, Scout } from '../lib/database.types'
 import { PlayerStatus } from '../types'
 import type { Player } from '../types'
 import { parseEvaluation } from '../lib/guards'
+
+// Pagination settings - set to 0 for no limit (load all)
+const DEFAULT_PAGE_SIZE = 0 // Load all by default for backwards compatibility
 
 // Extended Player type with scout info
 export interface PlayerWithScout extends Player {
@@ -73,72 +77,108 @@ function prospectToPlayerWithScout(prospect: ScoutProspect, scoutName: string): 
   }
 }
 
+// Fetch all prospects with pagination (for admin view)
+async function fetchAllProspects(
+  page: number,
+  pageSize: number
+): Promise<{ players: PlayerWithScout[]; hasMore: boolean; scoutMap: Record<string, string> }> {
+  if (!isSupabaseConfigured) {
+    return { players: [], hasMore: false, scoutMap: {} }
+  }
+
+  // Fetch all scouts first to get names (cached by React Query)
+  const { data: scoutsData, error: scoutsError } = await supabaseRest.select<Scout>(
+    'scouts',
+    'select=id,name'
+  )
+
+  if (scoutsError) throw new Error(scoutsError.message)
+
+  // Create a map of scout_id -> scout_name
+  const scoutNameMap: Record<string, string> = {}
+  ;(scoutsData || []).forEach((scout) => {
+    scoutNameMap[scout.id] = scout.name
+  })
+
+  // Build query - if pageSize is 0, load all (no limit)
+  let query = 'order=created_at.desc'
+  if (pageSize > 0) {
+    const offset = page * pageSize
+    query += `&limit=${pageSize + 1}&offset=${offset}`
+  }
+
+  // Fetch prospects
+  const { data: prospectsData, error: prospectsError } = await supabaseRest.select<ScoutProspect>(
+    'scout_prospects',
+    query
+  )
+
+  if (prospectsError) throw new Error(prospectsError.message)
+
+  const prospects = prospectsData || []
+
+  // Handle pagination only if pageSize > 0
+  const hasMore = pageSize > 0 && prospects.length > pageSize
+  const paginatedProspects = hasMore ? prospects.slice(0, pageSize) : prospects
+
+  // Convert to PlayerWithScout
+  const players = paginatedProspects.map((p) =>
+    prospectToPlayerWithScout(p, scoutNameMap[p.scout_id] || 'Unknown')
+  )
+
+  return { players, hasMore, scoutMap: scoutNameMap }
+}
+
 interface UseAllProspectsReturn {
   prospects: PlayerWithScout[]
   loading: boolean
   error: string | null
   refresh: () => Promise<void>
+  // Pagination
+  hasMore: boolean
+  loadMore: () => void
+  page: number
+  pageSize: number
 }
 
 export function useAllProspects(): UseAllProspectsReturn {
-  const [prospects, setProspects] = useState<PlayerWithScout[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(0)
 
-  const loadAllProspects = useCallback(async () => {
-    if (!isSupabaseConfigured) {
-      setLoading(false)
-      return
+  // Query key for all prospects
+  const queryKey = ['all-prospects', page]
+
+  // Use React Query for data fetching with caching
+  const {
+    data,
+    isLoading: loading,
+    error: queryError,
+    refetch,
+  } = useQuery({
+    queryKey,
+    queryFn: () => fetchAllProspects(page, DEFAULT_PAGE_SIZE),
+    enabled: isSupabaseConfigured,
+    staleTime: 30 * 1000, // 30 seconds
+  })
+
+  const prospects = data?.players || []
+  const hasMore = data?.hasMore || false
+
+  // Load more function for pagination
+  const loadMore = useCallback(() => {
+    if (hasMore && !loading) {
+      setPage((p) => p + 1)
     }
-
-    setLoading(true)
-    setError(null)
-
-    try {
-      // Fetch all scouts first to get names
-      const { data: scoutsData, error: scoutsError } = await supabaseRest.select<Scout>(
-        'scouts',
-        'select=id,name'
-      )
-
-      if (scoutsError) throw new Error(scoutsError.message)
-
-      // Create a map of scout_id -> scout_name
-      const scoutNameMap: Record<string, string> = {}
-      ;(scoutsData || []).forEach((scout) => {
-        scoutNameMap[scout.id] = scout.name
-      })
-
-      // Fetch all prospects (no scout_id filter)
-      const { data: prospectsData, error: prospectsError } = await supabaseRest.select<ScoutProspect>(
-        'scout_prospects',
-        'order=created_at.desc'
-      )
-
-      if (prospectsError) throw new Error(prospectsError.message)
-
-      // Convert to PlayerWithScout
-      const players = (prospectsData || []).map((p) =>
-        prospectToPlayerWithScout(p, scoutNameMap[p.scout_id] || 'Unknown')
-      )
-
-      setProspects(players)
-    } catch (err) {
-      console.error('Error loading all prospects:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load prospects')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    loadAllProspects()
-  }, [loadAllProspects])
+  }, [hasMore, loading])
 
   return {
     prospects,
     loading,
-    error,
-    refresh: loadAllProspects,
+    error: queryError instanceof Error ? queryError.message : null,
+    refresh: async () => { await refetch() },
+    // Pagination
+    hasMore,
+    loadMore,
+    page,
+    pageSize: DEFAULT_PAGE_SIZE,
   }
 }

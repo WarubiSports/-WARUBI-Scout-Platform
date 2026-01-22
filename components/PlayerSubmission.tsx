@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import {
     X, CheckCircle, Loader2, User, Activity, GraduationCap, Sparkles, Mail, Phone, Save,
     ChevronRight, Wand2, ArrowLeft, ShieldCheck, Award, Target, Users, Smartphone, Keyboard,
@@ -737,4 +737,5 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
     );
 };
 
-export default PlayerSubmission;
+// Memoize to prevent unnecessary re-renders
+export default memo(PlayerSubmission);

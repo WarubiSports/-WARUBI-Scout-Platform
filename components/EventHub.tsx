@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { ScoutingEvent, UserProfile, EventStatus } from '../types';
 import { generateEventPlan } from '../services/geminiService';
 import { haptic, handleMobileFocus } from '../hooks/useMobileFeatures';
@@ -1116,4 +1116,5 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
   );
 };
 
-export default EventHub;
+// Memoize to prevent unnecessary re-renders
+export default memo(EventHub);

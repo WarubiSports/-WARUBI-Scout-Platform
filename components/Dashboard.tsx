@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { UserProfile, Player, DashboardTab, ScoutingEvent, PlayerStatus, AppNotification, StrategyTask } from '../types';
 import PlayerCard from './PlayerCard';
 import EventHub from './EventHub';
@@ -16,6 +16,7 @@ import Leaderboard from './Leaderboard';
 import { ConnectionStatus } from './MobileEnhancements';
 import { ErrorBoundary } from './ErrorBoundary';
 import GlobalSearch from './GlobalSearch';
+import PathwaySelectionModal from './PathwaySelectionModal';
 import { haptic, useSwipeGesture } from '../hooks/useMobileFeatures';
 import { generateDailyStrategy } from '../services/geminiService';
 import { Users, CalendarDays, UserCircle, MessageSquare, Zap, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, MessageSquarePlus, LogOut } from 'lucide-react';
@@ -36,7 +37,7 @@ interface DashboardProps {
     onAddNotification: (notification: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) => void;
     onMarkAllRead: () => void;
     onMessageSent?: (id: string, log: any) => void;
-    onStatusChange?: (id: string, newStatus: PlayerStatus) => void;
+    onStatusChange?: (id: string, newStatus: PlayerStatus, pathway?: 'europe' | 'college' | 'events' | 'coaching') => void;
     onLogout?: () => void;
     onReturnToAdmin?: () => void;
 }
@@ -73,6 +74,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isBugReportOpen, setIsBugReportOpen] = useState(false);
+    const [pendingOfferedPlayer, setPendingOfferedPlayer] = useState<Player | null>(null);
 
     useEffect(() => {
         const handleResize = () => {
@@ -108,6 +110,15 @@ const Dashboard: React.FC<DashboardProps> = ({
     }, [players, events]);
 
     const handleStatusChange = (id: string, newStatus: PlayerStatus) => {
+        // Intercept OFFERED status to show pathway selection modal
+        if (newStatus === PlayerStatus.OFFERED) {
+            const player = players.find(p => p.id === id);
+            if (player) {
+                setPendingOfferedPlayer(player);
+                return; // Don't proceed until pathway is selected
+            }
+        }
+
         if (newStatus === PlayerStatus.PLACED) {
             setShowCelebration(true);
             haptic.success();
@@ -117,6 +128,18 @@ const Dashboard: React.FC<DashboardProps> = ({
             haptic.light();
         }
         if (onStatusChange) onStatusChange(id, newStatus);
+    };
+
+    const handlePathwaySelected = (pathway: 'europe' | 'college' | 'events' | 'coaching') => {
+        if (!pendingOfferedPlayer) return;
+
+        haptic.success();
+        if (onStatusChange) onStatusChange(pendingOfferedPlayer.id, PlayerStatus.OFFERED, pathway);
+        setPendingOfferedPlayer(null);
+    };
+
+    const handlePathwayCancelled = () => {
+        setPendingOfferedPlayer(null);
     };
 
     const promoteLead = (id: string) => {
@@ -632,6 +655,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 {isSubmissionOpen && <PlayerSubmission onClose={handleCloseSubmission} onAddPlayer={onAddPlayer} onUpdatePlayer={onUpdatePlayer} existingPlayers={players} editingPlayer={editingPlayer} />}
                 {isBeamOpen && <SidelineBeam user={user} onClose={() => setIsBeamOpen(false)} />}
                 {isBugReportOpen && <ReportBugModal onClose={() => setIsBugReportOpen(false)} />}
+                {pendingOfferedPlayer && <PathwaySelectionModal player={pendingOfferedPlayer} onSelect={handlePathwaySelected} onCancel={handlePathwayCancelled} />}
             </main>
 
             <nav className="md:hidden fixed bottom-0 w-full bg-[#05080f]/95 backdrop-blur-2xl border-t border-scout-700 z-[110] px-2 pt-2 pb-6">
@@ -663,4 +687,5 @@ const Dashboard: React.FC<DashboardProps> = ({
     );
 };
 
-export default Dashboard;
+// Memoize to prevent unnecessary re-renders when parent state changes
+export default memo(Dashboard);
