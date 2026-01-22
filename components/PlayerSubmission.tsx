@@ -354,7 +354,7 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                 <div className="p-8 flex justify-between items-center border-b border-white/5 bg-scout-900/50">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-scout-accent rounded-full flex items-center justify-center text-scout-900 shadow-lg"><Plus size={24} /></div>
-                        <div><h2 className="text-xl font-black text-white uppercase tracking-tighter">{editingPlayer ? 'Edit Profile' : 'Add Prospect'}</h2><p className="text-[9px] text-gray-500 font-bold uppercase">Accuracy Mode</p></div>
+                        <div><h2 className="text-xl font-black text-white uppercase tracking-tighter">{editingPlayer ? 'Edit Profile' : 'Add Prospect'}</h2></div>
                     </div>
                     <button onClick={onClose} className="p-3 text-gray-600 hover:text-white transition-colors bg-white/5 rounded-full"><X size={24} /></button>
                 </div>

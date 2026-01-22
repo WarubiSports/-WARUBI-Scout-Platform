@@ -1014,7 +1014,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
                 {!isMobile && (
                     <div className="flex justify-between items-end mb-6">
                         <div>
-                            <h2 className="text-3xl font-black text-white tracking-tight uppercase">Scout Ledger</h2>
+                            <h2 className="text-3xl font-black text-white tracking-tight uppercase">My Events</h2>
                             <p className="text-gray-400 mt-1">Direct access to your scheduled and upcoming events.</p>
                         </div>
                         <div className="flex gap-3">

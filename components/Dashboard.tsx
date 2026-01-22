@@ -524,7 +524,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                             if (!priority) return null;
 
                             return (
-                                <div className="bg-gradient-to-r from-scout-800 to-scout-900 border border-scout-700 rounded-2xl p-5 md:p-6 shadow-xl">
+                                <div className="bg-gradient-to-r from-scout-accent/10 via-emerald-500/5 to-scout-800 border border-scout-accent/30 rounded-2xl p-5 md:p-6 shadow-xl">
                                     <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                                         <div className="flex items-center gap-4">
                                             <div className="w-12 h-12 bg-scout-900 rounded-xl flex items-center justify-center border border-scout-700">
@@ -592,9 +592,24 @@ const Dashboard: React.FC<DashboardProps> = ({
                             <div className="flex gap-6 overflow-x-auto pb-8 custom-scrollbar min-h-[500px]">
                                 {[PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED].map(status => (
                                     <div key={status} onDragOver={(e) => onDragOver(e, status)} onDrop={(e) => onDrop(e, status)} className={`flex-1 min-w-[340px] flex flex-col bg-scout-800/20 rounded-[3rem] border ${draggedOverStatus === status ? 'border-scout-accent bg-scout-accent/5 shadow-glow' : 'border-scout-700/50'}`}>
-                                        <div className="p-8 border-b border-scout-700/50 bg-scout-900/20 backdrop-blur-md flex justify-between items-center rounded-t-[3rem]"><h3 className="font-black uppercase text-[10px] tracking-[0.3em] opacity-50">{status}</h3><span className="text-[10px] bg-scout-900 border border-scout-700 px-3 py-1 rounded-full text-gray-500 font-black">{players.filter(p => p.status === status).length}</span></div>
+                                        <div className="p-8 border-b border-scout-700/50 bg-scout-900/20 backdrop-blur-md flex justify-between items-center rounded-t-[3rem]"><h3 className={`font-black uppercase text-[10px] tracking-[0.3em] ${status === PlayerStatus.PLACED ? 'text-scout-accent' : status === PlayerStatus.OFFERED ? 'text-scout-highlight' : 'text-blue-400'}`}>{status}</h3><span className="text-[10px] bg-scout-900 border border-scout-700 px-3 py-1 rounded-full text-gray-500 font-black">{players.filter(p => p.status === status).length}</span></div>
                                         <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1 max-h-[calc(100vh-450px)]">
-                                            {players.filter(p => p.status === status).map(p => <PlayerCard key={p.id} player={p} onStatusChange={handleStatusChange} onOutreach={jumpToOutreach} onEdit={handleEditPlayer} onDelete={onDeletePlayer} />)}
+                                            {players.filter(p => p.status === status).length === 0 ? (
+                                                <div className="border-2 border-dashed border-scout-700/50 rounded-2xl p-6 text-center">
+                                                    <div className="w-12 h-12 bg-scout-800 rounded-xl mx-auto mb-3 flex items-center justify-center">
+                                                        {status === PlayerStatus.INTERESTED && <Users size={20} className="text-blue-400/50" />}
+                                                        {status === PlayerStatus.OFFERED && <Target size={20} className="text-scout-highlight/50" />}
+                                                        {status === PlayerStatus.PLACED && <Trophy size={20} className="text-scout-accent/50" />}
+                                                    </div>
+                                                    <p className="text-[10px] font-bold text-gray-600 uppercase">
+                                                        {status === PlayerStatus.INTERESTED && 'Players who respond to outreach'}
+                                                        {status === PlayerStatus.OFFERED && 'Players with active offers'}
+                                                        {status === PlayerStatus.PLACED && 'Successfully placed players'}
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                players.filter(p => p.status === status).map(p => <PlayerCard key={p.id} player={p} onStatusChange={handleStatusChange} onOutreach={jumpToOutreach} onEdit={handleEditPlayer} onDelete={onDeletePlayer} />)
+                                            )}
                                         </div>
                                     </div>
                                 ))}
