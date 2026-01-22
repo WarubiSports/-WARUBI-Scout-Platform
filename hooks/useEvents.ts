@@ -131,15 +131,18 @@ export function useEvents(scoutId: string | undefined) {
         const eventData = eventToDb(event, scoutId || '')
         console.log('[addEvent] Inserting:', eventData)
 
-        const { data, error } = await supabase
-          .from('scouting_events')
-          .insert(eventData as any)
-          .select()
-          .single()
+        // Use REST API to avoid Supabase JS client hanging issues
+        const { data, error } = await supabaseRest.insert<DbEvent>('scouting_events', eventData)
 
         console.log('[addEvent] Result:', { data, error })
 
-        if (error) throw error
+        if (error) {
+          throw new Error(error.message)
+        }
+
+        if (!data) {
+          throw new Error('No data returned from insert')
+        }
 
         const newEvent = eventFromDb(data, scoutId)
         setEvents((prev) => [newEvent, ...prev])
