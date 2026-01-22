@@ -100,6 +100,7 @@ export interface Player {
   club?: string;
   teamLevel?: string;
   interestedProgram?: string;
+  offeredPathway?: 'europe' | 'college' | 'events' | 'coaching';
   placedLocation?: string;
   evaluation: PlayerEvaluation | null;
   outreachLogs: OutreachLog[];

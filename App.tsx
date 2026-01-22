@@ -494,7 +494,7 @@ const App: React.FC = () => {
             onAddNotification={handleAddNotification}
             onMarkAllRead={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
             onMessageSent={handleMessageSent}
-            onStatusChange={async (id, newStatus) => {
+            onStatusChange={async (id, newStatus, pathway) => {
                 // Find old player to check status transition for XP
                 const oldPlayer = prospects.find(p => p.id === id);
                 if (!oldPlayer) return;
@@ -518,12 +518,19 @@ const App: React.FC = () => {
                     message: `${oldPlayer.name} is now Interested!`
                   });
                 }
-                if (oldStatus === PlayerStatus.INTERESTED && newStatus === PlayerStatus.OFFERED) {
+                if (oldStatus !== PlayerStatus.OFFERED && newStatus === PlayerStatus.OFFERED) {
                   await addXP(SCOUT_POINTS.PLAYER_OFFERED);
+                  const pathwayNames: Record<string, string> = {
+                    europe: 'Development in Europe',
+                    college: 'College Pathway',
+                    events: 'Exposure Events',
+                    coaching: 'Coaching Education'
+                  };
+                  const pathwayName = pathway ? pathwayNames[pathway] : 'a pathway';
                   handleAddNotification({
                     type: 'SUCCESS',
                     title: `+${SCOUT_POINTS.PLAYER_OFFERED} XP | Pipeline Progress`,
-                    message: `${oldPlayer.name} has been Offered!`
+                    message: `${oldPlayer.name} offered ${pathwayName}!`
                   });
                 }
                 if (oldStatus !== PlayerStatus.PLACED && newStatus === PlayerStatus.PLACED) {
@@ -536,7 +543,12 @@ const App: React.FC = () => {
                   });
                 }
 
-                await updateProspect(id, { status: newStatus });
+                // Update with status and pathway (if provided)
+                const updateData: { status: PlayerStatus; offeredPathway?: string } = { status: newStatus };
+                if (pathway && newStatus === PlayerStatus.OFFERED) {
+                  updateData.offeredPathway = pathway;
+                }
+                await updateProspect(id, updateData);
             }}
             onLogout={handleLogout}
             onReturnToAdmin={userProfile?.isAdmin ? () => setView(AppView.ADMIN) : undefined}

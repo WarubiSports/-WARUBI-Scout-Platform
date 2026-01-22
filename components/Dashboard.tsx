@@ -3,8 +3,6 @@ import React, { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { UserProfile, Player, DashboardTab, ScoutingEvent, PlayerStatus, AppNotification } from '../types';
 import PlayerCard from './PlayerCard';
 import EventHub from './EventHub';
-import KnowledgeTab from './KnowledgeTab';
-import ProfileTab from './ProfileTab';
 import OutreachTab from './OutreachTab';
 import PlayerSubmission from './PlayerSubmission';
 import SidelineBeam from './SidelineBeam';
@@ -15,8 +13,9 @@ import { ErrorBoundary } from './ErrorBoundary';
 import GlobalSearch from './GlobalSearch';
 import PathwaySelectionModal from './PathwaySelectionModal';
 import { haptic, useSwipeGesture } from '../hooks/useMobileFeatures';
-import { Users, CalendarDays, UserCircle, MessageSquare, Zap, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, MessageSquarePlus, LogOut } from 'lucide-react';
+import { Users, CalendarDays, MessageSquare, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, LogOut, BookOpen } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
+import PathwaysTab from './PathwaysTab';
 
 interface DashboardProps {
     user: UserProfile;
@@ -418,24 +417,23 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <h1 className="text-2xl font-black tracking-tighter text-white uppercase italic">Warubi<span className="text-scout-accent">Scout</span></h1>
                 </div>
                 <nav className="flex-1 p-4 space-y-2 mt-4">
-                    <button onClick={() => setActiveTab(DashboardTab.PLAYERS)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.PLAYERS ? 'bg-scout-700 text-white' : 'text-gray-500 hover:bg-scout-900/50'}`}><Users size={20} /> My Players</button>
-                    <button onClick={() => setActiveTab(DashboardTab.OUTREACH)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.OUTREACH ? 'bg-scout-accent text-scout-900' : 'text-gray-300 hover:text-white'}`}><MessageSquare size={20} /> Scouting Pool</button>
+                    <button onClick={() => setActiveTab(DashboardTab.PLAYERS)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.PLAYERS ? 'bg-scout-700 text-white' : 'text-gray-500 hover:bg-scout-900/50'}`}><Users size={20} /> Players</button>
                     <button onClick={() => setActiveTab(DashboardTab.EVENTS)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.EVENTS ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><CalendarDays size={20} /> Events</button>
-                    <button onClick={() => setActiveTab(DashboardTab.KNOWLEDGE)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.KNOWLEDGE ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><Zap size={20} /> Training</button>
+                    <button onClick={() => setActiveTab(DashboardTab.KNOWLEDGE)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.KNOWLEDGE ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><BookOpen size={20} /> Pathways</button>
                 </nav>
                 <div className="flex-1" /> {/* Spacer */}
-                <div className="p-6 border-t border-scout-700 bg-scout-900/30 space-y-3">
-                    <div onClick={() => setActiveTab(DashboardTab.PROFILE)} className="flex items-center gap-4 p-3 bg-scout-800 rounded-2xl border border-scout-700 cursor-pointer hover:border-scout-accent transition-colors">
-                        <div className="w-12 h-12 rounded-xl bg-scout-accent flex items-center justify-center font-black text-scout-900 text-xl">{user.name.charAt(0)}</div>
-                        <div className="min-w-0"><p className="text-sm font-black text-white truncate mb-1">{user.name}</p><p className="text-[10px] text-scout-highlight font-black uppercase">{scoutScore} XP</p></div>
+                <div className="p-4 border-t border-scout-700 bg-scout-900/30 space-y-2">
+                    <div className="flex items-center gap-3 px-2 py-2">
+                        <div className="w-10 h-10 rounded-lg bg-scout-accent flex items-center justify-center font-black text-scout-900">{user.name.charAt(0)}</div>
+                        <p className="text-sm font-bold text-white truncate">{user.name}</p>
                     </div>
                     {onReturnToAdmin && (
-                        <button onClick={onReturnToAdmin} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-xl text-xs font-bold transition-all border border-blue-500/30">
+                        <button onClick={onReturnToAdmin} className="w-full flex items-center gap-2 px-3 py-2 text-blue-400 hover:bg-blue-500/10 rounded-lg text-xs font-bold transition-all">
                             <Users size={14} /> Return to Admin
                         </button>
                     )}
                     {onLogout && (
-                        <button onClick={onLogout} className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-gray-500 hover:text-white hover:bg-scout-700/50 rounded-xl text-xs font-bold transition-all">
+                        <button onClick={onLogout} className="w-full flex items-center gap-2 px-3 py-2 text-gray-500 hover:text-white hover:bg-scout-700/50 rounded-lg text-xs font-bold transition-all">
                             <LogOut size={14} /> Sign Out
                         </button>
                     )}
@@ -620,14 +618,9 @@ const Dashboard: React.FC<DashboardProps> = ({
                         <EventHub events={events} user={user} onAddEvent={onAddEvent} onUpdateEvent={onUpdateEvent} />
                     </ErrorBoundary>
                 )}
-                {activeTab === DashboardTab.PROFILE && (
-                    <ErrorBoundary name="Profile">
-                        <ProfileTab user={user} players={players} events={events} onUpdateUser={onUpdateProfile} onNavigate={setActiveTab} scoutScore={scoutScore} onOpenBeam={() => setIsBeamOpen(true)} onLogout={onLogout} />
-                    </ErrorBoundary>
-                )}
                 {activeTab === DashboardTab.KNOWLEDGE && (
-                    <ErrorBoundary name="Knowledge">
-                        <KnowledgeTab user={user} />
+                    <ErrorBoundary name="Pathways">
+                        <PathwaysTab />
                     </ErrorBoundary>
                 )}
 
@@ -638,31 +631,23 @@ const Dashboard: React.FC<DashboardProps> = ({
             </main>
 
             <nav className="md:hidden fixed bottom-0 w-full bg-[#05080f]/95 backdrop-blur-2xl border-t border-scout-700 z-[110] px-2 pt-2 pb-6">
-                <div className="flex justify-around items-end max-w-lg mx-auto">
+                <div className="flex justify-around items-end max-w-sm mx-auto">
                     <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.PLAYERS); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.PLAYERS ? 'text-scout-accent' : 'text-gray-600'}`}>
                         <Users size={22} />
                         <span className="text-[8px] font-black uppercase">Players</span>
                     </button>
-                    <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.OUTREACH); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.OUTREACH ? 'text-scout-accent' : 'text-gray-600'}`}>
-                        <MessageSquare size={22} />
-                        <span className="text-[8px] font-black uppercase">Pool</span>
-                    </button>
-                    <div className="-mt-8 bg-[#05080f] p-2 rounded-full border border-scout-700/50 shadow-2xl">
-                        <button onClick={() => { haptic.medium(); setIsSubmissionOpen(true); }} className="w-14 h-14 bg-scout-accent text-scout-900 rounded-full flex items-center justify-center shadow-glow border-2 border-scout-accent/50 active:scale-90 transition-transform">
-                            <Plus size={28} />
-                        </button>
-                    </div>
                     <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.EVENTS); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.EVENTS ? 'text-scout-accent' : 'text-gray-600'}`}>
                         <CalendarDays size={22} />
                         <span className="text-[8px] font-black uppercase">Events</span>
                     </button>
+                    <div className="-mt-6 bg-[#05080f] p-2 rounded-full border border-scout-700/50 shadow-2xl">
+                        <button onClick={() => { haptic.medium(); setIsSubmissionOpen(true); }} className="w-14 h-14 bg-scout-accent text-scout-900 rounded-full flex items-center justify-center shadow-glow border-2 border-scout-accent/50 active:scale-90 transition-transform">
+                            <Plus size={28} />
+                        </button>
+                    </div>
                     <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.KNOWLEDGE); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.KNOWLEDGE ? 'text-scout-accent' : 'text-gray-600'}`}>
-                        <Zap size={22} />
-                        <span className="text-[8px] font-black uppercase">Training</span>
-                    </button>
-                    <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.PROFILE); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.PROFILE ? 'text-scout-accent' : 'text-gray-600'}`}>
-                        <UserCircle size={22} />
-                        <span className="text-[8px] font-black uppercase">Profile</span>
+                        <BookOpen size={22} />
+                        <span className="text-[8px] font-black uppercase">Pathways</span>
                     </button>
                 </div>
             </nav>
