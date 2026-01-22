@@ -192,13 +192,21 @@ export function ScoutProvider({ children, userId }: ScoutProviderProps) {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('scouts')
-        .insert(scoutData as any)
-        .select()
-        .single()
+      // Use REST API to avoid Supabase JS client hanging issues
+      const { data, error } = await supabaseRest.insert<Scout>('scouts', scoutData)
 
-      if (error) throw error
+      if (error) {
+        console.error('Error creating scout:', error.message)
+        setError(error.message)
+        return null
+      }
+
+      if (!data) {
+        console.error('No data returned from scout insert')
+        setError('Failed to create scout - no data returned')
+        return null
+      }
+
       setScout(data)
       return data
     } catch (err) {
