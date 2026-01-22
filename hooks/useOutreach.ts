@@ -1,5 +1,5 @@
 import { useCallback } from 'react'
-import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { supabase, isSupabaseConfigured, supabaseRest } from '../lib/supabase'
 import type { OutreachLogInsert } from '../lib/database.types'
 import type { OutreachLog } from '../types'
 
@@ -33,13 +33,11 @@ export function useOutreach(scoutId: string | undefined, isDemo: boolean = false
             note: note || null,
           }
 
-          const { data, error } = await supabase
-            .from('scout_outreach_logs')
-            .insert(logData as any)
-            .select()
-            .single()
+          // Use REST API to avoid Supabase JS client hanging issues
+          const { data, error } = await supabaseRest.insert<any>('scout_outreach_logs', logData)
 
-          if (error) throw error
+          if (error) throw new Error(error.message)
+          if (!data) throw new Error('No data returned')
 
           // Also update prospect's last_contacted_at
           await (supabase

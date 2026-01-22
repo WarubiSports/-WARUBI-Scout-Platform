@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { supabase, isSupabaseConfigured } from '../lib/supabase'
+import { supabase, isSupabaseConfigured, supabaseRest } from '../lib/supabase'
 import type { EventAttendee, EventAttendeeInsert } from '../lib/database.types'
 
 // Attendee with scout info for display
@@ -82,27 +82,14 @@ export function useEventAttendees(scoutId: string | undefined) {
         attended: false,
       }
 
-      const { data, error } = await supabase
-        .from('scout_event_attendees')
-        .insert(attendeeData)
-        .select(`
-          *,
-          scout:scouts!scout_id (
-            id,
-            name,
-            region
-          )
-        `)
-        .single()
+      // Use REST API to avoid Supabase JS client hanging issues
+      const { data, error } = await supabaseRest.insert<EventAttendee>('scout_event_attendees', attendeeData)
 
-      if (error) throw error
+      if (error) throw new Error(error.message)
+      if (!data) throw new Error('No data returned')
 
-      // Update local state
-      const newAttendee = data as AttendeeWithScout
-      setAttendeesByEvent(prev => ({
-        ...prev,
-        [eventId]: [...(prev[eventId] || []), newAttendee]
-      }))
+      // Reload attendees to get scout info
+      await loadEventAttendees(eventId)
 
       return true
     } catch (err) {

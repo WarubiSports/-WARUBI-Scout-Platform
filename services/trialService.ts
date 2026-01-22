@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured, supabaseRest } from '../lib/supabase';
 import type { Player } from '../types';
 
 interface TrialProspect {
@@ -73,20 +73,20 @@ export async function createTrialFromProspect(
       overall_rating: prospect.evaluation?.score || null,
     };
 
-    const { data, error } = await supabase
-      .from('trial_prospects')
-      .insert(trialData as any)
-      .select('id')
-      .single();
+    // Use REST API to avoid Supabase JS client hanging issues
+    const { data, error } = await supabaseRest.insert<any>('trial_prospects', trialData);
 
     if (error) {
       console.error('Error creating trial prospect:', error);
       return { trialProspectId: null, error: error.message };
     }
 
-    const result = data as any;
-    console.log('Created trial prospect:', result?.id);
-    return { trialProspectId: result?.id, error: null };
+    if (!data) {
+      return { trialProspectId: null, error: 'No data returned' };
+    }
+
+    console.log('Created trial prospect:', data.id);
+    return { trialProspectId: data.id, error: null };
   } catch (err) {
     console.error('Error in createTrialFromProspect:', err);
     return {
