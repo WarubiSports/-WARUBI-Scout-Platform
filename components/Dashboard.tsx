@@ -13,7 +13,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import GlobalSearch from './GlobalSearch';
 import PathwaySelectionModal from './PathwaySelectionModal';
 import { haptic, useSwipeGesture } from '../hooks/useMobileFeatures';
-import { Users, CalendarDays, MessageSquare, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, LogOut, BookOpen } from 'lucide-react';
+import { Users, CalendarDays, MessageSquare, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, LogOut, BookOpen, Mail, UserPlus, Filter } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
 import PathwaysTab from './PathwaysTab';
 
@@ -69,6 +69,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isBugReportOpen, setIsBugReportOpen] = useState(false);
     const [pendingOfferedPlayer, setPendingOfferedPlayer] = useState<Player | null>(null);
+    const [pipelineFilter, setPipelineFilter] = useState<'all' | 'active'>('all');
 
     useEffect(() => {
         const handleResize = () => {
@@ -255,12 +256,11 @@ const Dashboard: React.FC<DashboardProps> = ({
     };
 
     const PipelineStack = () => {
-        // My Players only shows Interested, Offered, Placed (engaged players)
-        const activePlayers = players.filter(p =>
-            p.status === PlayerStatus.INTERESTED ||
-            p.status === PlayerStatus.OFFERED ||
-            p.status === PlayerStatus.PLACED
-        );
+        const allowedStatuses = pipelineFilter === 'all'
+            ? [PlayerStatus.LEAD, PlayerStatus.CONTACTED, PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED]
+            : [PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED];
+
+        const activePlayers = players.filter(p => allowedStatuses.includes(p.status));
         const [stackIdx, setStackIdx] = useState(0);
         const currentPlayer = activePlayers[stackIdx];
 
@@ -273,14 +273,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className="w-20 h-20 bg-scout-800 rounded-3xl flex items-center justify-center mb-6 border border-scout-700">
                     <Users size={40} className="text-scout-accent" />
                 </div>
-                <p className="text-xl font-black uppercase italic text-white mb-2">No Engaged Players Yet</p>
-                <p className="text-sm text-gray-400 mb-6 max-w-xs">Players who signal interest from your Scouting Pool will appear here.</p>
+                <p className="text-xl font-black uppercase italic text-white mb-2">No Players Yet</p>
+                <p className="text-sm text-gray-400 mb-6 max-w-xs">Add your first player to start building your pipeline.</p>
                 <button
-                    onClick={() => setActiveTab(DashboardTab.OUTREACH)}
+                    onClick={() => setIsSubmissionOpen(true)}
                     className="bg-scout-accent hover:bg-emerald-600 text-scout-900 px-6 py-3 rounded-xl font-black flex items-center gap-2 transition-all active:scale-95"
                 >
-                    <MessageSquare size={20} />
-                    Go to Scouting Pool
+                    <PlusCircle size={20} />
+                    Add Player
                 </button>
             </div>
         );
@@ -346,11 +346,12 @@ const Dashboard: React.FC<DashboardProps> = ({
     };
 
     const ListView = () => {
-        // My Players only shows Interested, Offered, Placed (engaged players)
+        const allowedStatuses = pipelineFilter === 'all'
+            ? [PlayerStatus.LEAD, PlayerStatus.CONTACTED, PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED]
+            : [PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED];
+
         const filteredPlayers = players.filter(p =>
-            (p.status === PlayerStatus.INTERESTED ||
-             p.status === PlayerStatus.OFFERED ||
-             p.status === PlayerStatus.PLACED) &&
+            allowedStatuses.includes(p.status) &&
             p.name.toLowerCase().includes(listSearch.toLowerCase())
         );
 
@@ -359,7 +360,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className="p-6 border-b border-scout-700/50 bg-scout-900/40 flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="relative w-full md:w-96">
                         <Search className="absolute left-3 top-2.5 text-gray-500" size={18} />
-                        <input type="text" placeholder="Filter my players..." className="w-full bg-scout-950 border border-scout-700 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-scout-accent transition-all" value={listSearch} onChange={(e) => setListSearch(e.target.value)} />
+                        <input type="text" placeholder="Search players..." className="w-full bg-scout-950 border border-scout-700 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-scout-accent transition-all" value={listSearch} onChange={(e) => setListSearch(e.target.value)} />
                     </div>
                 </div>
                 <div className="overflow-x-auto">
@@ -376,7 +377,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                     </td>
                                     <td className="px-6 py-4">
                                         <select value={p.status} onChange={(e) => handleStatusChange(p.id, e.target.value as PlayerStatus)} className="bg-scout-900/50 border border-scout-700/50 rounded-lg px-2 py-1 text-[10px] font-black uppercase text-gray-300 outline-none">
-                                            {[PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED, PlayerStatus.ARCHIVED].map(status => <option key={status} value={status}>{status}</option>)}
+                                            {[PlayerStatus.LEAD, PlayerStatus.CONTACTED, PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED, PlayerStatus.ARCHIVED].map(status => <option key={status} value={status}>{status}</option>)}
                                         </select>
                                     </td>
                                     <td className="px-6 py-4 font-black text-scout-accent">{p.evaluation?.score || '?'}</td>
@@ -578,7 +579,13 @@ const Dashboard: React.FC<DashboardProps> = ({
                                 <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter italic">My Players</h2>
                                 <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2">Your Player Portfolio</p>
                             </div>
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-3 flex-wrap">
+                                {/* Pipeline Filter */}
+                                <div className="bg-scout-800 p-1 rounded-xl border border-scout-700 flex shadow-inner">
+                                    <button onClick={() => setPipelineFilter('all')} className={`px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-[10px] font-black uppercase ${pipelineFilter === 'all' ? 'bg-scout-accent text-scout-900' : 'text-gray-500'}`}>All</button>
+                                    <button onClick={() => setPipelineFilter('active')} className={`px-3 py-2 rounded-lg transition-all flex items-center gap-2 text-[10px] font-black uppercase ${pipelineFilter === 'active' ? 'bg-scout-accent text-scout-900' : 'text-gray-500'}`}>Active</button>
+                                </div>
+                                {/* View Mode */}
                                 <div className="bg-scout-800 p-1 rounded-xl border border-scout-700 flex shadow-inner">
                                     {!isMobile && <button onClick={() => setViewMode('board')} className={`p-2 rounded-lg transition-all flex items-center gap-2 text-[10px] font-black uppercase ${viewMode === 'board' ? 'bg-scout-accent text-scout-900' : 'text-gray-500'}`}><LayoutGrid size={16} /> Board</button>}
                                     <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-all flex items-center gap-2 text-[10px] font-black uppercase ${viewMode === 'list' ? 'bg-scout-accent text-scout-900' : 'text-gray-500'}`}><List size={16} /> List</button>
@@ -589,22 +596,38 @@ const Dashboard: React.FC<DashboardProps> = ({
                         </div>
 
                         {viewMode === 'board' ? (
-                            <div className="flex gap-6 overflow-x-auto pb-8 custom-scrollbar min-h-[500px]">
-                                {[PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED].map(status => (
-                                    <div key={status} onDragOver={(e) => onDragOver(e, status)} onDrop={(e) => onDrop(e, status)} className={`flex-1 min-w-[340px] flex flex-col bg-scout-800/20 rounded-[3rem] border ${draggedOverStatus === status ? 'border-scout-accent bg-scout-accent/5 shadow-glow' : 'border-scout-700/50'}`}>
-                                        <div className="p-8 border-b border-scout-700/50 bg-scout-900/20 backdrop-blur-md flex justify-between items-center rounded-t-[3rem]"><h3 className={`font-black uppercase text-[10px] tracking-[0.3em] ${status === PlayerStatus.PLACED ? 'text-scout-accent' : status === PlayerStatus.OFFERED ? 'text-scout-highlight' : 'text-blue-400'}`}>{status}</h3><span className="text-[10px] bg-scout-900 border border-scout-700 px-3 py-1 rounded-full text-gray-500 font-black">{players.filter(p => p.status === status).length}</span></div>
-                                        <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1 max-h-[calc(100vh-450px)]">
+                            <div className="flex gap-4 overflow-x-auto pb-8 custom-scrollbar min-h-[500px]">
+                                {(pipelineFilter === 'all'
+                                    ? [PlayerStatus.LEAD, PlayerStatus.CONTACTED, PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED]
+                                    : [PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED]
+                                ).map(status => (
+                                    <div key={status} onDragOver={(e) => onDragOver(e, status)} onDrop={(e) => onDrop(e, status)} className={`flex-1 min-w-[280px] flex flex-col bg-scout-800/20 rounded-[2rem] border ${draggedOverStatus === status ? 'border-scout-accent bg-scout-accent/5 shadow-glow' : 'border-scout-700/50'}`}>
+                                        <div className="p-6 border-b border-scout-700/50 bg-scout-900/20 backdrop-blur-md flex justify-between items-center rounded-t-[2rem]">
+                                            <h3 className={`font-black uppercase text-[10px] tracking-[0.2em] ${
+                                                status === PlayerStatus.PLACED ? 'text-scout-accent' :
+                                                status === PlayerStatus.OFFERED ? 'text-scout-highlight' :
+                                                status === PlayerStatus.INTERESTED ? 'text-blue-400' :
+                                                status === PlayerStatus.CONTACTED ? 'text-purple-400' :
+                                                'text-gray-400'
+                                            }`}>{status}</h3>
+                                            <span className="text-[10px] bg-scout-900 border border-scout-700 px-2 py-1 rounded-full text-gray-500 font-black">{players.filter(p => p.status === status).length}</span>
+                                        </div>
+                                        <div className="p-4 space-y-4 overflow-y-auto custom-scrollbar flex-1 max-h-[calc(100vh-450px)]">
                                             {players.filter(p => p.status === status).length === 0 ? (
-                                                <div className="border-2 border-dashed border-scout-700/50 rounded-2xl p-6 text-center">
-                                                    <div className="w-12 h-12 bg-scout-800 rounded-xl mx-auto mb-3 flex items-center justify-center">
-                                                        {status === PlayerStatus.INTERESTED && <Users size={20} className="text-blue-400/50" />}
-                                                        {status === PlayerStatus.OFFERED && <Target size={20} className="text-scout-highlight/50" />}
-                                                        {status === PlayerStatus.PLACED && <Trophy size={20} className="text-scout-accent/50" />}
+                                                <div className="border-2 border-dashed border-scout-700/50 rounded-2xl p-5 text-center">
+                                                    <div className="w-10 h-10 bg-scout-800 rounded-xl mx-auto mb-3 flex items-center justify-center">
+                                                        {status === PlayerStatus.LEAD && <UserPlus size={18} className="text-gray-400/50" />}
+                                                        {status === PlayerStatus.CONTACTED && <Mail size={18} className="text-purple-400/50" />}
+                                                        {status === PlayerStatus.INTERESTED && <Users size={18} className="text-blue-400/50" />}
+                                                        {status === PlayerStatus.OFFERED && <Target size={18} className="text-scout-highlight/50" />}
+                                                        {status === PlayerStatus.PLACED && <Trophy size={18} className="text-scout-accent/50" />}
                                                     </div>
-                                                    <p className="text-[10px] font-bold text-gray-600 uppercase">
-                                                        {status === PlayerStatus.INTERESTED && 'Players who respond to outreach'}
+                                                    <p className="text-[9px] font-bold text-gray-600 uppercase">
+                                                        {status === PlayerStatus.LEAD && 'New players you discover'}
+                                                        {status === PlayerStatus.CONTACTED && 'Players you\'ve reached out to'}
+                                                        {status === PlayerStatus.INTERESTED && 'Players who responded'}
                                                         {status === PlayerStatus.OFFERED && 'Players with active offers'}
-                                                        {status === PlayerStatus.PLACED && 'Successfully placed players'}
+                                                        {status === PlayerStatus.PLACED && 'Successfully placed'}
                                                     </p>
                                                 </div>
                                             ) : (
