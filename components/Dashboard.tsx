@@ -13,7 +13,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import GlobalSearch from './GlobalSearch';
 import PathwaySelectionModal from './PathwaySelectionModal';
 import { haptic, useSwipeGesture } from '../hooks/useMobileFeatures';
-import { Users, CalendarDays, MessageSquare, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, LogOut, BookOpen, Mail, UserPlus, Filter } from 'lucide-react';
+import { Users, CalendarDays, MessageSquare, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, LogOut, BookOpen, Mail, UserPlus, Filter, Lightbulb } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
 import PathwaysTab from './PathwaysTab';
 
@@ -422,6 +422,15 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <button onClick={() => setActiveTab(DashboardTab.EVENTS)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.EVENTS ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><CalendarDays size={20} /> Events</button>
                     <button onClick={() => setActiveTab(DashboardTab.KNOWLEDGE)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.KNOWLEDGE ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><BookOpen size={20} /> Pathways</button>
                 </nav>
+                <div className="p-4">
+                    <button
+                        onClick={() => setIsBugReportOpen(true)}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 text-amber-400 hover:text-amber-300 hover:border-amber-400/50 transition-all group"
+                    >
+                        <Lightbulb size={18} className="group-hover:rotate-12 transition-transform" />
+                        <span className="text-sm font-bold">Feedback & Ideas</span>
+                    </button>
+                </div>
                 <div className="flex-1" /> {/* Spacer */}
                 <div className="p-4 border-t border-scout-700 bg-scout-900/30 space-y-2">
                     <div className="flex items-center gap-3 px-2 py-2">
@@ -667,6 +676,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                 {isBugReportOpen && <ReportBugModal onClose={() => setIsBugReportOpen(false)} />}
                 {pendingOfferedPlayer && <PathwaySelectionModal player={pendingOfferedPlayer} onSelect={handlePathwaySelected} onCancel={handlePathwayCancelled} />}
             </main>
+
+            {/* Mobile Feedback Button */}
+            <button
+                onClick={() => setIsBugReportOpen(true)}
+                className="md:hidden fixed bottom-24 left-4 z-[100] w-12 h-12 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 active:scale-95 transition-all shadow-lg"
+            >
+                <Lightbulb size={20} />
+            </button>
 
             <nav className="md:hidden fixed bottom-0 w-full bg-[#05080f]/95 backdrop-blur-2xl border-t border-scout-700 z-[110] px-2 pt-2 pb-6">
                 <div className="flex justify-around items-end max-w-sm mx-auto">
