@@ -227,13 +227,15 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                     </div>
                 )}
 
-                {/* INTERESTED/PLACED DATA */}
-                {!isReference && (player.status === PlayerStatus.INTERESTED || player.status === PlayerStatus.PLACED) && (
+                {/* INTERESTED/OFFERED/PLACED DATA */}
+                {!isReference && (player.status === PlayerStatus.INTERESTED || player.status === PlayerStatus.OFFERED || player.status === PlayerStatus.PLACED) && (
                     <div className="mt-2 bg-scout-900/50 p-2 rounded-lg border border-scout-700/50 text-[10px]">
                         <div className="flex justify-between items-center mb-1 text-gray-400">
                             <span className="flex items-center gap-1">
-                                {player.status === PlayerStatus.INTERESTED ? <School size={10} /> : <MapPin size={10} />}
-                                {player.status === PlayerStatus.INTERESTED ? "Program" : "Placed at"}
+                                {player.status === PlayerStatus.INTERESTED && <School size={10} />}
+                                {player.status === PlayerStatus.OFFERED && <Target size={10} />}
+                                {player.status === PlayerStatus.PLACED && <MapPin size={10} />}
+                                {player.status === PlayerStatus.INTERESTED ? "Program" : player.status === PlayerStatus.OFFERED ? "Offered Pathway" : "Placed at"}
                             </span>
                             <button onClick={() => setIsEditingData(!isEditingData)} className="text-scout-accent hover:underline text-[9px]">
                                 {isEditingData ? 'Done' : 'Edit'}
@@ -245,13 +247,15 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                                     value={extraInput}
                                     onChange={(e) => setExtraInput(e.target.value)}
                                     className="bg-scout-800 border border-scout-600 rounded px-2 py-1 w-full text-white text-xs focus:outline-none"
-                                    placeholder={player.status === PlayerStatus.INTERESTED ? "e.g. UCLA" : "e.g. FC Dallas"}
+                                    placeholder={player.status === PlayerStatus.INTERESTED ? "e.g. UCLA" : player.status === PlayerStatus.OFFERED ? "e.g. ITP, College" : "e.g. FC Dallas"}
                                 />
                                 <button onClick={saveExtraData} className="bg-scout-accent text-scout-900 px-2 rounded font-bold text-xs">OK</button>
                             </div>
                         ) : (
                             <p className="text-white font-medium truncate">
-                                {player.status === PlayerStatus.INTERESTED ? (player.interestedProgram || "Not set") : (player.placedLocation || "Not set")}
+                                {player.status === PlayerStatus.INTERESTED ? (player.interestedProgram || "Not set") :
+                                 player.status === PlayerStatus.OFFERED ? (player.offeredPathway || "Not set") :
+                                 (player.placedLocation || "Not set")}
                             </p>
                         )}
                     </div>

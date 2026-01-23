@@ -543,10 +543,16 @@ const App: React.FC = () => {
                   });
                 }
 
-                // Update with status and pathway (if provided)
-                const updateData: { status: PlayerStatus; offeredPathway?: string } = { status: newStatus };
-                if (pathway && newStatus === PlayerStatus.OFFERED) {
-                  updateData.offeredPathway = pathway;
+                // Update with status and pathway/program data (if provided)
+                const updateData: { status: PlayerStatus; offeredPathway?: string; interestedProgram?: string; placedLocation?: string } = { status: newStatus };
+                if (pathway) {
+                  if (newStatus === PlayerStatus.OFFERED) {
+                    updateData.offeredPathway = pathway;
+                  } else if (newStatus === PlayerStatus.INTERESTED) {
+                    updateData.interestedProgram = pathway;
+                  } else if (newStatus === PlayerStatus.PLACED) {
+                    updateData.placedLocation = pathway;
+                  }
                 }
                 await updateProspect(id, updateData);
             }}

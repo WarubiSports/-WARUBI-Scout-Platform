@@ -101,14 +101,12 @@ const Dashboard: React.FC<DashboardProps> = ({
     const currentSpotlight = spotlights[reviewIdx];
 
 
-    const handleStatusChange = (id: string, newStatus: PlayerStatus) => {
-        // Intercept OFFERED status to show pathway selection modal
-        if (newStatus === PlayerStatus.OFFERED) {
-            const player = players.find(p => p.id === id);
-            if (player) {
-                setPendingOfferedPlayer(player);
-                return; // Don't proceed until pathway is selected
-            }
+    const handleStatusChange = (id: string, newStatus: PlayerStatus, extraData?: string) => {
+        // Intercept OFFERED status to show pathway selection modal (only for new transitions, not edits)
+        const player = players.find(p => p.id === id);
+        if (newStatus === PlayerStatus.OFFERED && player && player.status !== PlayerStatus.OFFERED) {
+            setPendingOfferedPlayer(player);
+            return; // Don't proceed until pathway is selected
         }
 
         if (newStatus === PlayerStatus.PLACED) {
@@ -119,7 +117,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         } else {
             haptic.light();
         }
-        if (onStatusChange) onStatusChange(id, newStatus);
+        if (onStatusChange) onStatusChange(id, newStatus, extraData);
     };
 
     const handlePathwaySelected = (pathway: 'europe' | 'college' | 'events' | 'coaching') => {
