@@ -22,7 +22,6 @@ const PATHWAYS = [
             'Cultural & language immersion'
         ],
         url: 'https://warubi-sports.com/3-german-soccer-academy-facts/',
-        fullDetailsUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     },
     {
         id: 'college',
@@ -43,7 +42,6 @@ const PATHWAYS = [
             'Athletic & academic matching'
         ],
         url: 'https://warubi-sports.com/college-scholarships/',
-        fullDetailsUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     },
     {
         id: 'events',
@@ -64,7 +62,6 @@ const PATHWAYS = [
             'Performance analytics reports'
         ],
         url: 'https://germany-socceracademy.com/tryouts-id-camps/',
-        fullDetailsUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     },
     {
         id: 'coaching',
@@ -85,7 +82,6 @@ const PATHWAYS = [
             'Global job placement network'
         ],
         url: 'https://warubi-sports.com/uefa-coaching-license-course/',
-        fullDetailsUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     }
 ];
 
@@ -145,26 +141,15 @@ export const PathwaysTab: React.FC = () => {
                                 ))}
                             </ul>
 
-                            <div className="flex items-center gap-3">
-                                <a
-                                    href={pathway.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className={`inline-flex items-center gap-1 text-xs font-bold ${pathway.accentColor} hover:text-white transition-colors group`}
-                                >
-                                    Learn more
-                                    <ExternalLink size={10} className="group-hover:translate-x-0.5 transition-transform" />
-                                </a>
-                                <span className="text-gray-600">•</span>
-                                <a
-                                    href={pathway.fullDetailsUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-300 transition-colors"
-                                >
-                                    Full Details
-                                </a>
-                            </div>
+                            <a
+                                href={pathway.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`inline-flex items-center gap-1 text-xs font-bold ${pathway.accentColor} hover:text-white transition-colors group`}
+                            >
+                                Learn more
+                                <ExternalLink size={10} className="group-hover:translate-x-0.5 transition-transform" />
+                            </a>
                         </div>
                     );
                 })}
