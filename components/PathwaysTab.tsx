@@ -21,7 +21,7 @@ const PATHWAYS = [
             'Daily high-performance training',
             'Cultural & language immersion'
         ],
-        url: 'https://warubi-sports.com/itp',
+        url: 'https://warubi-sports.com/3-german-soccer-academy-facts/',
         fullDetailsUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     },
     {
@@ -42,7 +42,7 @@ const PATHWAYS = [
             'Full scholarship negotiation',
             'Athletic & academic matching'
         ],
-        url: 'https://warubi-sports.com/college',
+        url: 'https://warubi-sports.com/college-scholarships/',
         fullDetailsUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     },
     {
@@ -63,7 +63,7 @@ const PATHWAYS = [
             'Professional video highlights',
             'Performance analytics reports'
         ],
-        url: 'https://warubi-sports.com/events',
+        url: 'https://germany-socceracademy.com/tryouts-id-camps/',
         fullDetailsUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     },
     {
@@ -84,7 +84,7 @@ const PATHWAYS = [
             'Active pro coach mentorship',
             'Global job placement network'
         ],
-        url: 'https://warubi-sports.com/coaching',
+        url: 'https://warubi-sports.com/uefa-coaching-license-course/',
         fullDetailsUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     }
 ];
