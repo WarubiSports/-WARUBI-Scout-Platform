@@ -13,8 +13,8 @@ const PATHWAYS = [
         iconBg: 'bg-red-500/20',
         iconColor: 'text-red-400',
         accentColor: 'text-red-400',
-        stat: '€15K',
-        statLabel: 'Full Program Cost',
+        stat: '10',
+        statLabel: 'Month Program',
         points: [
             'Train with Bundesliga academy coaches',
             'Live in Cologne, Germany',
