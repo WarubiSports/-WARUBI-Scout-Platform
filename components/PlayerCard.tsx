@@ -149,7 +149,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
             onDragEnd={() => {
                 if (!isReference && onDragEnd) onDragEnd();
             }}
-            className={`bg-scout-800 rounded-xl border shadow-sm transition-all 
+            className={`bg-scout-800 rounded-xl border shadow-sm transition-all overflow-hidden
         ${isReference ? 'opacity-80 border-scout-700' : 'border-scout-700 hover:border-scout-accent/50 cursor-grab active:cursor-grabbing hover:shadow-lg'}
         ${player.isRecalibrating ? 'ring-2 ring-scout-accent/50 animate-pulse' : ''}
         ${urgency?.urgent ? 'ring-1 ring-orange-500/30' : ''}`}
@@ -259,7 +259,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
             </div>
 
             {/* COLLAPSED CONTROLS - Expand for more */}
-            <div className="px-3 pb-2 flex gap-2">
+            <div className="px-3 pb-2 flex flex-wrap gap-2">
                 <button
                     onClick={() => setIsExpanded(!isExpanded)}
                     className="flex-1 flex items-center justify-center gap-1 text-[9px] uppercase font-bold py-1.5 rounded-lg bg-scout-900/50 text-gray-500 hover:text-white hover:bg-scout-700/50 transition-colors"
