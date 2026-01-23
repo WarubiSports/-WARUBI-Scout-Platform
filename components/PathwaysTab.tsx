@@ -1,12 +1,12 @@
 import React from 'react';
-import { Globe, GraduationCap, Calendar, BookOpen, ExternalLink, Trophy, Users, Star, Zap, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Globe, GraduationCap, Calendar, BookOpen, ExternalLink, Users, Zap, ArrowRight } from 'lucide-react';
 
 const PATHWAYS = [
     {
         id: 'europe',
         title: 'Development in Europe',
         subtitle: 'FC Köln ITP Program',
-        desc: '10-month Bundesliga residency with professional training, housing, and pathway to pro contracts.',
+        desc: '10-month Bundesliga residency with professional training, housing, and elite development environment.',
         icon: Globe,
         gradient: 'from-red-600/20 via-red-500/10 to-transparent',
         borderColor: 'border-red-500/40',
@@ -18,13 +18,10 @@ const PATHWAYS = [
         points: [
             'Train with Bundesliga academy coaches',
             'Live in Cologne, Germany',
-            'Pro trial opportunities',
-            'UEFA B coaching pathway'
+            'Daily high-performance training',
+            'European football immersion'
         ],
-        badge: 'FLAGSHIP',
-        badgeColor: 'bg-red-500/30 text-red-300',
-        url: 'https://warubi-sports.com/itp',
-        featured: true
+        url: 'https://warubi-sports.com/itp'
     },
     {
         id: 'college',
@@ -45,10 +42,7 @@ const PATHWAYS = [
             'Hidden roster spot access',
             'Academic support included'
         ],
-        badge: 'MOST POPULAR',
-        badgeColor: 'bg-blue-500/30 text-blue-300',
-        url: 'https://warubi-sports.com/college',
-        featured: false
+        url: 'https://warubi-sports.com/college'
     },
     {
         id: 'events',
@@ -62,17 +56,14 @@ const PATHWAYS = [
         iconColor: 'text-orange-400',
         accentColor: 'text-orange-400',
         stat: '50+',
-        statLabel: 'Scouts Per Event',
+        statLabel: 'Promising Athletes',
         points: [
             'Pro video highlights',
             'Direct coach meetings',
             'Performance analytics',
             'Instant feedback'
         ],
-        badge: null,
-        badgeColor: '',
-        url: 'https://warubi-sports.com/events',
-        featured: false
+        url: 'https://warubi-sports.com/events'
     },
     {
         id: 'coaching',
@@ -93,17 +84,11 @@ const PATHWAYS = [
             'Industry network access',
             'Job placement support'
         ],
-        badge: 'NEW',
-        badgeColor: 'bg-emerald-500/30 text-emerald-300',
-        url: 'https://warubi-sports.com/coaching',
-        featured: false
+        url: 'https://warubi-sports.com/coaching'
     }
 ];
 
 export const PathwaysTab: React.FC = () => {
-    const featured = PATHWAYS.find(p => p.featured);
-    const others = PATHWAYS.filter(p => !p.featured);
-
     return (
         <div className="max-w-5xl mx-auto animate-fade-in">
             {/* Header */}
@@ -119,83 +104,15 @@ export const PathwaysTab: React.FC = () => {
                 </div>
             </div>
 
-            {/* Featured Pathway - ITP */}
-            {featured && (
-                <div className={`mb-6 p-6 md:p-8 rounded-3xl border-2 ${featured.borderColor} bg-gradient-to-br ${featured.gradient} relative overflow-hidden group hover:border-opacity-60 transition-all`}>
-                    {/* Background decoration */}
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-red-500/10 to-transparent rounded-full blur-3xl" />
-
-                    <div className="relative z-10">
-                        {/* Badge */}
-                        {featured.badge && (
-                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${featured.badgeColor} mb-4`}>
-                                <Star size={10} /> {featured.badge}
-                            </span>
-                        )}
-
-                        <div className="flex flex-col md:flex-row md:items-start gap-6">
-                            {/* Left: Icon + Content */}
-                            <div className="flex-1">
-                                <div className="flex items-start gap-4 mb-4">
-                                    <div className={`w-16 h-16 rounded-2xl ${featured.iconBg} flex items-center justify-center shrink-0`}>
-                                        <featured.icon size={32} className={featured.iconColor} />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-2xl font-black text-white mb-1">{featured.title}</h3>
-                                        <p className={`text-sm font-bold ${featured.accentColor}`}>{featured.subtitle}</p>
-                                    </div>
-                                </div>
-
-                                <p className="text-gray-300 text-sm mb-6 max-w-lg">{featured.desc}</p>
-
-                                <div className="grid grid-cols-2 gap-3 mb-6">
-                                    {featured.points.map((point, i) => (
-                                        <div key={i} className="flex items-center gap-2 text-sm text-gray-300">
-                                            <CheckCircle2 size={14} className={featured.accentColor} />
-                                            {point}
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <a
-                                    href={featured.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-500/20 border border-red-500/40 text-red-300 text-sm font-bold hover:bg-red-500/30 transition-all group`}
-                                >
-                                    Explore ITP Program
-                                    <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                                </a>
-                            </div>
-
-                            {/* Right: Big Stat */}
-                            <div className="md:text-right">
-                                <div className={`text-5xl md:text-6xl font-black ${featured.accentColor}`}>
-                                    {featured.stat}
-                                </div>
-                                <div className="text-gray-500 text-sm font-medium">{featured.statLabel}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Other Pathways Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {others.map((pathway) => {
+            {/* Pathways Grid - All Same Size */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {PATHWAYS.map((pathway) => {
                     const Icon = pathway.icon;
                     return (
                         <div
                             key={pathway.id}
                             className={`p-5 rounded-2xl border ${pathway.borderColor} bg-gradient-to-br ${pathway.gradient} transition-all hover:scale-[1.02] hover:border-opacity-60 group relative overflow-hidden`}
                         >
-                            {/* Badge */}
-                            {pathway.badge && (
-                                <span className={`absolute top-4 right-4 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${pathway.badgeColor}`}>
-                                    {pathway.badge}
-                                </span>
-                            )}
-
                             {/* Stat */}
                             <div className="mb-4">
                                 <div className={`text-3xl font-black ${pathway.accentColor}`}>
