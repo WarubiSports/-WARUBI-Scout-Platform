@@ -37,9 +37,8 @@ const PATHWAYS = [
         stat: '200+',
         statLabel: 'Placements Annually',
         points: [
-            'D1, D2, D3 & NAIA connections',
+            'D1, D2, D3, NAIA & NJCAA connections',
             'Scholarship negotiation',
-            'Hidden roster spot access',
             'Academic support included'
         ],
         url: 'https://warubi-sports.com/college'
