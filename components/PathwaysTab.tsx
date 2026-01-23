@@ -1,5 +1,5 @@
 import React from 'react';
-import { Globe, GraduationCap, Calendar, BookOpen, ExternalLink, Zap } from 'lucide-react';
+import { Globe, GraduationCap, Calendar, BookOpen, ExternalLink, Zap, Play } from 'lucide-react';
 
 const PATHWAYS = [
     {
@@ -22,6 +22,7 @@ const PATHWAYS = [
             'Cultural & language immersion'
         ],
         url: 'https://warubi-sports.com/3-german-soccer-academy-facts/',
+        videoId: 'dyiMulYAzdo',
     },
     {
         id: 'college',
@@ -42,6 +43,7 @@ const PATHWAYS = [
             'Athletic & academic matching'
         ],
         url: 'https://warubi-sports.com/college-scholarships/',
+        videoId: 'jKNtijhnzC0',
     },
     {
         id: 'events',
@@ -62,6 +64,7 @@ const PATHWAYS = [
             'Performance analytics reports'
         ],
         url: 'https://germany-socceracademy.com/tryouts-id-camps/',
+        videoId: 'BPwV72OJbdE',
     },
     {
         id: 'coaching',
@@ -82,6 +85,7 @@ const PATHWAYS = [
             'Global job placement network'
         ],
         url: 'https://warubi-sports.com/uefa-coaching-license-course/',
+        videoId: 'kP3KuKfHYKs',
     }
 ];
 
@@ -130,6 +134,27 @@ export const PathwaysTab: React.FC = () => {
                             </div>
 
                             <p className="text-gray-400 text-xs mb-4 line-clamp-2">{pathway.desc}</p>
+
+                            {/* Video Thumbnail */}
+                            {pathway.videoId && (
+                                <a
+                                    href={`https://www.youtube.com/watch?v=${pathway.videoId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block relative mb-4 rounded-xl overflow-hidden group/video"
+                                >
+                                    <img
+                                        src={`https://img.youtube.com/vi/${pathway.videoId}/hqdefault.jpg`}
+                                        alt={`${pathway.title} video`}
+                                        className="w-full h-28 object-cover brightness-75 group-hover/video:brightness-90 transition-all"
+                                    />
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                        <div className={`w-10 h-10 rounded-full ${pathway.iconBg} flex items-center justify-center group-hover/video:scale-110 transition-transform`}>
+                                            <Play size={18} className={`${pathway.iconColor} ml-0.5`} fill="currentColor" />
+                                        </div>
+                                    </div>
+                                </a>
+                            )}
 
                             {/* Points */}
                             <ul className="space-y-1.5 mb-4">
