@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { supabase, supabaseRest, isSupabaseConfigured } from '../lib/supabase'
+import { supabaseRest, isSupabaseConfigured } from '../lib/supabase'
 import type { Scout } from '../lib/database.types'
 
 interface ScoutWithStats extends Scout {
@@ -72,12 +72,14 @@ export function useAllScouts(): UseAllScoutsReturn {
     if (!isSupabaseConfigured) return false
 
     try {
-      const { error } = await (supabase
-        .from('scouts') as any)
-        .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq('id', id)
+      // Use REST API to avoid Supabase JS client hanging issues
+      const { error } = await supabaseRest.update(
+        'scouts',
+        `id=eq.${id}`,
+        { ...updates, updated_at: new Date().toISOString() }
+      )
 
-      if (error) throw error
+      if (error) throw new Error(error.message)
 
       // Update local state
       setScouts(prev => prev.map(s =>
