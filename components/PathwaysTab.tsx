@@ -1,5 +1,5 @@
 import React from 'react';
-import { Globe, GraduationCap, Calendar, BookOpen, ExternalLink, Users, Zap, ArrowRight } from 'lucide-react';
+import { Globe, GraduationCap, Calendar, BookOpen, ExternalLink, Zap } from 'lucide-react';
 
 const PATHWAYS = [
     {
@@ -170,21 +170,6 @@ export const PathwaysTab: React.FC = () => {
                 })}
             </div>
 
-            {/* Bottom CTA */}
-            <div className="mt-8 p-6 rounded-2xl bg-gradient-to-r from-scout-800 to-scout-900 border border-scout-700 text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                    <Users size={18} className="text-scout-accent" />
-                    <span className="text-white font-bold">Not sure which pathway fits?</span>
-                </div>
-                <p className="text-gray-400 text-sm mb-4">Our team can help match players to the right opportunity based on their profile.</p>
-                <a
-                    href="mailto:scouts@warubi-sports.com"
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-scout-accent text-scout-900 text-sm font-bold hover:bg-scout-accent/90 transition-all"
-                >
-                    Contact Placement Team
-                    <ArrowRight size={14} />
-                </a>
-            </div>
         </div>
     );
 };
