@@ -93,13 +93,13 @@ export function useEvents(scoutId: string | undefined) {
 
     try {
       // Load all events (scout's own + published events)
-      const { data, error } = await supabase
-        .from('scouting_events')
-        .select('*')
-        .or(`host_scout_id.eq.${scoutId},status.eq.published`)
-        .order('event_date', { ascending: true })
+      // Use REST API to avoid Supabase JS client hanging issues
+      const { data, error } = await supabaseRest.select<DbEvent>(
+        'scouting_events',
+        `or=(host_scout_id.eq.${scoutId},status.eq.published)&order=event_date.asc`
+      )
 
-      if (error) throw error
+      if (error) throw new Error(error.message)
 
       const mappedEvents = (data || []).map((e) => eventFromDb(e, scoutId))
       setEvents(mappedEvents)
@@ -197,12 +197,10 @@ export function useEvents(scoutId: string | undefined) {
       if (!isSupabaseConfigured) return
 
       try {
-        const { error } = await supabase
-          .from('scouting_events')
-          .delete()
-          .eq('id', eventId)
+        // Use REST API to avoid Supabase JS client hanging issues
+        const { error } = await supabaseRest.delete('scouting_events', `id=eq.${eventId}`)
 
-        if (error) throw error
+        if (error) throw new Error(error.message)
 
         setEvents((prev) => prev.filter((e) => e.id !== eventId))
       } catch (err) {
