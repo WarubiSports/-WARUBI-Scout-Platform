@@ -6,7 +6,7 @@ const PATHWAYS = [
         id: 'europe',
         title: 'Development in Europe',
         subtitle: 'FC Köln ITP Program',
-        desc: '10-month Bundesliga residency with professional training, housing, and elite development environment.',
+        desc: 'Elite 10-month residency in Germany. Players train daily with Bundesliga methodology, live in professional housing, and experience European football culture firsthand.',
         icon: Globe,
         gradient: 'from-red-600/20 via-red-500/10 to-transparent',
         borderColor: 'border-red-500/40',
@@ -16,18 +16,19 @@ const PATHWAYS = [
         stat: '10',
         statLabel: 'Month Program',
         points: [
-            'Train with Bundesliga academy coaches',
-            'Live in Cologne, Germany',
+            'Bundesliga academy methodology',
+            'Professional housing in Cologne',
             'Daily high-performance training',
-            'European football immersion'
+            'Cultural & language immersion'
         ],
-        url: 'https://warubi-sports.com/itp'
+        url: 'https://warubi-sports.com/itp',
+        fullDetailsUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     },
     {
         id: 'college',
         title: 'US College Pathway',
         subtitle: 'NCAA • NAIA • NJCAA',
-        desc: 'Combine elite athletics with a degree. Full scholarship negotiation and roster placement support.',
+        desc: 'Navigate the complex US college recruiting landscape. We handle coach outreach, scholarship negotiation, and roster placement so players can focus on their game.',
         icon: GraduationCap,
         gradient: 'from-blue-600/20 via-blue-500/10 to-transparent',
         borderColor: 'border-blue-500/40',
@@ -38,16 +39,17 @@ const PATHWAYS = [
         statLabel: 'Placements Annually',
         points: [
             'D1, D2, D3, NAIA & NJCAA connections',
-            'Scholarship negotiation',
-            'Academic support included'
+            'Full scholarship negotiation',
+            'Athletic & academic matching'
         ],
-        url: 'https://warubi-sports.com/college'
+        url: 'https://warubi-sports.com/college',
+        fullDetailsUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     },
     {
         id: 'events',
         title: 'Exposure Events',
-        subtitle: 'Showcases & ID Days',
-        desc: 'Get seen by college coaches and pro scouts at our professionally organized recruitment events.',
+        subtitle: 'Showcases & ID Camps',
+        desc: 'High-visibility showcases where players perform in front of verified college coaches and professional scouts. Every touch is tracked, every moment recorded.',
         icon: Calendar,
         gradient: 'from-orange-600/20 via-orange-500/10 to-transparent',
         borderColor: 'border-orange-500/40',
@@ -57,18 +59,18 @@ const PATHWAYS = [
         stat: '50+',
         statLabel: 'Promising Athletes',
         points: [
-            'Pro video highlights',
-            'Direct coach meetings',
-            'Performance analytics',
-            'Instant feedback'
+            'Verified coach attendance',
+            'Professional video highlights',
+            'Performance analytics reports'
         ],
-        url: 'https://warubi-sports.com/events'
+        url: 'https://warubi-sports.com/events',
+        fullDetailsUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     },
     {
         id: 'coaching',
         title: 'Coaching Education',
         subtitle: 'UEFA & DFB Licenses',
-        desc: 'Launch your coaching career with internationally recognized certifications and mentorship.',
+        desc: 'Transition from player to coach with internationally recognized certifications. Learn from active professionals and gain credentials that open doors worldwide.',
         icon: BookOpen,
         gradient: 'from-emerald-600/20 via-emerald-500/10 to-transparent',
         borderColor: 'border-emerald-500/40',
@@ -78,12 +80,12 @@ const PATHWAYS = [
         stat: 'UEFA',
         statLabel: 'Certified Program',
         points: [
-            'International certifications',
-            'Player-to-coach transition',
-            'Industry network access',
-            'Job placement support'
+            'Internationally recognized licenses',
+            'Active pro coach mentorship',
+            'Global job placement network'
         ],
-        url: 'https://warubi-sports.com/coaching'
+        url: 'https://warubi-sports.com/coaching',
+        fullDetailsUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     }
 ];
 
@@ -143,15 +145,26 @@ export const PathwaysTab: React.FC = () => {
                                 ))}
                             </ul>
 
-                            <a
-                                href={pathway.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`inline-flex items-center gap-1 text-xs font-bold ${pathway.accentColor} hover:text-white transition-colors group`}
-                            >
-                                Learn more
-                                <ExternalLink size={10} className="group-hover:translate-x-0.5 transition-transform" />
-                            </a>
+                            <div className="flex items-center gap-3">
+                                <a
+                                    href={pathway.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`inline-flex items-center gap-1 text-xs font-bold ${pathway.accentColor} hover:text-white transition-colors group`}
+                                >
+                                    Learn more
+                                    <ExternalLink size={10} className="group-hover:translate-x-0.5 transition-transform" />
+                                </a>
+                                <span className="text-gray-600">•</span>
+                                <a
+                                    href={pathway.fullDetailsUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-300 transition-colors"
+                                >
+                                    Full Details
+                                </a>
+                            </div>
                         </div>
                     );
                 })}
