@@ -134,8 +134,9 @@ async function fetchProspects(
 
   // Build query - if pageSize is 0, load all (no limit)
   let query = `scout_id=eq.${scoutId}&order=created_at.desc`
+  let offset = 0
   if (pageSize > 0) {
-    const offset = page * pageSize
+    offset = page * pageSize
     query += `&limit=${pageSize + 1}&offset=${offset}`
   }
 
