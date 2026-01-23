@@ -1,5 +1,5 @@
-import React from 'react';
-import { Globe, GraduationCap, Calendar, BookOpen, ExternalLink, Zap, Play } from 'lucide-react';
+import React, { useState } from 'react';
+import { Globe, GraduationCap, Calendar, BookOpen, ExternalLink, Zap, Play, X } from 'lucide-react';
 
 const PATHWAYS = [
     {
@@ -90,6 +90,8 @@ const PATHWAYS = [
 ];
 
 export const PathwaysTab: React.FC = () => {
+    const [activeVideo, setActiveVideo] = useState<string | null>(null);
+
     return (
         <div className="max-w-5xl mx-auto animate-fade-in">
             {/* Header */}
@@ -137,11 +139,9 @@ export const PathwaysTab: React.FC = () => {
 
                             {/* Video Thumbnail */}
                             {pathway.videoId && (
-                                <a
-                                    href={`https://www.youtube.com/watch?v=${pathway.videoId}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="block relative mb-4 rounded-xl overflow-hidden group/video"
+                                <button
+                                    onClick={() => setActiveVideo(pathway.videoId)}
+                                    className="block relative mb-4 rounded-xl overflow-hidden group/video w-full cursor-pointer"
                                 >
                                     <img
                                         src={`https://img.youtube.com/vi/${pathway.videoId}/hqdefault.jpg`}
@@ -153,7 +153,7 @@ export const PathwaysTab: React.FC = () => {
                                             <Play size={18} className={`${pathway.iconColor} ml-0.5`} fill="currentColor" />
                                         </div>
                                     </div>
-                                </a>
+                                </button>
                             )}
 
                             {/* Points */}
@@ -180,6 +180,31 @@ export const PathwaysTab: React.FC = () => {
                 })}
             </div>
 
+            {/* Video Modal */}
+            {activeVideo && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+                    onClick={() => setActiveVideo(null)}
+                >
+                    <div className="relative w-full max-w-4xl mx-4" onClick={(e) => e.stopPropagation()}>
+                        <button
+                            onClick={() => setActiveVideo(null)}
+                            className="absolute -top-12 right-0 text-white/70 hover:text-white transition-colors"
+                        >
+                            <X size={28} />
+                        </button>
+                        <div className="relative pt-[56.25%] rounded-2xl overflow-hidden bg-black">
+                            <iframe
+                                className="absolute inset-0 w-full h-full"
+                                src={`https://www.youtube.com/embed/${activeVideo}?autoplay=1&rel=0`}
+                                title="Pathway Video"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
