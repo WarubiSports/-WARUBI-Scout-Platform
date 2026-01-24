@@ -109,7 +109,11 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
         if (score >= 65) {
             return `Solid fit for ${college || 'D2/NAIA'}. Good development case.`;
         }
-        return player.evaluation?.summary ? player.evaluation.summary.split('.')[0] + '.' : 'Needs more evaluation.';
+        // If we have a summary, use the first sentence. Otherwise return empty - we'll hide the box
+        if (player.evaluation?.summary) {
+            return player.evaluation.summary.split('.')[0] + '.';
+        }
+        return ''; // Empty = hide the confidence line box
     };
 
     // Determine the primary action
@@ -202,22 +206,35 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                         </div>
                     </div>
 
-                    {/* Score */}
-                    <div className="text-right shrink-0">
+                    {/* Score - Prominent visual indicator */}
+                    <div className="shrink-0">
                         {player.isRecalibrating ? (
-                            <Loader2 size={20} className="text-scout-accent animate-spin" />
+                            <div className="w-14 h-14 rounded-full border-4 border-scout-accent/30 flex items-center justify-center">
+                                <Loader2 size={20} className="text-scout-accent animate-spin" />
+                            </div>
+                        ) : score ? (
+                            <div className={`relative w-14 h-14 rounded-full flex items-center justify-center ${
+                                score >= 85 ? 'bg-gradient-to-br from-scout-accent/20 to-scout-accent/5 ring-2 ring-scout-accent' :
+                                score >= 70 ? 'bg-gradient-to-br from-scout-highlight/20 to-scout-highlight/5 ring-2 ring-scout-highlight' :
+                                'bg-scout-900/50 ring-2 ring-gray-600'
+                            }`}>
+                                <span className={`text-xl font-black ${scoreColor(score)}`}>{score}</span>
+                                {score >= 85 && <Zap size={10} className="absolute -top-1 -right-1 text-scout-accent" />}
+                            </div>
                         ) : (
-                            <div className={`text-2xl font-black leading-none ${scoreColor(score)}`}>
-                                {score || '—'}
+                            <div className="w-14 h-14 rounded-full bg-scout-900/50 ring-2 ring-dashed ring-gray-600 flex items-center justify-center">
+                                <span className="text-xs text-gray-500 font-bold">NEW</span>
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* CONFIDENCE LINE - One sentence verdict */}
-                <p className="text-[11px] text-gray-300 mt-2 leading-relaxed line-clamp-2 bg-scout-900/50 rounded-lg p-2 border border-scout-700/30">
-                    "{getConfidenceLine()}"
-                </p>
+                {/* CONFIDENCE LINE - One sentence verdict (only show if there's content) */}
+                {getConfidenceLine() && (
+                    <p className="text-[11px] text-gray-300 mt-2 leading-relaxed line-clamp-2 bg-scout-900/50 rounded-lg p-2 border border-scout-700/30">
+                        "{getConfidenceLine()}"
+                    </p>
+                )}
 
                 {/* URGENCY INDICATOR */}
                 {urgency && (

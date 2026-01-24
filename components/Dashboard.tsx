@@ -82,17 +82,61 @@ const Dashboard: React.FC<DashboardProps> = ({
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Global search shortcut (Cmd+K / Ctrl+K)
+    // Global keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            // Skip if user is typing in an input/textarea
+            const target = e.target as HTMLElement;
+            const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+
+            // Cmd+K / Ctrl+K = global search (works even when typing)
             if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
                 e.preventDefault();
                 setIsSearchOpen(prev => !prev);
+                return;
+            }
+
+            // Skip other shortcuts if typing
+            if (isTyping) return;
+
+            // / or ? = open search
+            if (e.key === '/' || e.key === '?') {
+                e.preventDefault();
+                setIsSearchOpen(true);
+            }
+            // N = new player
+            else if (e.key === 'n' || e.key === 'N') {
+                e.preventDefault();
+                setEditingPlayer(null);
+                setIsSubmissionOpen(true);
+            }
+            // E = events tab
+            else if (e.key === 'e' || e.key === 'E') {
+                e.preventDefault();
+                setActiveTab(DashboardTab.EVENTS);
+            }
+            // P = players tab
+            else if (e.key === 'p' || e.key === 'P') {
+                e.preventDefault();
+                setActiveTab(DashboardTab.PLAYERS);
+            }
+            // O = outreach tab
+            else if (e.key === 'o' || e.key === 'O') {
+                e.preventDefault();
+                setActiveTab(DashboardTab.OUTREACH);
+            }
+            // Escape = close modals
+            else if (e.key === 'Escape') {
+                if (isSearchOpen) setIsSearchOpen(false);
+                if (isSubmissionOpen) {
+                    setIsSubmissionOpen(false);
+                    setEditingPlayer(null);
+                }
             }
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
+    }, [isSearchOpen, isSubmissionOpen]);
 
     // Hot leads are recently active leads with high engagement signals
     const spotlights = players.filter(p => p.status === PlayerStatus.LEAD && (p.activityStatus === 'spotlight' || p.activityStatus === 'signal'));
@@ -430,7 +474,40 @@ const Dashboard: React.FC<DashboardProps> = ({
                     </button>
                 </div>
                 <div className="flex-1" /> {/* Spacer */}
-                <div className="p-4 border-t border-scout-700 bg-scout-900/30 space-y-2">
+                <div className="p-4 border-t border-scout-700 bg-scout-900/30 space-y-3">
+                    {/* XP Level Display */}
+                    {(() => {
+                        const level = Math.floor(scoutScore / 100) + 1;
+                        const xpInLevel = scoutScore % 100;
+                        const levelNames = ['Rookie', 'Scout', 'Hunter', 'Pro Scout', 'Elite', 'Legend', 'Master', 'Grand Master'];
+                        const levelName = levelNames[Math.min(level - 1, levelNames.length - 1)];
+                        return (
+                            <div className="bg-gradient-to-r from-scout-accent/10 to-scout-highlight/10 border border-scout-accent/30 rounded-xl p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-8 h-8 rounded-lg bg-scout-accent/20 flex items-center justify-center">
+                                            <Trophy size={16} className="text-scout-accent" />
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] font-bold uppercase text-gray-400">Level {level}</p>
+                                            <p className="text-sm font-black text-white">{levelName}</p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-lg font-black text-scout-accent">{scoutScore}</p>
+                                        <p className="text-[9px] text-gray-500 uppercase">XP</p>
+                                    </div>
+                                </div>
+                                <div className="h-2 bg-scout-900 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-scout-accent to-scout-highlight transition-all duration-500"
+                                        style={{ width: `${xpInLevel}%` }}
+                                    />
+                                </div>
+                                <p className="text-[9px] text-gray-500 mt-1 text-center">{100 - xpInLevel} XP to next level</p>
+                            </div>
+                        );
+                    })()}
                     <div className="flex items-center gap-3 px-2 py-2">
                         <div className="w-10 h-10 rounded-lg bg-scout-accent flex items-center justify-center font-black text-scout-900">{user.name.charAt(0)}</div>
                         <p className="text-sm font-bold text-white truncate">{user.name}</p>
@@ -448,7 +525,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
             </aside>
 
-            <main className={`flex-1 ${activeTab === DashboardTab.OUTREACH ? 'overflow-hidden p-4' : 'overflow-auto p-4 md:p-10 pb-32 custom-scrollbar'}`}>
+            <main className={`flex-1 min-h-0 ${activeTab === DashboardTab.OUTREACH ? 'overflow-hidden p-4' : 'overflow-auto p-4 md:p-10 pb-32 custom-scrollbar'}`}>
                 {activeTab === DashboardTab.PLAYERS && (
                     <ErrorBoundary name="Pipeline">
                     <div className="space-y-8 animate-fade-in">

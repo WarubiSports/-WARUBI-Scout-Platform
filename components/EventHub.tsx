@@ -8,7 +8,7 @@ import {
   Calendar, MapPin, Sparkles, Plus, Copy, CheckCircle,
   Share2, Users, FileText, CheckSquare, Loader2, ArrowRight,
   ClipboardList, X, ShieldCheck, Lock, Eye,
-  HelpCircle, Check, QrCode, ChevronRight, Navigation, History, CalendarPlus, Ticket, Clock, Camera, Edit3
+  HelpCircle, Check, QrCode, ChevronRight, Navigation, History, CalendarPlus, Ticket, Clock, Camera, Edit3, Timer
 } from 'lucide-react';
 
 interface EventHubProps {
@@ -1034,6 +1034,63 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
                     </div>
                 )}
 
+                {/* Next Event Countdown Banner */}
+                {(() => {
+                    const allUpcoming = [...thisWeekEvents, ...futureEvents];
+                    if (allUpcoming.length === 0) return null;
+
+                    const nextEvent = allUpcoming[0];
+                    const [year, month, day] = nextEvent.date.split('-').map(Number);
+                    const eventDate = new Date(year, month - 1, day);
+                    const nowTime = new Date();
+                    const diffMs = eventDate.getTime() - nowTime.getTime();
+                    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                    const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
+                    if (diffMs < 0) return null;
+
+                    const isToday = diffDays === 0;
+                    const isTomorrow = diffDays === 1;
+
+                    return (
+                        <div
+                            onClick={() => { setSelectedEvent(nextEvent); setView('detail'); }}
+                            className="mb-6 p-4 bg-gradient-to-r from-scout-accent/10 via-emerald-500/5 to-scout-accent/10 border border-scout-accent/30 rounded-2xl cursor-pointer hover:border-scout-accent/50 transition-all group"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-scout-accent/20 rounded-xl flex items-center justify-center border border-scout-accent/30">
+                                        <Timer size={24} className="text-scout-accent" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-scout-accent uppercase tracking-widest">Next Event</p>
+                                        <h3 className="text-lg font-bold text-white truncate max-w-[200px] md:max-w-none">{nextEvent.title}</h3>
+                                        <p className="text-xs text-gray-400">{nextEvent.location}</p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <div className="text-2xl md:text-3xl font-black text-white">
+                                        {isToday ? (
+                                            <span className="text-scout-accent">TODAY</span>
+                                        ) : isTomorrow ? (
+                                            <span>Tomorrow</span>
+                                        ) : (
+                                            <span>{diffDays}<span className="text-base font-bold text-gray-400 ml-1">days</span></span>
+                                        )}
+                                    </div>
+                                    {!isToday && !isTomorrow && diffHours > 0 && (
+                                        <p className="text-xs text-gray-500">{diffHours}h remaining</p>
+                                    )}
+                                    {isToday && diffHours > 0 && (
+                                        <p className="text-xs text-scout-accent font-bold">{diffHours} hours to go</p>
+                                    )}
+                                </div>
+                                <ChevronRight size={20} className="text-gray-600 group-hover:text-scout-accent transition-colors hidden md:block" />
+                            </div>
+                        </div>
+                    );
+                })()}
+
                 <div className="flex-1 overflow-y-auto custom-scrollbar pb-24 md:pb-8">
                     <div className="space-y-8">
                             {/* THIS WEEK */}
@@ -1074,11 +1131,41 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
 
                             {/* EMPTY STATE */}
                             {thisWeekEvents.length === 0 && futureEvents.length === 0 && (
-                                <div className="text-center py-20 bg-scout-800/30 rounded-xl border border-dashed border-scout-700">
-                                    <Calendar size={48} className="mx-auto mb-4 text-gray-700" />
-                                    <h3 className="text-lg font-bold text-gray-400">Schedule is empty</h3>
-                                    <p className="text-sm text-gray-600 mb-6">Find an event to attend or host your own.</p>
-                                    <button onClick={() => setView('create')} className="bg-scout-700 hover:bg-scout-600 text-white px-6 py-2 rounded-lg font-bold transition-all">Add Event</button>
+                                <div className="bg-gradient-to-br from-scout-800/50 to-scout-900/30 rounded-2xl border border-scout-700 p-8 md:p-12">
+                                    <div className="max-w-lg mx-auto text-center">
+                                        <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-scout-accent/20 to-scout-highlight/10 flex items-center justify-center">
+                                            <Calendar size={40} className="text-scout-accent" />
+                                        </div>
+                                        <h3 className="text-2xl font-black text-white mb-2">No Events Yet</h3>
+                                        <p className="text-gray-400 mb-8">Events are where you find talent. Add ID days, showcases, and camps to your calendar.</p>
+
+                                        {/* Quick-add event type buttons */}
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+                                            {[
+                                                { type: 'ID Day', icon: '🎯', desc: 'College recruiting day' },
+                                                { type: 'Showcase', icon: '⚽', desc: 'Competitive event' },
+                                                { type: 'Camp', icon: '🏕️', desc: 'Training opportunity' },
+                                                { type: 'Tournament', icon: '🏆', desc: 'Competition' },
+                                            ].map(item => (
+                                                <button
+                                                    key={item.type}
+                                                    onClick={() => setView('create')}
+                                                    className="p-4 bg-scout-900/50 border border-scout-700/50 rounded-xl hover:border-scout-accent/50 hover:bg-scout-800/50 transition-all group text-left"
+                                                >
+                                                    <span className="text-2xl mb-2 block">{item.icon}</span>
+                                                    <p className="text-sm font-bold text-white group-hover:text-scout-accent transition-colors">{item.type}</p>
+                                                    <p className="text-[10px] text-gray-500">{item.desc}</p>
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        <button
+                                            onClick={() => setView('create')}
+                                            className="inline-flex items-center gap-2 bg-scout-accent text-scout-900 px-8 py-3 rounded-xl font-black text-sm uppercase hover:bg-emerald-400 transition-all shadow-glow"
+                                        >
+                                            <CalendarPlus size={18} /> Create Your First Event
+                                        </button>
+                                    </div>
                                 </div>
                             )}
 
