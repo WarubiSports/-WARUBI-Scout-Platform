@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Globe, GraduationCap, Calendar, BookOpen, ExternalLink, Zap, Play, X, ShieldCheck, Check, AlertTriangle, Trophy, Fingerprint, Activity } from 'lucide-react';
+import { Globe, GraduationCap, Calendar, BookOpen, ExternalLink, Zap, Play, X, ShieldCheck, Check, AlertTriangle, Trophy, Fingerprint, Activity, FileDown } from 'lucide-react';
 import { MARKET_DATA, WARUBI_PROTOCOLS } from '../constants';
 
 const PATHWAYS = [
@@ -18,12 +18,16 @@ const PATHWAYS = [
         statLabel: 'Month Program',
         points: [
             'Bundesliga academy methodology',
-            'Professional housing in Cologne',
+            'Managed athlete housing in Cologne',
             'Daily high-performance training',
             'Cultural & language immersion'
         ],
         url: 'https://warubi-sports.com/3-german-soccer-academy-facts/',
         videoId: 'dyiMulYAzdo',
+        brochures: [
+            { label: "Men's Program", url: '/brochures/ITP-Men.pdf' },
+            { label: "Women's Program", url: '/brochures/ITP-Women.pdf' },
+        ],
     },
     {
         id: 'college',
@@ -148,7 +152,7 @@ export const PathwaysTab: React.FC = () => {
                                     <img
                                         src={`https://img.youtube.com/vi/${pathway.videoId}/hqdefault.jpg`}
                                         alt={`${pathway.title} video`}
-                                        className="w-full h-28 object-cover brightness-75 group-hover/video:brightness-90 transition-all"
+                                        className={`w-full h-28 object-cover brightness-75 group-hover/video:brightness-90 transition-all ${pathway.id !== 'europe' ? 'object-[center_30%]' : ''}`}
                                     />
                                     <div className="absolute inset-0 flex items-center justify-center">
                                         <div className={`w-10 h-10 rounded-full ${pathway.iconBg} flex items-center justify-center group-hover/video:scale-110 transition-transform`}>
@@ -167,6 +171,23 @@ export const PathwaysTab: React.FC = () => {
                                     </li>
                                 ))}
                             </ul>
+
+                            {/* Brochure Downloads */}
+                            {pathway.brochures && (
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                    {pathway.brochures.map((brochure, i) => (
+                                        <a
+                                            key={i}
+                                            href={brochure.url}
+                                            download
+                                            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-bold ${pathway.iconBg} ${pathway.accentColor} hover:opacity-80 transition-opacity`}
+                                        >
+                                            <FileDown size={12} />
+                                            {brochure.label}
+                                        </a>
+                                    ))}
+                                </div>
+                            )}
 
                             <a
                                 href={pathway.url}

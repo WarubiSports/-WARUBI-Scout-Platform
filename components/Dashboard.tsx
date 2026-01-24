@@ -70,6 +70,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     const [isBugReportOpen, setIsBugReportOpen] = useState(false);
     const [pendingOfferedPlayer, setPendingOfferedPlayer] = useState<Player | null>(null);
     const [pipelineFilter, setPipelineFilter] = useState<'all' | 'active'>('all');
+    const [showMobileProfile, setShowMobileProfile] = useState(false);
 
     useEffect(() => {
         const handleResize = () => {
@@ -760,14 +761,132 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <Lightbulb size={20} />
             </button>
 
+            {/* Mobile Profile Sheet */}
+            {showMobileProfile && (
+                <div className="md:hidden fixed inset-0 z-[200]" onClick={() => setShowMobileProfile(false)}>
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+                    <div
+                        className="absolute bottom-0 left-0 right-0 bg-scout-800 rounded-t-3xl border-t border-scout-700 p-6 pb-10 animate-slide-up"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* Handle bar */}
+                        <div className="w-12 h-1 bg-scout-600 rounded-full mx-auto mb-6" />
+
+                        {/* User info */}
+                        <div className="flex items-center gap-4 mb-6">
+                            <div className="w-14 h-14 rounded-2xl bg-scout-accent flex items-center justify-center font-black text-xl text-scout-900">
+                                {user.name.charAt(0)}
+                            </div>
+                            <div>
+                                <p className="text-lg font-bold text-white">{user.name}</p>
+                                <p className="text-sm text-gray-500">{user.email}</p>
+                            </div>
+                        </div>
+
+                        {/* XP Progress */}
+                        {(() => {
+                            const level = Math.floor(scoutScore / 100) + 1;
+                            const xpInLevel = scoutScore % 100;
+                            const levelNames = ['Rookie', 'Scout', 'Hunter', 'Pro Scout', 'Elite', 'Legend', 'Master', 'Grand Master'];
+                            const levelName = levelNames[Math.min(level - 1, levelNames.length - 1)];
+                            return (
+                                <div className="bg-gradient-to-r from-scout-accent/10 to-scout-highlight/10 border border-scout-accent/30 rounded-2xl p-4 mb-6">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-12 h-12 rounded-xl bg-scout-accent/20 flex items-center justify-center">
+                                                <Trophy size={24} className="text-scout-accent" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs font-bold uppercase text-gray-400">Level {level}</p>
+                                                <p className="text-xl font-black text-white">{levelName}</p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-3xl font-black text-scout-accent">{scoutScore}</p>
+                                            <p className="text-xs text-gray-500 uppercase">Total XP</p>
+                                        </div>
+                                    </div>
+                                    <div className="h-3 bg-scout-900 rounded-full overflow-hidden">
+                                        <div
+                                            className="h-full bg-gradient-to-r from-scout-accent to-scout-highlight transition-all duration-500"
+                                            style={{ width: `${xpInLevel}%` }}
+                                        />
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-2 text-center">{100 - xpInLevel} XP to Level {level + 1}</p>
+                                </div>
+                            );
+                        })()}
+
+                        {/* How to earn XP */}
+                        <div className="mb-6">
+                            <p className="text-xs font-bold uppercase text-gray-500 mb-3">How to earn XP</p>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div className="bg-scout-900/50 rounded-lg p-2 flex justify-between">
+                                    <span className="text-gray-400">Add player</span>
+                                    <span className="text-scout-accent font-bold">+5</span>
+                                </div>
+                                <div className="bg-scout-900/50 rounded-lg p-2 flex justify-between">
+                                    <span className="text-gray-400">Complete profile</span>
+                                    <span className="text-scout-accent font-bold">+5</span>
+                                </div>
+                                <div className="bg-scout-900/50 rounded-lg p-2 flex justify-between">
+                                    <span className="text-gray-400">First outreach</span>
+                                    <span className="text-scout-accent font-bold">+5</span>
+                                </div>
+                                <div className="bg-scout-900/50 rounded-lg p-2 flex justify-between">
+                                    <span className="text-gray-400">→ Interested</span>
+                                    <span className="text-scout-accent font-bold">+10</span>
+                                </div>
+                                <div className="bg-scout-900/50 rounded-lg p-2 flex justify-between">
+                                    <span className="text-gray-400">→ Offered</span>
+                                    <span className="text-scout-accent font-bold">+25</span>
+                                </div>
+                                <div className="bg-scout-900/50 rounded-lg p-2 flex justify-between">
+                                    <span className="text-gray-400">Attend event</span>
+                                    <span className="text-scout-accent font-bold">+15</span>
+                                </div>
+                                <div className="bg-scout-900/50 rounded-lg p-2 flex justify-between">
+                                    <span className="text-gray-400">Host event</span>
+                                    <span className="text-scout-accent font-bold">+50</span>
+                                </div>
+                                <div className="bg-gradient-to-r from-scout-accent/20 to-scout-highlight/20 rounded-lg p-2 flex justify-between border border-scout-accent/30">
+                                    <span className="text-white font-bold">Placement</span>
+                                    <span className="text-scout-accent font-black">+500</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="space-y-2">
+                            {onReturnToAdmin && (
+                                <button
+                                    onClick={() => { setShowMobileProfile(false); onReturnToAdmin(); }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 bg-blue-500/10 border border-blue-500/30 rounded-xl text-blue-400 font-bold"
+                                >
+                                    <Users size={20} /> Return to Admin
+                                </button>
+                            )}
+                            {onLogout && (
+                                <button
+                                    onClick={() => { setShowMobileProfile(false); onLogout(); }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 bg-scout-900/50 border border-scout-700 rounded-xl text-gray-400 font-bold"
+                                >
+                                    <LogOut size={20} /> Sign Out
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <nav className="md:hidden fixed bottom-0 w-full bg-[#05080f]/95 backdrop-blur-2xl border-t border-scout-700 z-[110] px-2 pt-2 pb-6">
-                <div className="flex justify-around items-end max-w-sm mx-auto">
+                <div className="flex justify-around items-end max-w-md mx-auto">
                     <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.PLAYERS); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.PLAYERS ? 'text-scout-accent' : 'text-gray-600'}`}>
-                        <Users size={22} />
+                        <Users size={20} />
                         <span className="text-[8px] font-black uppercase">Players</span>
                     </button>
                     <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.EVENTS); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.EVENTS ? 'text-scout-accent' : 'text-gray-600'}`}>
-                        <CalendarDays size={22} />
+                        <CalendarDays size={20} />
                         <span className="text-[8px] font-black uppercase">Events</span>
                     </button>
                     <div className="-mt-6 bg-[#05080f] p-2 rounded-full border border-scout-700/50 shadow-2xl">
@@ -776,8 +895,15 @@ const Dashboard: React.FC<DashboardProps> = ({
                         </button>
                     </div>
                     <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.KNOWLEDGE); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.KNOWLEDGE ? 'text-scout-accent' : 'text-gray-600'}`}>
-                        <BookOpen size={22} />
+                        <BookOpen size={20} />
                         <span className="text-[8px] font-black uppercase">Pathways</span>
+                    </button>
+                    {/* XP Level indicator - opens profile sheet */}
+                    <button onClick={() => { haptic.light(); setShowMobileProfile(true); }} className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95">
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-scout-accent/30 to-scout-highlight/20 border-2 border-scout-accent flex items-center justify-center">
+                            <span className="text-[10px] font-black text-scout-accent">{Math.floor(scoutScore / 100) + 1}</span>
+                        </div>
+                        <span className="text-[8px] font-black uppercase text-scout-accent">{scoutScore}xp</span>
                     </button>
                 </div>
             </nav>

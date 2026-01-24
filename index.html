@@ -150,6 +150,14 @@
         animation: marquee 40s linear infinite;
       }
 
+      @keyframes slide-up {
+        0% { transform: translateY(100%); opacity: 0; }
+        100% { transform: translateY(0); opacity: 1; }
+      }
+      .animate-slide-up {
+        animation: slide-up 0.3s ease-out forwards;
+      }
+
       /* Custom Pulse for the "Signal detected" state */
       .signal-pulse {
         animation: signal-glow 2s infinite ease-in-out;
