@@ -47,6 +47,8 @@ function eventToDb(event: ScoutingEvent, scoutId: string): ScoutingEventInsert {
     marketing_copy: event.marketingCopy || null,
     agenda: agendaToJson(event.agenda),
     checklist: checklistToJson(event.checklist),
+    event_link: event.link || null,
+    description: event.notes || null,
   }
 }
 
@@ -68,6 +70,8 @@ function eventFromDb(dbEvent: DbEvent, scoutId?: string): ScoutingEvent {
     checklist: parseChecklist(dbEvent.checklist) ?? undefined,
     registeredCount: dbEvent.registered_count || 0,
     hostName: dbEvent.host_name || undefined,
+    link: dbEvent.event_link || undefined,
+    notes: dbEvent.description || undefined,
   }
 }
 
@@ -175,6 +179,8 @@ export function useEvents(scoutId: string | undefined) {
         if (updates.checklist !== undefined) dbUpdates.checklist = checklistToJson(updates.checklist)
         if (updates.registeredCount !== undefined) dbUpdates.registered_count = updates.registeredCount
         if (updates.hostName !== undefined) dbUpdates.host_name = updates.hostName
+        if (updates.link !== undefined) dbUpdates.event_link = updates.link || null
+        if (updates.notes !== undefined) dbUpdates.description = updates.notes || null
 
         // Use REST API to bypass Supabase JS client AbortError issues
         const { error } = await supabaseRest.update('scouting_events', `id=eq.${eventId}`, dbUpdates)

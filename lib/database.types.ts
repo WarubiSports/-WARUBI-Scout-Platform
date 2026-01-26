@@ -296,6 +296,7 @@ export interface Database {
           marketing_copy: string | null
           agenda: Json | null
           checklist: Json | null
+          event_link: string | null
           created_at: string
           updated_at: string
         }
@@ -318,6 +319,7 @@ export interface Database {
           marketing_copy?: string | null
           agenda?: Json | null
           checklist?: Json | null
+          event_link?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -340,6 +342,7 @@ export interface Database {
           marketing_copy?: string | null
           agenda?: Json | null
           checklist?: Json | null
+          event_link?: string | null
           updated_at?: string
         }
       }

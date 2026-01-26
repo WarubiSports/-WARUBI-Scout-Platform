@@ -135,6 +135,8 @@ export interface ScoutingEvent {
   registeredCount?: number;
   hostName?: string;
   isGlobal?: boolean; // Admin-created events visible to all scouts
+  link?: string; // External URL (e.g., registration page)
+  notes?: string; // Additional notes about the event
 }
 
 export interface NewsItem {

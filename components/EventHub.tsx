@@ -8,7 +8,7 @@ import {
   Calendar, MapPin, Sparkles, Plus, Copy, CheckCircle,
   Share2, Users, FileText, CheckSquare, Loader2, ArrowRight,
   ClipboardList, X, ShieldCheck, Lock, Eye,
-  HelpCircle, Check, QrCode, ChevronRight, Navigation, History, CalendarPlus, Ticket, Clock, Camera, Edit3, Timer
+  HelpCircle, Check, QrCode, ChevronRight, Navigation, History, CalendarPlus, Ticket, Clock, Camera, Edit3, Timer, ExternalLink, StickyNote
 } from 'lucide-react';
 
 interface EventHubProps {
@@ -289,7 +289,7 @@ const CreateEventForm = ({ formData, setFormData, loading, handleCreate, onCance
                 <div className="grid md:grid-cols-2 gap-6">
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Type</label>
-                        <select 
+                        <select
                             value={formData.type}
                             onChange={e => setFormData({...formData, type: e.target.value})}
                             className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
@@ -303,13 +303,36 @@ const CreateEventForm = ({ formData, setFormData, loading, handleCreate, onCance
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{formData.isHosting ? 'Player Fee' : 'Scout Fee / Cost'}</label>
-                        <input 
+                        <input
                             value={formData.fee}
                             onChange={e => setFormData({...formData, fee: e.target.value})}
                             placeholder="e.g. Free, $50, €20"
                             className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
                         />
                     </div>
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Link <span className="text-gray-600 normal-case">(optional)</span></label>
+                    <input
+                        value={formData.link || ''}
+                        onChange={e => setFormData({...formData, link: e.target.value})}
+                        placeholder="https://example.com/registration"
+                        onFocus={handleMobileFocus}
+                        className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Notes <span className="text-gray-600 normal-case">(optional)</span></label>
+                    <textarea
+                        value={formData.notes || ''}
+                        onChange={e => setFormData({...formData, notes: e.target.value})}
+                        placeholder="Add any additional notes about this event..."
+                        rows={3}
+                        onFocus={handleMobileFocus}
+                        className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none resize-none"
+                    />
                 </div>
 
                 <div className="pt-4 border-t border-scout-700/50">
@@ -338,7 +361,9 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
         endDate: event.endDate || '',
         location: event.location,
         type: event.type,
-        fee: event.fee
+        fee: event.fee,
+        link: event.link || '',
+        notes: event.notes || ''
     });
 
     const handleSaveEdit = () => {
@@ -353,7 +378,9 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
             endDate: event.endDate || '',
             location: event.location,
             type: event.type,
-            fee: event.fee
+            fee: event.fee,
+            link: event.link || '',
+            notes: event.notes || ''
         });
         setIsEditing(false);
     };
@@ -446,6 +473,19 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                               placeholder="Fee (e.g. Free, $50)"
                                           />
                                       </div>
+                                      <input
+                                          value={editData.link}
+                                          onChange={e => setEditData({...editData, link: e.target.value})}
+                                          className="w-full bg-scout-900 border border-scout-600 rounded-lg px-3 py-2 text-white text-sm focus:border-scout-accent outline-none"
+                                          placeholder="Event Link (https://...)"
+                                      />
+                                      <textarea
+                                          value={editData.notes}
+                                          onChange={e => setEditData({...editData, notes: e.target.value})}
+                                          className="w-full bg-scout-900 border border-scout-600 rounded-lg px-3 py-2 text-white text-sm focus:border-scout-accent outline-none resize-none"
+                                          placeholder="Notes..."
+                                          rows={2}
+                                      />
                                       <div className="flex gap-2 pt-2">
                                           <button
                                               onClick={handleSaveEdit}
@@ -469,6 +509,24 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                           <div className="flex items-center gap-2"><MapPin size={14}/> {event.location}</div>
                                           <div className="flex items-center gap-2"><Sparkles size={14}/> {event.type} • {event.fee}</div>
                                       </div>
+                                      {event.link && (
+                                          <a
+                                              href={event.link}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="mt-4 w-full bg-scout-700 hover:bg-scout-600 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-all border border-scout-600 text-sm"
+                                          >
+                                              <ExternalLink size={14}/> Open Event Link
+                                          </a>
+                                      )}
+                                      {event.notes && (
+                                          <div className="mt-4 p-3 bg-scout-900/50 rounded-lg border border-scout-700">
+                                              <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase mb-2">
+                                                  <StickyNote size={12}/> Notes
+                                              </div>
+                                              <p className="text-sm text-gray-300 whitespace-pre-wrap">{event.notes}</p>
+                                          </div>
+                                      )}
                                   </>
                               )}
                           </div>
@@ -842,7 +900,9 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
     endDate: '',
     type: 'ID Day',
     fee: 'Free',
-    isHosting: false
+    isHosting: false,
+    link: '',
+    notes: ''
   });
 
   // Date Logic for Grouping
@@ -878,7 +938,9 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
         registeredCount: 0,
         marketingCopy: '',
         agenda: [],
-        checklist: []
+        checklist: [],
+        link: formData.link || undefined,
+        notes: formData.notes || undefined
     };
 
     try {
@@ -902,7 +964,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
         }
         
         setView('detail');
-        setFormData({ title: '', location: '', date: '', endDate: '', type: 'ID Day', fee: 'Free', isHosting: false });
+        setFormData({ title: '', location: '', date: '', endDate: '', type: 'ID Day', fee: 'Free', isHosting: false, link: '', notes: '' });
     } catch (e) {
         onAddEvent(baseEvent);
         setSelectedEvent(baseEvent);
