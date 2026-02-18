@@ -1,14 +1,15 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import {
     X, CheckCircle, Loader2, User, Activity, GraduationCap, Sparkles, Mail, Phone, Save,
     ChevronRight, Wand2, ArrowLeft, ShieldCheck, Award, Target, Users, Smartphone, Keyboard,
     Ruler, Weight, Calendar, Globe, Footprints, Video, Plus, MessageSquare, ChevronLeft, SmartphoneIcon,
-    Flame, Zap, Brain
+    Flame, Zap, Brain, FileUp, Link, ArrowRight, Check, Trash2
 } from 'lucide-react';
-import { evaluatePlayer, parsePlayerDetails, checkPlayerDuplicates } from '../services/geminiService';
+import { evaluatePlayer, parsePlayerDetails, checkPlayerDuplicates, extractPlayersFromBulkData } from '../services/geminiService';
 import { Player, PlayerStatus, PlayerEvaluation } from '../types';
 import PlayerCard from './PlayerCard';
+import { handleMobileFocus } from '../hooks/useMobileFeatures';
 
 interface PlayerSubmissionProps {
     onClose: () => void;
@@ -18,18 +19,97 @@ interface PlayerSubmissionProps {
     editingPlayer?: Player | null;
 }
 
-type SubmissionMode = 'HUB' | 'SCANNING' | 'BUILD' | 'FIELD';
+type SubmissionMode = 'HUB' | 'SCANNING' | 'BUILD' | 'FIELD' | 'BULK';
 
 const POSITIONS = ["GK", "CB", "LB", "RB", "CDM", "CM", "CAM", "LW", "RW", "ST"];
 const TEAM_LEVELS = ["MLS Next", "ECNL", "GA", "High School Varsity", "NPL", "Regional", "International Academy"];
 const FEET = ["Right", "Left", "Both"];
 
+// Moved OUTSIDE component to prevent re-creation on every render (fixes focus loss bug)
+const FormField = ({ label, icon: Icon, children }: { label: string; icon?: any; children: React.ReactNode }) => (
+    <div className="space-y-1.5">
+        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
+            {Icon && <Icon size={10} className="text-scout-accent" />} {label}
+        </label>
+        {children}
+    </div>
+);
+
+const ScoutInput = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>((props, ref) => (
+    <input
+        {...props}
+        ref={ref}
+        onFocus={(e: React.FocusEvent<HTMLInputElement>) => {
+            handleMobileFocus(e);
+            (props as any).onFocus?.(e);
+        }}
+        className="w-full bg-scout-800 border-2 border-scout-700 rounded-xl px-4 py-3 text-white focus:border-scout-accent outline-none font-bold placeholder-gray-600 transition-all"
+    />
+));
+
+const ScoutSelect = ({ options, ...props }: { options: string[] } & React.SelectHTMLAttributes<HTMLSelectElement>) => (
+    <select
+        {...props}
+        className="w-full bg-scout-800 border-2 border-scout-700 rounded-xl px-4 py-3 text-white focus:border-scout-accent outline-none font-bold appearance-none transition-all"
+    >
+        {options.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+    </select>
+);
+
+const getTrackColor = (val: number) => {
+    if (val >= 85) return 'bg-scout-accent';
+    if (val >= 70) return 'bg-scout-highlight';
+    return 'bg-blue-500';
+};
+
+const AuditSlider = ({ label, value, onChange, icon: Icon }: { label: string; value: number; onChange: (val: number) => void; icon?: any }) => (
+    <div className="space-y-3">
+        <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+                {Icon && <Icon size={14} className="text-gray-500" />}
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{label}</span>
+            </div>
+            <span className={`text-sm font-mono font-black ${value >= 85 ? 'text-scout-accent' : value >= 70 ? 'text-scout-highlight' : 'text-white'}`}>
+                {value}
+            </span>
+        </div>
+        <div className="relative h-8 flex items-center">
+            <div className="absolute inset-x-0 h-2 bg-scout-700 rounded-full" />
+            <div
+                className={`absolute left-0 h-2 rounded-full transition-all ${getTrackColor(value)}`}
+                style={{ width: `${value}%` }}
+            />
+            <div className="absolute left-[70%] top-1 bottom-1 w-px bg-gray-500/50 pointer-events-none" title="College Ready" />
+            <div className="absolute left-[85%] top-1 bottom-1 w-px bg-scout-accent/50 pointer-events-none" title="Pro Prospect" />
+            <input
+                type="range"
+                min="0"
+                max="100"
+                value={value}
+                onChange={(e) => onChange(parseInt(e.target.value))}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            />
+            <div
+                className={`absolute w-5 h-5 rounded-full border-2 border-white shadow-lg pointer-events-none transition-all ${getTrackColor(value)}`}
+                style={{ left: `calc(${value}% - 10px)` }}
+            />
+        </div>
+    </div>
+);
+
 const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlayer, onUpdatePlayer, existingPlayers, editingPlayer }) => {
     const [mode, setMode] = useState<SubmissionMode>(editingPlayer ? 'BUILD' : 'HUB');
     const [buildStep, setBuildStep] = useState(1);
     const [loading, setLoading] = useState(false);
-    const [quickAddLoading, setQuickAddLoading] = useState(false);
     const [fieldInput, setFieldInput] = useState('');
+    const [quickAddName, setQuickAddName] = useState('');
+    const [quickAddLoading, setQuickAddLoading] = useState(false);
+
+    // Bulk import state
+    const [rosterUrl, setRosterUrl] = useState('');
+    const [bulkPlayers, setBulkPlayers] = useState<Partial<Player>[]>([]);
+    const [isDragging, setIsDragging] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Form State
     const [formData, setFormData] = useState({
@@ -70,7 +150,7 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
             setFormData({
                 firstName: names[0] || '',
                 lastName: names.slice(1).join(' ') || '',
-                position: editingPlayer.position as any,
+                position: editingPlayer.position || 'CM',
                 secondaryPosition: editingPlayer.secondaryPosition || '',
                 dominantFoot: editingPlayer.dominantFoot || 'Right',
                 nationality: editingPlayer.nationality || '',
@@ -160,6 +240,93 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
         }
     };
 
+    // Bulk import handlers
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setLoading(true);
+        try {
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                const content = event.target?.result as string;
+                const prospects = await extractPlayersFromBulkData(content, file.type.includes('image'));
+                setBulkPlayers(prospects);
+                setLoading(false);
+            };
+
+            if (file.type.includes('image')) {
+                reader.readAsDataURL(file);
+            } else {
+                reader.readAsText(file);
+            }
+        } catch (error) {
+            console.error('Error processing file:', error);
+            setLoading(false);
+        }
+    };
+
+    const handleRosterUrlExtract = async () => {
+        if (!rosterUrl.trim()) return;
+        setLoading(true);
+        try {
+            const prospects = await extractPlayersFromBulkData(`Extract from this roster URL: ${rosterUrl}`, false);
+            setBulkPlayers(prospects);
+        } catch (error) {
+            console.error('Error extracting from URL:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleAddAllBulk = async () => {
+        setLoading(true);
+
+        try {
+            // Add players sequentially to avoid race conditions
+            for (let idx = 0; idx < bulkPlayers.length; idx++) {
+                const p = bulkPlayers[idx];
+                const player: Player = {
+                    id: `bulk-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    name: p.name || 'Unknown',
+                    age: p.age || 17,
+                    position: p.position || 'CM',
+                    status: PlayerStatus.LEAD,
+                    submittedAt: new Date().toISOString(),
+                    outreachLogs: [],
+                    ...p
+                };
+                await onAddPlayer(player);
+                // Small delay to ensure DB writes don't overlap
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+            onClose();
+        } catch (error) {
+            console.error('Error adding bulk players:', error);
+            alert('Error adding some players. Please try again.');
+            setLoading(false);
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = () => {
+        setIsDragging(false);
+    };
+
+    const handleDrop = async (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const file = e.dataTransfer.files[0];
+        if (file) {
+            const fakeEvent = { target: { files: [file] } } as any;
+            handleFileUpload(fakeEvent);
+        }
+    };
+
     const handleFinalSubmit = async () => {
         if (!formData.firstName && !formData.lastName) return;
         if (editingPlayer && onUpdatePlayer) {
@@ -168,66 +335,6 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
             onAddPlayer({ ...draftPlayer, id: Date.now().toString() });
         }
         onClose();
-    };
-
-    const FormField = ({ label, icon: Icon, children }: any) => (
-        <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest flex items-center gap-1.5 ml-1">
-                {Icon && <Icon size={10} className="text-scout-accent" />} {label}
-            </label>
-            {children}
-        </div>
-    );
-
-    const Input = (props: any) => (
-        <input
-            {...props}
-            className="w-full bg-scout-800 border-2 border-scout-700 rounded-xl px-4 py-3 text-white focus:border-scout-accent outline-none font-bold placeholder-gray-600 transition-all"
-        />
-    );
-
-    const Select = ({ options, ...props }: any) => (
-        <select
-            {...props}
-            className="w-full bg-scout-800 border-2 border-scout-700 rounded-xl px-4 py-3 text-white focus:border-scout-accent outline-none font-bold appearance-none transition-all"
-        >
-            {options.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
-        </select>
-    );
-
-    const AuditSlider = ({ label, value, onChange, icon: Icon }: any) => {
-        const getGlowColor = (val: number) => {
-            if (val >= 85) return 'shadow-[0_0_15px_rgba(16,185,129,0.4)]';
-            if (val >= 70) return 'shadow-[0_0_10px_rgba(251,191,36,0.3)]';
-            return '';
-        };
-
-        return (
-            <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                        {Icon && <Icon size={14} className="text-gray-500" />}
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{label}</span>
-                    </div>
-                    <span className={`text-sm font-mono font-black ${value >= 85 ? 'text-scout-accent' : value >= 70 ? 'text-scout-highlight' : 'text-gray-500'}`}>
-                        {value}
-                    </span>
-                </div>
-                <div className="relative h-6 flex items-center">
-                    <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={value}
-                        onChange={(e) => onChange(parseInt(e.target.value))}
-                        className={`w-full h-1.5 bg-scout-900 rounded-full appearance-none cursor-pointer accent-scout-accent hover:accent-emerald-400 transition-all ${getGlowColor(value)}`}
-                    />
-                    {/* Visual Benchmarks */}
-                    <div className="absolute left-[70%] top-0 bottom-0 w-px bg-scout-700/50 pointer-events-none" title="College Ready"></div>
-                    <div className="absolute left-[85%] top-0 bottom-0 w-px bg-scout-accent/30 pointer-events-none" title="Pro Prospect"></div>
-                </div>
-            </div>
-        );
     };
 
     const StepIndicator = () => (
@@ -247,12 +354,12 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                 <div className="p-8 flex justify-between items-center border-b border-white/5 bg-scout-900/50">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-scout-accent rounded-full flex items-center justify-center text-scout-900 shadow-lg"><Plus size={24} /></div>
-                        <div><h2 className="text-xl font-black text-white uppercase tracking-tighter">{editingPlayer ? 'Edit Profile' : 'Add Prospect'}</h2><p className="text-[9px] text-gray-500 font-bold uppercase">Accuracy Mode</p></div>
+                        <div><h2 className="text-xl font-black text-white uppercase tracking-tighter">{editingPlayer ? 'Edit Profile' : 'Add Prospect'}</h2></div>
                     </div>
                     <button onClick={onClose} className="p-3 text-gray-600 hover:text-white transition-colors bg-white/5 rounded-full"><X size={24} /></button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <div className="flex-1 overflow-y-auto custom-scrollbar pb-32 md:pb-0">
                     {mode === 'HUB' && (
                         <div className="p-8 md:p-16 animate-fade-in max-w-4xl mx-auto flex flex-col items-center">
                             {/* QUICK ADD - P1: Minimum friction entry */}
@@ -266,15 +373,8 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                                     <input
                                         type="text"
                                         placeholder="Player name"
-                                        value={`${formData.firstName} ${formData.lastName}`.trim()}
-                                        onChange={(e) => {
-                                            const parts = e.target.value.split(' ');
-                                            setFormData(prev => ({
-                                                ...prev,
-                                                firstName: parts[0] || '',
-                                                lastName: parts.slice(1).join(' ')
-                                            }));
-                                        }}
+                                        value={quickAddName}
+                                        onChange={(e) => setQuickAddName(e.target.value)}
                                         className="flex-[2] bg-scout-900 border border-scout-700 rounded-xl px-4 py-3 text-white font-bold placeholder-gray-600 focus:outline-none focus:border-scout-accent transition-colors"
                                     />
                                     <select
@@ -286,44 +386,56 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                                     </select>
                                     <button
                                         onClick={async () => {
-                                            if (!formData.firstName.trim() || quickAddLoading) return;
+                                            if (!quickAddName.trim() || quickAddLoading) return;
                                             setQuickAddLoading(true);
                                             const quickPlayer: Player = {
-                                                ...draftPlayer,
                                                 id: `player-${Date.now()}`,
+                                                name: quickAddName.trim(),
+                                                age: 17,
+                                                position: formData.position,
                                                 status: PlayerStatus.LEAD,
+                                                submittedAt: new Date().toISOString(),
+                                                outreachLogs: [],
+                                                evaluation: {
+                                                    score: 0,
+                                                    tier: 'Pending' as const,
+                                                    summary: 'Quick add - awaiting full evaluation',
+                                                    strengths: [],
+                                                    concerns: [],
+                                                    collegeProjection: 'To be determined'
+                                                }
                                             };
-                                            onAddPlayer(quickPlayer);
-                                            // Small delay to ensure state propagation completes on mobile
-                                            await new Promise(resolve => setTimeout(resolve, 100));
-                                            onClose();
+                                            try {
+                                                const result = await onAddPlayer(quickPlayer);
+                                                if (result) {
+                                                    onClose();
+                                                } else {
+                                                    // onAddPlayer returned null - failed silently
+                                                    console.error('Quick add failed: no result returned');
+                                                    setQuickAddLoading(false);
+                                                    alert('Failed to add player. Please check your connection and try again.');
+                                                }
+                                            } catch (error) {
+                                                console.error('Quick add failed:', error);
+                                                setQuickAddLoading(false);
+                                                alert('Failed to add player: ' + (error instanceof Error ? error.message : 'Unknown error'));
+                                            }
                                         }}
-                                        disabled={!formData.firstName.trim() || quickAddLoading}
+                                        disabled={!quickAddName.trim() || quickAddLoading}
                                         className="px-6 py-3 bg-scout-accent text-scout-900 rounded-xl font-black uppercase text-sm flex items-center gap-2 shadow-glow hover:bg-emerald-400 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                        {quickAddLoading ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
-                                        {quickAddLoading ? 'Adding...' : 'Add'}
+                                        {quickAddLoading ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />} {quickAddLoading ? 'Adding...' : 'Add'}
                                     </button>
                                 </div>
                                 <p className="text-[10px] text-gray-500 mt-3">Add player now, enrich profile later. Score will be calculated when you add more details.</p>
                             </div>
 
-                            <div className="text-center mb-6">
-                                <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Or add full details</p>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-                                <button onClick={() => setMode('FIELD')} className="group flex flex-col items-center p-12 bg-scout-800 border-2 border-scout-accent/30 rounded-[3rem] hover:border-scout-accent transition-all active:scale-95 shadow-2xl">
-                                    <Smartphone size={48} className="text-scout-accent mb-4 group-hover:scale-110" />
-                                    <h4 className="text-white font-black uppercase">Field Mode</h4>
-                                    <p className="text-gray-500 text-xs mt-2 text-center">Fastest entry. One-line data tagger.</p>
-                                </button>
-                                <button onClick={() => setMode('BUILD')} className="group flex flex-col items-center p-12 bg-scout-800 border-2 border-scout-700 rounded-[3rem] hover:border-white transition-all active:scale-95 shadow-2xl">
-                                    <Keyboard size={48} className="text-gray-400 mb-4 group-hover:scale-110" />
-                                    <h4 className="text-white font-black uppercase">Office Mode</h4>
-                                    <p className="text-gray-500 text-xs mt-2 text-center">Comprehensive intelligence build.</p>
-                                </button>
-                            </div>
+                            <button
+                                onClick={() => setMode('BUILD')}
+                                className="w-full mt-6 py-4 bg-scout-800 border border-scout-700 rounded-xl text-gray-400 hover:text-white hover:bg-scout-700 font-bold text-sm transition-all flex items-center justify-center gap-2"
+                            >
+                                <Keyboard size={16} /> Add with full details
+                            </button>
                         </div>
                     )}
 
@@ -342,6 +454,161 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                         </div>
                     )}
 
+                    {mode === 'BULK' && (
+                        <div className="p-8 md:p-16 animate-fade-in max-w-3xl mx-auto">
+                            <div className="text-center mb-8">
+                                <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Bulk Import</h3>
+                                <p className="text-gray-500 text-sm mt-2">Add multiple players from a roster file or URL</p>
+                            </div>
+
+                            {bulkPlayers.length === 0 ? (
+                                <div className="space-y-6">
+                                    {/* Loading State */}
+                                    {loading ? (
+                                        <div className="border-2 border-orange-400/30 bg-orange-500/5 rounded-3xl p-12 text-center">
+                                            <Loader2 size={48} className="mx-auto text-orange-400 animate-spin mb-4" />
+                                            <p className="text-white font-black uppercase text-sm">
+                                                AI is extracting players...
+                                            </p>
+                                            <p className="text-orange-400 text-xs mt-2 animate-pulse">
+                                                Working hard - please be patient!
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        /* File Upload */
+                                        <div
+                                            onClick={() => fileInputRef.current?.click()}
+                                            onDragOver={handleDragOver}
+                                            onDragLeave={handleDragLeave}
+                                            onDrop={handleDrop}
+                                            className={`cursor-pointer border-2 border-dashed rounded-3xl p-12 text-center transition-all ${
+                                                isDragging
+                                                    ? 'border-orange-400 bg-orange-500/10'
+                                                    : 'border-scout-700 hover:border-orange-400/50'
+                                            }`}
+                                        >
+                                            <FileUp size={48} className="mx-auto text-orange-400 mb-4" />
+                                            <p className="text-white font-black uppercase text-sm">
+                                                {isDragging ? 'Drop File Here' : 'Upload Roster File'}
+                                            </p>
+                                            <p className="text-gray-500 text-xs mt-2">
+                                                Drag & drop or click • Image, PDF, or CSV
+                                            </p>
+                                        </div>
+                                    )}
+                                    <input
+                                        type="file"
+                                        ref={fileInputRef}
+                                        className="hidden"
+                                        accept="image/*,.pdf,.csv,.txt"
+                                        onChange={handleFileUpload}
+                                    />
+
+                                    {!loading && (
+                                        <>
+                                            <div className="text-center">
+                                                <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Or paste a URL</p>
+                                            </div>
+
+                                            {/* URL Input */}
+                                            <div className="bg-scout-800 border border-scout-700 rounded-2xl p-6">
+                                                <div className="flex items-center gap-3 mb-4">
+                                                    <Link size={20} className="text-gray-500" />
+                                                    <span className="text-white font-black uppercase text-xs">Paste Roster Link</span>
+                                                </div>
+                                                <div className="flex gap-3">
+                                                    <input
+                                                        type="url"
+                                                        placeholder="https://club-soccer.com/u17-roster"
+                                                        value={rosterUrl}
+                                                        onChange={(e) => setRosterUrl(e.target.value)}
+                                                        className="flex-1 bg-scout-900 border border-scout-700 rounded-xl px-4 py-3 text-white font-bold placeholder-gray-600 focus:outline-none focus:border-orange-400 transition-colors"
+                                                    />
+                                                    <button
+                                                        onClick={handleRosterUrlExtract}
+                                                        disabled={!rosterUrl.trim()}
+                                                        className="px-6 py-3 bg-orange-500 text-white rounded-xl font-black uppercase text-sm hover:bg-orange-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                                    >
+                                                        <ArrowRight size={18} />
+                                                        Extract
+                                                    </button>
+                                                </div>
+                                                <p className="text-[10px] text-gray-500 mt-3">AI will scan the page for player names and details</p>
+                                            </div>
+
+                                            <button
+                                                onClick={() => setMode('HUB')}
+                                                className="w-full py-4 bg-scout-800 text-gray-400 font-black rounded-2xl hover:text-white transition-colors"
+                                            >
+                                                ← Back
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    {/* Results Preview */}
+                                    <div className="bg-scout-800 border border-scout-700 rounded-2xl p-6">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <Check size={20} className="text-scout-accent" />
+                                                <span className="text-white font-black uppercase text-xs">{bulkPlayers.length} Players Found</span>
+                                            </div>
+                                            <button
+                                                onClick={() => setBulkPlayers([])}
+                                                className="text-gray-500 hover:text-white text-xs font-bold"
+                                            >
+                                                Clear
+                                            </button>
+                                        </div>
+                                        <div className="max-h-64 overflow-y-auto space-y-2 custom-scrollbar">
+                                            {bulkPlayers.map((p, idx) => (
+                                                <div key={idx} className="flex items-center justify-between bg-scout-900 rounded-xl px-4 py-3 group">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 bg-scout-700 rounded-full flex items-center justify-center text-xs font-bold text-white">
+                                                            {p.name?.charAt(0) || '?'}
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-white font-bold text-sm">{p.name || 'Unknown'}</p>
+                                                            <p className="text-gray-500 text-[10px]">{p.position || 'CM'} • {p.age || 17}yo</p>
+                                                        </div>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => setBulkPlayers(prev => prev.filter((_, i) => i !== idx))}
+                                                        className="p-2 text-gray-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                                                        title="Remove player"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex gap-4">
+                                        <button
+                                            onClick={() => setBulkPlayers([])}
+                                            className="flex-1 py-4 bg-scout-800 text-gray-400 font-black rounded-2xl hover:text-white transition-colors"
+                                        >
+                                            Start Over
+                                        </button>
+                                        <button
+                                            onClick={handleAddAllBulk}
+                                            disabled={loading || bulkPlayers.length === 0}
+                                            className="flex-[2] py-4 bg-scout-accent text-scout-900 font-black rounded-2xl shadow-glow hover:bg-emerald-400 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait"
+                                        >
+                                            {loading ? (
+                                                <><Loader2 size={20} className="animate-spin" /> Adding players...</>
+                                            ) : (
+                                                <><Plus size={20} /> Add All {bulkPlayers.length} Players</>
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {mode === 'SCANNING' && (
                         <div className="p-24 text-center space-y-8 animate-fade-in h-full flex flex-col justify-center items-center">
                             <Loader2 size={64} className="text-scout-accent animate-spin" />
@@ -357,34 +624,34 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                                     {buildStep === 1 && (
                                         <div className="space-y-6 animate-fade-in">
                                             <div className="grid grid-cols-2 gap-4">
-                                                <FormField label="First Name" icon={User}><Input value={formData.firstName} onChange={(e: any) => handleInputChange('firstName', e.target.value)} placeholder="Christopher" /></FormField>
-                                                <FormField label="Last Name" icon={User}><Input value={formData.lastName} onChange={(e: any) => handleInputChange('lastName', e.target.value)} placeholder="Griebsch" /></FormField>
+                                                <FormField label="First Name" icon={User}><ScoutInput value={formData.firstName} onChange={(e: any) => handleInputChange('firstName', e.target.value)} placeholder="Christopher" /></FormField>
+                                                <FormField label="Last Name" icon={User}><ScoutInput value={formData.lastName} onChange={(e: any) => handleInputChange('lastName', e.target.value)} placeholder="Griebsch" /></FormField>
                                             </div>
                                             <div className="pt-2 border-t border-scout-700/50 space-y-6">
                                                 <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest ml-1 flex items-center gap-2"><SmartphoneIcon size={12} /> PLAYER CONTACT</h4>
                                                 <div className="grid grid-cols-2 gap-4">
-                                                    <FormField label="Player Email" icon={Mail}><Input value={formData.email} onChange={(e: any) => handleInputChange('email', e.target.value)} placeholder="player@email.com" /></FormField>
-                                                    <FormField label="Player Phone" icon={Phone}><Input value={formData.phone} onChange={(e: any) => handleInputChange('phone', e.target.value)} placeholder="+1..." /></FormField>
+                                                    <FormField label="Player Email" icon={Mail}><ScoutInput value={formData.email} onChange={(e: any) => handleInputChange('email', e.target.value)} placeholder="player@email.com" /></FormField>
+                                                    <FormField label="Player Phone" icon={Phone}><ScoutInput value={formData.phone} onChange={(e: any) => handleInputChange('phone', e.target.value)} placeholder="+1..." /></FormField>
                                                 </div>
                                             </div>
                                             <div className="pt-2 border-t border-scout-700/50 space-y-6">
                                                 <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-widest ml-1 flex items-center gap-2"><Users size={12} /> REACHABILITY FIRST (Parent Contact)</h4>
-                                                <FormField label="Parent Name"><Input value={formData.parentName} onChange={(e: any) => handleInputChange('parentName', e.target.value)} placeholder="Guardian Name" /></FormField>
+                                                <FormField label="Parent Name"><ScoutInput value={formData.parentName} onChange={(e: any) => handleInputChange('parentName', e.target.value)} placeholder="Guardian Name" /></FormField>
                                                 <div className="grid grid-cols-2 gap-4">
-                                                    <FormField label="Parent Email" icon={Mail}><Input value={formData.parentEmail} onChange={(e: any) => handleInputChange('parentEmail', e.target.value)} placeholder="guardian@email.com" /></FormField>
-                                                    <FormField label="Parent Phone" icon={Phone}><Input value={formData.parentPhone} onChange={(e: any) => handleInputChange('parentPhone', e.target.value)} placeholder="+1..." /></FormField>
+                                                    <FormField label="Parent Email" icon={Mail}><ScoutInput value={formData.parentEmail} onChange={(e: any) => handleInputChange('parentEmail', e.target.value)} placeholder="guardian@email.com" /></FormField>
+                                                    <FormField label="Parent Phone" icon={Phone}><ScoutInput value={formData.parentPhone} onChange={(e: any) => handleInputChange('parentPhone', e.target.value)} placeholder="+1..." /></FormField>
                                                 </div>
                                             </div>
                                         </div>
                                     )}
                                     {buildStep === 2 && (
                                         <div className="space-y-6 animate-fade-in">
-                                            <FormField label="Primary Position" icon={Target}><Select options={POSITIONS} value={formData.position} onChange={(e: any) => handleInputChange('position', e.target.value)} /></FormField>
+                                            <FormField label="Primary Position" icon={Target}><ScoutSelect options={POSITIONS} value={formData.position} onChange={(e: any) => handleInputChange('position', e.target.value)} /></FormField>
                                             <div className="grid grid-cols-2 gap-4">
-                                                <FormField label="Current Club" icon={ShieldCheck}><Input value={formData.club} onChange={(e: any) => handleInputChange('club', e.target.value)} placeholder="FC Dallas" /></FormField>
-                                                <FormField label="Level" icon={Award}><Select options={TEAM_LEVELS} value={formData.teamLevel} onChange={(e: any) => handleInputChange('teamLevel', e.target.value)} /></FormField>
+                                                <FormField label="Current Club" icon={ShieldCheck}><ScoutInput value={formData.club} onChange={(e: any) => handleInputChange('club', e.target.value)} placeholder="FC Dallas" /></FormField>
+                                                <FormField label="Level" icon={Award}><ScoutSelect options={TEAM_LEVELS} value={formData.teamLevel} onChange={(e: any) => handleInputChange('teamLevel', e.target.value)} /></FormField>
                                             </div>
-                                            <FormField label="Dominant Foot" icon={Footprints}><Select options={FEET} value={formData.dominantFoot} onChange={(e: any) => handleInputChange('dominantFoot', e.target.value)} /></FormField>
+                                            <FormField label="Dominant Foot" icon={Footprints}><ScoutSelect options={FEET} value={formData.dominantFoot} onChange={(e: any) => handleInputChange('dominantFoot', e.target.value)} /></FormField>
                                         </div>
                                     )}
                                     {buildStep === 3 && (
@@ -421,14 +688,14 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                                             <div className="bg-scout-800/40 p-6 rounded-3xl border border-white/5 space-y-6">
                                                 <h4 className="text-[10px] font-black text-blue-400 uppercase tracking-[0.2em] flex items-center gap-2"><GraduationCap size={14} /> Academic Profile</h4>
                                                 <div className="grid grid-cols-2 gap-4">
-                                                    <FormField label="HS Grad Year"><Input value={formData.gradYear} onChange={(e: any) => handleInputChange('gradYear', e.target.value)} placeholder="2026" /></FormField>
-                                                    <FormField label="Current GPA"><Input value={formData.gpa} onChange={(e: any) => handleInputChange('gpa', e.target.value)} placeholder="3.8" /></FormField>
+                                                    <FormField label="HS Grad Year"><ScoutInput value={formData.gradYear} onChange={(e: any) => handleInputChange('gradYear', e.target.value)} placeholder="2026" /></FormField>
+                                                    <FormField label="Current GPA"><ScoutInput value={formData.gpa} onChange={(e: any) => handleInputChange('gpa', e.target.value)} placeholder="3.8" /></FormField>
                                                 </div>
                                             </div>
 
                                             <div className="space-y-6">
                                                 <h4 className="text-[10px] font-black text-scout-highlight uppercase tracking-[0.2em] flex items-center gap-2"><Video size={14} /> Video Evidence</h4>
-                                                <FormField label="Highlight Link" icon={Video}><Input value={formData.videoLink} onChange={(e: any) => handleInputChange('videoLink', e.target.value)} placeholder="YouTube/Hudl URL" /></FormField>
+                                                <FormField label="Highlight Link" icon={Video}><ScoutInput value={formData.videoLink} onChange={(e: any) => handleInputChange('videoLink', e.target.value)} placeholder="YouTube/Hudl URL" /></FormField>
                                                 <div className="p-4 rounded-xl bg-scout-accent/5 border border-scout-accent/20 text-scout-accent text-[10px] font-black uppercase flex items-center gap-3">
                                                     <Sparkles size={16} className="shrink-0" />
                                                     <span>AI scanning will prioritize highlight tags matching audit scores.</span>
@@ -455,4 +722,5 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
     );
 };
 
-export default PlayerSubmission;
+// Memoize to prevent unnecessary re-renders
+export default memo(PlayerSubmission);

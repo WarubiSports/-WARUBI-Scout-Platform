@@ -1,12 +1,205 @@
 
-import { Player, PlayerStatus, KnowledgeItem, PathwayDef, ToolDef, NewsItem, ScoutingEvent } from './types';
+import { KnowledgeItem, PathwayDef, ToolDef, Player, PlayerStatus } from './types';
 
 export const SCOUT_POINTS = {
-  PLAYER_LOG: 10,
+  // Base player add (reduced from 10)
+  PLAYER_LOG: 5,
+
+  // Quality bonuses for complete profiles
+  PLAYER_HAS_VIDEO: 5,
+  PLAYER_COMPLETE_PROFILE: 5,
+  PLAYER_HAS_PARENT_CONTACT: 5,
+
+  // Pipeline progression rewards
+  PLAYER_CONTACTED: 5,
+  PLAYER_INTERESTED: 10,
+  PLAYER_OFFERED: 25,
+
+  // First outreach reward
+  FIRST_OUTREACH: 5,
+
+  // Events (unchanged)
   EVENT_ATTEND: 15,
   EVENT_HOST: 50,
+
+  // Placement (unchanged)
   PLACEMENT: 500
 };
+
+// Achievement Badge Definitions
+export interface BadgeDefinition {
+  id: string;
+  name: string;
+  description: string;
+  icon: string; // emoji or icon name
+  xpBonus: number;
+  category: 'pipeline' | 'events' | 'milestones' | 'social';
+  criteria: {
+    type: 'players_added' | 'placements' | 'events_hosted' | 'events_attended' | 'xp_total' | 'level' | 'first_action' | 'streak';
+    threshold: number;
+  };
+  tier: 'bronze' | 'silver' | 'gold' | 'platinum';
+}
+
+export const SCOUT_BADGES: BadgeDefinition[] = [
+  // Pipeline Badges
+  {
+    id: 'first_blood',
+    name: 'First Blood',
+    description: 'Add your first player to the pipeline',
+    icon: 'target',
+    xpBonus: 25,
+    category: 'pipeline',
+    criteria: { type: 'players_added', threshold: 1 },
+    tier: 'bronze'
+  },
+  {
+    id: 'pipeline_builder',
+    name: 'Pipeline Builder',
+    description: 'Add 10 players to your pipeline',
+    icon: 'users',
+    xpBonus: 50,
+    category: 'pipeline',
+    criteria: { type: 'players_added', threshold: 10 },
+    tier: 'silver'
+  },
+  {
+    id: 'talent_magnet',
+    name: 'Talent Magnet',
+    description: 'Add 25 players to your pipeline',
+    icon: 'magnet',
+    xpBonus: 100,
+    category: 'pipeline',
+    criteria: { type: 'players_added', threshold: 25 },
+    tier: 'gold'
+  },
+  {
+    id: 'scout_master',
+    name: 'Scout Master',
+    description: 'Add 50 players to your pipeline',
+    icon: 'crown',
+    xpBonus: 200,
+    category: 'pipeline',
+    criteria: { type: 'players_added', threshold: 50 },
+    tier: 'platinum'
+  },
+
+  // Placement Badges
+  {
+    id: 'closer',
+    name: 'Closer',
+    description: 'Complete your first placement',
+    icon: 'trophy',
+    xpBonus: 100,
+    category: 'milestones',
+    criteria: { type: 'placements', threshold: 1 },
+    tier: 'silver'
+  },
+  {
+    id: 'deal_maker',
+    name: 'Deal Maker',
+    description: 'Complete 5 placements',
+    icon: 'handshake',
+    xpBonus: 250,
+    category: 'milestones',
+    criteria: { type: 'placements', threshold: 5 },
+    tier: 'gold'
+  },
+  {
+    id: 'elite_agent',
+    name: 'Elite Agent',
+    description: 'Complete 10 placements',
+    icon: 'star',
+    xpBonus: 500,
+    category: 'milestones',
+    criteria: { type: 'placements', threshold: 10 },
+    tier: 'platinum'
+  },
+
+  // Event Badges
+  {
+    id: 'event_host',
+    name: 'Event Host',
+    description: 'Host your first event',
+    icon: 'calendar',
+    xpBonus: 50,
+    category: 'events',
+    criteria: { type: 'events_hosted', threshold: 1 },
+    tier: 'bronze'
+  },
+  {
+    id: 'event_organizer',
+    name: 'Event Organizer',
+    description: 'Host 5 events',
+    icon: 'megaphone',
+    xpBonus: 100,
+    category: 'events',
+    criteria: { type: 'events_hosted', threshold: 5 },
+    tier: 'silver'
+  },
+  {
+    id: 'networker',
+    name: 'Networker',
+    description: 'Attend 5 events',
+    icon: 'network',
+    xpBonus: 75,
+    category: 'events',
+    criteria: { type: 'events_attended', threshold: 5 },
+    tier: 'silver'
+  },
+
+  // XP/Level Milestones
+  {
+    id: 'rising_star',
+    name: 'Rising Star',
+    description: 'Reach 500 XP',
+    icon: 'trending-up',
+    xpBonus: 50,
+    category: 'milestones',
+    criteria: { type: 'xp_total', threshold: 500 },
+    tier: 'bronze'
+  },
+  {
+    id: 'veteran',
+    name: 'Veteran Scout',
+    description: 'Reach 2,000 XP',
+    icon: 'award',
+    xpBonus: 100,
+    category: 'milestones',
+    criteria: { type: 'xp_total', threshold: 2000 },
+    tier: 'silver'
+  },
+  {
+    id: 'legend',
+    name: 'Legend',
+    description: 'Reach 5,000 XP',
+    icon: 'flame',
+    xpBonus: 250,
+    category: 'milestones',
+    criteria: { type: 'xp_total', threshold: 5000 },
+    tier: 'gold'
+  },
+  {
+    id: 'level_5',
+    name: 'Level 5',
+    description: 'Reach Scout Level 5',
+    icon: 'zap',
+    xpBonus: 100,
+    category: 'milestones',
+    criteria: { type: 'level', threshold: 5 },
+    tier: 'silver'
+  },
+  {
+    id: 'level_10',
+    name: 'Level 10',
+    description: 'Reach Scout Level 10',
+    icon: 'bolt',
+    xpBonus: 250,
+    category: 'milestones',
+    criteria: { type: 'level', threshold: 10 },
+    tier: 'gold'
+  }
+];
 
 export const MARKET_DATA = {
   GLOBAL_MARKET: "$50B+",
@@ -126,153 +319,18 @@ export const ITP_REFERENCE_PLAYERS: Player[] = [
   }
 ];
 
-export const DEMO_DATA = {
-    players: [
-        {
-            id: 'demo-1',
-            name: 'Leo Silva',
-            age: 18,
-            position: 'ST',
-            status: PlayerStatus.PLACED,
-            placedLocation: 'FC Köln ITP / Pro Residency',
-            submittedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(),
-            outreachLogs: [{ id: 'l1', date: new Date().toISOString(), method: 'WhatsApp', templateName: 'Placement Confirmation' }],
-            evaluation: {
-                score: 91,
-                collegeLevel: 'Top 25 NCAA D1 / Pro',
-                scholarshipTier: 'Tier 1',
-                recommendedPathways: ['Development in Europe'],
-                strengths: ['Elite Finishing', 'Pro-ready Frame', 'Top 1% Acceleration'],
-                weaknesses: ['Defensive Workrate'],
-                nextAction: 'Quarterly Check-in',
-                summary: 'Silva is the gold standard for a modern #9. His physical data matches Regionalliga standards in Germany.'
-            },
-            notes: 'Successfully moved through the Germany pathway in Oct 2024.'
-        },
-        {
-            id: 'demo-2',
-            name: 'Marco Rossi',
-            age: 17,
-            position: 'CAM',
-            status: PlayerStatus.FINAL_REVIEW,
-            submittedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(),
-            outreachLogs: [],
-            evaluation: {
-                score: 88,
-                collegeLevel: 'NCAA D1 Power 5',
-                scholarshipTier: 'Tier 1',
-                recommendedPathways: ['College Pathway', 'Development in Europe'],
-                strengths: ['Vision', 'Technical Precision', 'GPA: 3.9'],
-                weaknesses: ['Strength'],
-                nextAction: 'Submit to HQ',
-                summary: 'Highly intelligent midfielder with elite academic profile. Ideal for Top D1 programs looking for technical superiority.'
-            }
-        },
-        {
-            id: 'demo-3',
-            name: 'Elena Vance',
-            age: 18,
-            position: 'LB',
-            status: PlayerStatus.INTERESTED,
-            interestedProgram: 'West Coast D1 Programs',
-            submittedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(),
-            outreachLogs: [],
-            evaluation: {
-                score: 82,
-                collegeLevel: 'NCAA D1 / Top D2',
-                scholarshipTier: 'Tier 2',
-                recommendedPathways: ['College Pathway'],
-                strengths: ['Recovery Speed', '1v1 Defending'],
-                weaknesses: ['Crossing Consistency'],
-                nextAction: 'Film Review',
-                summary: 'Athletic left back who dominates the wing. High ceiling if she improves her final ball delivery.'
-            }
-        },
-        {
-            id: 'demo-4',
-            name: 'Tariq Bakari',
-            age: 17,
-            position: 'CM',
-            status: PlayerStatus.LEAD,
-            submittedAt: new Date().toISOString(),
-            outreachLogs: [],
-            evaluation: {
-                score: 75,
-                collegeLevel: 'NCAA D2 / NAIA',
-                scholarshipTier: 'Tier 3',
-                recommendedPathways: ['Exposure Events'],
-                strengths: ['Engine / Stamina', 'Aerial Presence'],
-                weaknesses: ['Decision Making'],
-                nextAction: 'Invite to ID Day',
-                summary: 'Bakari is a physical powerhouse who needs a more structured tactical environment to shine.'
-            }
-        },
-        {
-            id: 'demo-5',
-            name: 'Samir Amin',
-            age: 16,
-            position: 'RW',
-            status: PlayerStatus.PROSPECT,
-            activityStatus: 'signal',
-            lastActive: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
-            submittedAt: new Date().toISOString(),
-            outreachLogs: [],
-            evaluation: null
-        },
-        {
-            id: 'demo-6',
-            name: 'Javier Hernandez',
-            age: 17,
-            position: 'GK',
-            status: PlayerStatus.PROSPECT,
-            activityStatus: 'undiscovered',
-            submittedAt: new Date().toISOString(),
-            outreachLogs: [],
-            evaluation: null
-        }
-    ] as Player[],
-    events: [
-        {
-            id: 'demo-evt-1',
-            isMine: true,
-            role: 'HOST',
-            status: 'Draft',
-            title: 'Regional Talent ID: Texas',
-            date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 14).toISOString(),
-            location: 'Round Rock Multipurpose Complex',
-            type: 'ID Day',
-            fee: '$45',
-            registeredCount: 12,
-            agenda: ['09:00 - Arrival', '10:00 - Technical Audit', '11:30 - Small Sided Games'],
-            checklist: [{ task: 'Book field space', completed: true }, { task: 'Send invites to local clubs', completed: false }]
-        },
-        {
-            id: 'demo-evt-2',
-            isMine: false,
-            role: 'ATTENDEE',
-            status: 'Published',
-            title: 'ECNL National Showcase',
-            date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 3).toISOString(),
-            location: 'Phoenix, AZ',
-            type: 'Showcase',
-            fee: 'N/A',
-            registeredCount: 0
-        }
-    ] as ScoutingEvent[]
-};
-
 export const WARUBI_PATHWAYS: PathwayDef[] = [
     {
         id: 'europe',
         title: 'Development in Europe',
         shortDesc: 'The elite route. FC Köln ITP & Pro Trials.',
-        icon: 'Globe', 
+        icon: 'Globe',
         color: 'text-red-500 border-red-500/30 bg-red-500/10',
         idealProfile: [
-            'Tier 1 or High Tier 2 Talent',
-            'Obsessed with becoming a pro',
-            'Financially capable of investment for ROI',
-            'Technically superior to US peers'
+            'Tier 1, 2, or 3 Talent',
+            'Age 16+ (High School, Gap Year, or College)',
+            'Self-aware about current level & committed to growth',
+            'Financially capable of investment for ROI'
         ],
         redFlags: [
             'Homesick easily',
@@ -284,7 +342,9 @@ export const WARUBI_PATHWAYS: PathwayDef[] = [
             'Save $$ on US University costs by earning credits in Germany',
             'The only way to truly test "Pro Level"'
         ],
-        scriptSnippet: '"This isn\'t a vacation. It\'s a 6-month residency at a Bundesliga club partner to see if you have what it takes. It\'s cheaper than one year of US college tuition."'
+        scriptSnippet: '"This isn\'t a vacation. It\'s a 6-month residency at a Bundesliga club partner to see if you have what it takes. It\'s cheaper than one year of US college tuition."',
+        videoUrl: 'https://www.youtube.com/embed/dyiMulYAzdo',
+        websiteUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     },
     {
         id: 'college',
@@ -308,7 +368,9 @@ export const WARUBI_PATHWAYS: PathwayDef[] = [
             'We negotiate the scholarship package',
             'Access to "Hidden" roster spots in mid-major programs'
         ],
-        scriptSnippet: '"You have the talent, but the window is closing. Let\'s use the Warubi Network to get your film directly to coaches who are still recruiting for your position."'
+        scriptSnippet: '"You have the talent, but the window is closing. Let\'s use the Warubi Network to get your film directly to coaches who are still recruiting for your position."',
+        videoUrl: 'https://www.youtube.com/embed/jKNtijhnzC0',
+        websiteUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     },
     {
         id: 'events',
@@ -332,7 +394,9 @@ export const WARUBI_PATHWAYS: PathwayDef[] = [
             'Professional video package included',
             'Direct comparison against other recruits'
         ],
-        scriptSnippet: '"Coaches need to see you live. We have 15 colleges confirmed for the Miami Showcase. It\'s the fastest way to get an offer."'
+        scriptSnippet: '"Coaches need to see you live. We have 15 colleges confirmed for the Miami Showcase. It\'s the fastest way to get an offer."',
+        videoUrl: 'https://www.youtube.com/embed/BPwV72OJbdE',
+        websiteUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     },
     {
         id: 'coaching',
@@ -354,7 +418,9 @@ export const WARUBI_PATHWAYS: PathwayDef[] = [
             'Earn globally recognized licenses',
             'Network with Bundesliga staff'
         ],
-        scriptSnippet: '"Your playing career is just chapter one. The Warubi Coaching Course gives you the credentials to build a career in the game for the next 40 years."'
+        scriptSnippet: '"Your playing career is just chapter one. The Warubi Coaching Course gives you the credentials to build a career in the game for the next 40 years."',
+        videoUrl: 'https://www.youtube.com/embed/kP3KuKfHYKs',
+        websiteUrl: 'https://warubi-sports.com/eliteplayer-pathways/'
     }
 ];
 
@@ -391,52 +457,3 @@ export const INITIAL_KNOWLEDGE_BASE: KnowledgeItem[] = [
   }
 ];
 
-export const INITIAL_NEWS_ITEMS: NewsItem[] = [
-    {
-        id: '1',
-        type: 'Transfer News',
-        title: '3 Warubi Players Sign Pro Contracts in Germany',
-        summary: 'Following the successful Munich Showcase, three players from the 2005 age group have signed development contracts with Regionalliga clubs. "This validates our tiering system," says Head of Scouting.',
-        source: 'FC Köln ITP',
-        date: '2 hours ago',
-        categoryColor: 'text-green-400',
-        borderColor: 'border-green-500/30'
-    },
-    {
-        id: '2',
-        type: 'Network Milestone',
-        title: 'Athletes USA surpasses 5,000 Scholarships Awarded',
-        summary: 'Our partner network Athletes USA has reached a historic milestone, securing over $200M in scholarship funding for student-athletes globally in 2024 alone.',
-        source: 'Athletes USA',
-        date: '1 day ago',
-        categoryColor: 'text-blue-400',
-        borderColor: 'border-blue-500/30'
-    },
-    {
-        id: '3',
-        type: 'Platform Update',
-        title: 'New AI Scouting Tools Now Live',
-        summary: 'The new "Scout DNA" personalization engine is now active for all users. Log in to see your custom strategy and hidden gold mines.',
-        source: 'WARUBI Tech',
-        date: '2 days ago',
-        categoryColor: 'text-scout-accent',
-        borderColor: 'border-scout-accent/30'
-    },
-    {
-        id: '4',
-        type: 'Event Recap',
-        title: 'Highlights: Florida Winter ID Camp',
-        summary: 'Over 150 players attended our sold-out event in Miami. Top scouts from 12 D1 universities were present. Check out the top rated players in the database now.',
-        source: 'Warubi Events',
-        date: '3 days ago',
-        categoryColor: 'text-orange-400',
-        borderColor: 'border-orange-500/30'
-    }
-];
-
-export const INITIAL_TICKER_ITEMS = [
-    "BREAKING: FC Köln U19s to scout at Dallas Cup 2025",
-    "REMINDER: Q2 Scouting Reports due next Friday",
-    "NEW PARTNERSHIP: Warubi x Nike Football announced for Berlin Event",
-    "STATS: 42 new placements confirmed this week across the network"
-];

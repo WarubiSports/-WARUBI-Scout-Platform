@@ -1,11 +1,15 @@
 
 import React, { useState } from 'react';
 import { UserProfile, Player, ScoutingEvent, PlayerStatus, DashboardTab } from '../types';
-import { 
-  BadgeCheck, Share2, Award, MapPin, Users, Calendar, 
-  Briefcase, QrCode, TrendingUp, ChevronRight, 
-  ShieldCheck, Copy, CheckCircle2, Zap, Edit2, Save, X, Sparkles, Calculator, Info, MessageCircle, ChevronLeft, Instagram, Radio, Download, ExternalLink, Flame, Trophy, Globe, Smartphone, User, Phone, Mail
+import {
+  BadgeCheck, Share2, Award, MapPin, Users, Calendar,
+  Briefcase, QrCode, TrendingUp, ChevronRight,
+  ShieldCheck, Copy, CheckCircle2, Zap, Edit2, Save, X, Sparkles, Calculator, Info, MessageCircle, ChevronLeft, Instagram, Radio, Download, ExternalLink, Flame, Trophy, Globe, Smartphone, User, Phone, Mail, LogOut, GraduationCap
 } from 'lucide-react';
+import BadgesDisplay from './BadgesDisplay';
+import StreakDisplay from './StreakDisplay';
+import { useBadges } from '../hooks/useBadges';
+import { useScoutContext } from '../contexts/ScoutContext';
 
 interface ProfileTabProps {
   user: UserProfile;
@@ -15,21 +19,41 @@ interface ProfileTabProps {
   onNavigate?: (tab: DashboardTab) => void;
   scoutScore?: number;
   onOpenBeam?: () => void;
+  onLogout?: () => void;
 }
 
-const ProfileTab: React.FC<ProfileTabProps> = ({ user, players, events, scoutScore = 0, onOpenBeam }) => {
+const ProfileTab: React.FC<ProfileTabProps> = ({ user, players, events, scoutScore = 0, onOpenBeam, onLogout }) => {
     const [cardIndex, setCardIndex] = useState(0);
     const [copied, setCopied] = useState(false);
+    const [isEditingBio, setIsEditingBio] = useState(false);
+    const [bioText, setBioText] = useState(user.bio || '');
+    const [savingBio, setSavingBio] = useState(false);
+    const { updateScout, scout } = useScoutContext();
     const applyLink = `warubi.com/apply/${user.scoutId || 'demo'}`;
 
     const totalPlacements = players.filter(p => p.status === PlayerStatus.PLACED).length;
     const currentLevel = Math.floor(scoutScore / 500) + 1;
     const progressToNextLevel = (scoutScore % 500) / 500 * 100;
 
+    // Badges
+    const { earnedBadges, allBadgesProgress } = useBadges(players, events, scoutScore, currentLevel);
+
     const copyLink = () => {
         navigator.clipboard.writeText(applyLink);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
+    };
+
+    const saveBio = async () => {
+        setSavingBio(true);
+        try {
+            await updateScout({ bio: bioText });
+            setIsEditingBio(false);
+        } catch (err) {
+            console.error('Failed to save bio:', err);
+        } finally {
+            setSavingBio(false);
+        }
     };
 
     const nextCard = () => setCardIndex((prev) => (prev + 1) % 3);
@@ -139,13 +163,18 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ user, players, events, scoutSco
                         <div className="bg-gradient-to-r from-scout-accent to-emerald-400 h-full transition-all duration-1000 shadow-glow" style={{ width: `${progressToNextLevel}%` }}></div>
                     </div>
                 </div>
+
+                {/* Daily Streak */}
+                <div className="w-full max-w-xl">
+                    <StreakDisplay />
+                </div>
             </div>
 
             {/* QUICK ACTIONS BAR */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                  {[
                      { label: 'Share Link', icon: <Share2 size={20}/>, action: copyLink, color: 'bg-scout-accent text-scout-900' },
-                     { label: 'Edit Bio', icon: <Edit2 size={20}/>, action: () => {}, color: 'bg-scout-800 text-white' },
+                     { label: 'Edit Bio', icon: <Edit2 size={20}/>, action: () => setIsEditingBio(true), color: 'bg-scout-800 text-white' },
                      { label: 'V-Card', icon: <Download size={20}/>, action: () => setCardIndex(2), color: 'bg-scout-800 text-white' },
                      { label: 'Instagram', icon: <Instagram size={20}/>, action: () => {}, color: 'bg-[#E1306C] text-white' }
                  ].map((act, i) => (
@@ -198,6 +227,95 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ user, players, events, scoutSco
                     </div>
                 </div>
             </div>
+
+            {/* ACHIEVEMENTS */}
+            <div className="bg-scout-800/50 rounded-[2.5rem] border border-scout-700 p-8">
+                <BadgesDisplay
+                    allBadgesProgress={allBadgesProgress}
+                    earnedBadges={earnedBadges}
+                />
+            </div>
+
+            {/* SIGN OUT (Mobile) */}
+            {onLogout && (
+                <div className="md:hidden pt-4 border-t border-scout-700/50">
+                    <button
+                        onClick={onLogout}
+                        className="w-full flex items-center justify-center gap-3 px-6 py-4 text-gray-400 hover:text-white hover:bg-scout-800/50 rounded-2xl text-sm font-bold transition-all border border-scout-700/50"
+                    >
+                        <LogOut size={18} />
+                        Sign Out
+                    </button>
+                </div>
+            )}
+
+            {/* BIO EDITOR MODAL */}
+            {isEditingBio && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-scout-900 border border-scout-700 rounded-[2rem] w-full max-w-lg overflow-hidden">
+                        {/* Header */}
+                        <div className="p-6 border-b border-scout-700 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-scout-accent/20 flex items-center justify-center">
+                                    <GraduationCap size={20} className="text-scout-accent" />
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-black text-white uppercase tracking-tight">Your Story</h3>
+                                    <p className="text-xs text-gray-500">Share your playing/coaching background</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setIsEditingBio(false)}
+                                className="w-10 h-10 rounded-xl bg-scout-800 flex items-center justify-center text-gray-400 hover:text-white hover:bg-scout-700 transition-colors"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="p-6 space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                                    Bio / Background
+                                </label>
+                                <textarea
+                                    value={bioText}
+                                    onChange={(e) => setBioText(e.target.value)}
+                                    placeholder="e.g., Former D1 player at University of Kentucky (2018-2022). Now helping German players find their path to US college soccer."
+                                    className="w-full h-40 bg-scout-800 border border-scout-700 rounded-xl p-4 text-white placeholder-gray-600 text-sm resize-none focus:outline-none focus:border-scout-accent/50 focus:ring-1 focus:ring-scout-accent/30"
+                                />
+                                <p className="text-[10px] text-gray-600">
+                                    This helps players and parents trust you. Mention your playing experience, schools, achievements.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-6 border-t border-scout-700 flex gap-3">
+                            <button
+                                onClick={() => setIsEditingBio(false)}
+                                className="flex-1 py-3 bg-scout-800 text-gray-400 font-bold rounded-xl hover:bg-scout-700 transition-colors text-sm"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={saveBio}
+                                disabled={savingBio}
+                                className="flex-1 py-3 bg-scout-accent text-scout-900 font-black rounded-xl hover:bg-scout-accent/90 transition-colors text-sm flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                {savingBio ? (
+                                    <>Saving...</>
+                                ) : (
+                                    <>
+                                        <Save size={16} />
+                                        Save Bio
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ITP_REFERENCE_PLAYERS, WARUBI_PATHWAYS, WARUBI_TOOLS, WARUBI_PROTOCOLS, MARKET_DATA } from '../constants';
 import { askScoutAI } from '../services/geminiService';
 import {
@@ -83,6 +83,16 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
     const [aiChatHistory, setAiChatHistory] = useState<{ role: 'user' | 'ai', text: string }[]>([]);
     const [aiLoading, setAiLoading] = useState(false);
 
+    // Ref for scrollable content area
+    const contentRef = useRef<HTMLDivElement>(null);
+
+    // Scroll to top when view changes
+    useEffect(() => {
+        if (contentRef.current) {
+            contentRef.current.scrollTo({ top: 0, behavior: 'instant' });
+        }
+    }, [view]);
+
     // Tools State
     const [roiData, setRoiData] = useState({
         mode: 'custom' as 'custom' | 'averages',
@@ -91,8 +101,6 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
         pathB: { itpCost: 44000, itpScholarship: 0, postTuition: 45000, postScholarship: 25000, postYears: 3 }
     });
 
-    const [evalHook, setEvalHook] = useState<'pro' | 'ncaa' | 'roi'>('pro');
-    const [toolCopied, setToolCopied] = useState(false);
 
     const costA = (roiData.pathA.tuition - roiData.pathA.scholarship) * roiData.pathA.years;
     const costB = (roiData.pathB.itpCost - roiData.pathB.itpScholarship) +
@@ -129,12 +137,6 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
         }
     };
 
-    const copyApplyLink = (hook: string) => {
-        const link = `warubi.com/apply/${user.scoutId || 'demo'}?hook=${hook}`;
-        navigator.clipboard.writeText(link);
-        setToolCopied(true);
-        setTimeout(() => setToolCopied(false), 2000);
-    };
 
     // Sub-Views
     const LeadMagnetMasterclass = () => (
@@ -338,7 +340,7 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
 
                 <div className="grid md:grid-cols-2 gap-8">
                     <div className="space-y-6">
-                        <h3 className="text-sm font-black text-white uppercase flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500"></div> Path A: 4yr US College</h3>
+                        <h3 className="text-sm font-black text-white uppercase flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-red-500"></div> Path A: Standard US College</h3>
                         <div className="space-y-4">
                             <div>
                                 <label className="text-[10px] text-gray-500 uppercase font-black block mb-2">Annual Tuition ($)</label>
@@ -348,26 +350,38 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
                                 <label className="text-[10px] text-gray-500 uppercase font-black block mb-2">Annual Scholarship ($)</label>
                                 <input type="number" value={roiData.pathA.scholarship} onChange={e => setRoiData({ ...roiData, pathA: { ...roiData.pathA, scholarship: Number(e.target.value) } })} className="w-full bg-scout-900 border border-scout-700 rounded-xl p-3 text-white outline-none focus:border-red-500" />
                             </div>
+                            <div>
+                                <label className="text-[10px] text-gray-500 uppercase font-black block mb-2">Years</label>
+                                <input type="number" min="1" max="6" value={roiData.pathA.years} onChange={e => setRoiData({ ...roiData, pathA: { ...roiData.pathA, years: Number(e.target.value) } })} className="w-full bg-scout-900 border border-scout-700 rounded-xl p-3 text-white outline-none focus:border-red-500" />
+                            </div>
                             <div className="p-4 bg-scout-900/50 rounded-xl border border-red-500/20">
-                                <p className="text-[10px] text-gray-500 uppercase font-black">Total 4yr Cost</p>
+                                <p className="text-[10px] text-gray-500 uppercase font-black">Total {roiData.pathA.years}yr Cost</p>
                                 <p className="text-xl font-black text-white">${costA.toLocaleString()}</p>
                             </div>
                         </div>
                     </div>
 
                     <div className="space-y-6">
-                        <h3 className="text-sm font-black text-white uppercase flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-scout-accent shadow-glow"></div> Path B: Warubi ITP + 3yr College</h3>
+                        <h3 className="text-sm font-black text-white uppercase flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-scout-accent shadow-glow"></div> Path B: Warubi ITP + College</h3>
                         <div className="space-y-4">
                             <div>
                                 <label className="text-[10px] text-gray-500 uppercase font-black block mb-2">ITP Residency Cost ($)</label>
                                 <input type="number" value={roiData.pathB.itpCost} onChange={e => setRoiData({ ...roiData, pathB: { ...roiData.pathB, itpCost: Number(e.target.value) } })} className="w-full bg-scout-900 border border-scout-700 rounded-xl p-3 text-white outline-none focus:border-scout-accent" />
                             </div>
                             <div>
-                                <label className="text-[10px] text-gray-500 uppercase font-black block mb-2">Future Annual Scholarship ($)</label>
+                                <label className="text-[10px] text-gray-500 uppercase font-black block mb-2">Post-ITP Annual Tuition ($)</label>
+                                <input type="number" value={roiData.pathB.postTuition} onChange={e => setRoiData({ ...roiData, pathB: { ...roiData.pathB, postTuition: Number(e.target.value) } })} className="w-full bg-scout-900 border border-scout-700 rounded-xl p-3 text-white outline-none focus:border-scout-accent" />
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-gray-500 uppercase font-black block mb-2">Post-ITP Annual Scholarship ($)</label>
                                 <input type="number" value={roiData.pathB.postScholarship} onChange={e => setRoiData({ ...roiData, pathB: { ...roiData.pathB, postScholarship: Number(e.target.value) } })} className="w-full bg-scout-900 border border-scout-700 rounded-xl p-3 text-white outline-none focus:border-scout-accent" />
                             </div>
+                            <div>
+                                <label className="text-[10px] text-gray-500 uppercase font-black block mb-2">Post-ITP Years</label>
+                                <input type="number" min="1" max="5" value={roiData.pathB.postYears} onChange={e => setRoiData({ ...roiData, pathB: { ...roiData.pathB, postYears: Number(e.target.value) } })} className="w-full bg-scout-900 border border-scout-700 rounded-xl p-3 text-white outline-none focus:border-scout-accent" />
+                            </div>
                             <div className="p-4 bg-scout-900/50 rounded-xl border border-scout-accent/20">
-                                <p className="text-[10px] text-gray-500 uppercase font-black">Total Path B Cost</p>
+                                <p className="text-[10px] text-gray-500 uppercase font-black">Total Path B Cost (ITP + {roiData.pathB.postYears}yr)</p>
                                 <p className="text-xl font-black text-white">${costB.toLocaleString()}</p>
                             </div>
                         </div>
@@ -375,67 +389,13 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
                 </div>
 
                 <div className="mt-10 p-6 bg-scout-accent/5 border border-scout-accent/20 rounded-2xl">
-                    <p className="text-sm text-gray-300 italic">"By investing in a professional resume in Germany first, you move from a $15k academic scholarship to a $25k+ athletic scholarship, saving <strong>${roiDifference.toLocaleString()}</strong> over the lifetime of your education."</p>
-                </div>
-            </div>
-        </div>
-    );
-
-    const LinkGeneratorView = () => (
-        <div className="animate-fade-in space-y-8 pb-10 max-w-4xl mx-auto">
-            <button onClick={() => setView('HOME')} className="text-gray-400 hover:text-white flex items-center gap-1 text-sm"><X size={16} /> Back</button>
-            <div className="bg-scout-800 rounded-[2.5rem] border border-scout-700 p-8 shadow-xl">
-                <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic mb-6">Link Customizer</h2>
-                <div className="grid md:grid-cols-3 gap-4 mb-10">
-                    {[
-                        { id: 'pro', label: 'The Pro Hook', desc: 'Focus on German trials', icon: <Trophy size={18} /> },
-                        { id: 'ncaa', label: 'The College Hook', desc: 'Focus on Scholarships', icon: <GraduationCap size={18} /> },
-                        { id: 'roi', label: 'The ROI Hook', desc: 'Focus on Math/Savings', icon: <Calculator size={18} /> }
-                    ].map(h => (
-                        <button
-                            key={h.id}
-                            onClick={() => setEvalHook(h.id as any)}
-                            className={`p-6 rounded-2xl border-2 text-left transition-all ${evalHook === h.id ? 'bg-scout-accent/10 border-scout-accent' : 'bg-scout-900 border-scout-700 hover:border-scout-600'}`}
-                        >
-                            <div className={`mb-3 ${evalHook === h.id ? 'text-scout-accent' : 'text-gray-500'}`}>{h.icon}</div>
-                            <h4 className="text-sm font-black text-white uppercase">{h.label}</h4>
-                            <p className="text-[10px] text-gray-500 mt-1">{h.desc}</p>
-                        </button>
-                    ))}
-                </div>
-
-                <div className="bg-scout-900 p-8 rounded-3xl border border-scout-700 text-center space-y-6">
-                    <p className="text-gray-400 text-sm">Your Personalized Campaign Link:</p>
-                    <div className="bg-scout-800 p-4 rounded-xl border border-scout-700 flex items-center justify-between font-mono text-scout-accent">
-                        <span>warubi.com/apply/{user.scoutId || 'demo'}?hook={evalHook}</span>
-                        <button onClick={() => copyApplyLink(evalHook)} className="text-white hover:text-scout-accent p-2">
-                            {toolCopied ? <Check size={20} /> : <Copy size={20} />}
-                        </button>
-                    </div>
-                    <p className="text-[10px] text-gray-600 uppercase font-black tracking-widest">Analytics: 142 clicks this month</p>
-                </div>
-            </div>
-        </div>
-    );
-
-    const CollegeTransferValuator = () => (
-        <div className="animate-fade-in space-y-8 pb-10 max-w-4xl mx-auto">
-            <button onClick={() => setView('HOME')} className="text-gray-400 hover:text-white flex items-center gap-1 text-sm"><X size={16} /> Back</button>
-            <div className="bg-scout-800 rounded-[2.5rem] border border-scout-700 p-8 shadow-xl text-center space-y-8">
-                <div className="w-20 h-20 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto text-blue-400 border border-blue-500/30">
-                    <TrendingUp size={40} />
-                </div>
-                <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic">Transfer Valuator</h2>
-                <p className="text-gray-400 max-w-md mx-auto">Use this tool for existing college players (D2/NAIA) looking to move up to D1 or Pro.</p>
-
-                <div className="bg-scout-900 p-8 rounded-3xl border border-scout-700">
-                    <p className="text-xs text-gray-500 font-black uppercase mb-4 tracking-widest">Share this assessment link</p>
-                    <div className="flex gap-2">
-                        <div className="flex-1 bg-scout-800 p-3 rounded-lg border border-scout-700 text-scout-accent text-sm font-mono truncate">
-                            warubi.com/transfer-eval/{user.scoutId || 'demo'}
-                        </div>
-                        <button onClick={() => copyApplyLink('transfer')} className="bg-white text-scout-900 px-6 rounded-lg font-black text-xs uppercase">Copy</button>
-                    </div>
+                    {roiDifference > 0 ? (
+                        <p className="text-sm text-gray-300 italic">"By investing in a professional resume in Germany first, you can save <strong className="text-scout-accent">${roiDifference.toLocaleString()}</strong> over the lifetime of your education while gaining elite development."</p>
+                    ) : roiDifference < 0 ? (
+                        <p className="text-sm text-gray-300 italic">"Path B costs <strong className="text-red-400">${Math.abs(roiDifference).toLocaleString()}</strong> more, but consider the value of professional-level training and exposure that can lead to better opportunities."</p>
+                    ) : (
+                        <p className="text-sm text-gray-300 italic">"Both paths have the same total cost. Consider the non-financial benefits: professional development, European exposure, and enhanced scholarship potential."</p>
+                    )}
                 </div>
             </div>
         </div>
@@ -443,29 +403,57 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
 
     const PathwayCard: React.FC<{ pathway: PathwayDef }> = ({ pathway }) => {
         const Icon = pathway.icon === 'Globe' ? Globe : pathway.icon === 'GraduationCap' ? GraduationCap : pathway.icon === 'Calendar' ? Calendar : BookOpen;
+        // Extract YouTube video ID for thumbnail
+        const videoId = pathway.videoUrl?.split('/embed/')[1]?.split('?')[0];
+        const thumbnailUrl = videoId ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg` : null;
+
         return (
             <div
                 onClick={() => { setSelectedPathway(pathway); setView('PATHWAY_DETAIL'); }}
-                className={`bg-scout-800 rounded-3xl p-5 border-2 transition-all cursor-pointer group hover:shadow-2xl relative overflow-hidden flex flex-col h-full min-h-[180px] ${pathway.color.includes('red') ? 'border-red-500/20 hover:border-red-500/50' : pathway.color.includes('blue') ? 'border-blue-500/20 hover:border-blue-500/50' : pathway.color.includes('orange') ? 'border-orange-500/20 hover:border-orange-500/50' : 'border-gray-500/20 hover:border-gray-500/50'}`}
+                className={`rounded-3xl border-2 transition-all duration-300 cursor-pointer group hover:shadow-2xl hover:scale-[1.02] relative overflow-hidden flex flex-col h-full min-h-[220px] ${pathway.color.includes('red') ? 'border-red-500/30 hover:border-red-500' : pathway.color.includes('blue') ? 'border-blue-500/30 hover:border-blue-500' : pathway.color.includes('orange') ? 'border-orange-500/30 hover:border-orange-500' : 'border-gray-500/30 hover:border-gray-400'}`}
             >
-                <div className="p-2.5 bg-scout-900 rounded-xl group-hover:scale-110 transition-transform w-fit mb-3 shrink-0"><Icon size={22} /></div>
-                <h3 className="text-sm font-black text-white leading-tight uppercase tracking-tight mb-2">{pathway.title}</h3>
-                <p className="text-gray-400 text-[11px] mb-4 flex-1 line-clamp-3 leading-relaxed">{pathway.shortDesc}</p>
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white/50 group-hover:text-white transition-colors mt-auto">View Strategy <ArrowRight size={12} /></div>
+                {/* Background thumbnail - always visible, slightly brighter on hover */}
+                {thumbnailUrl && (
+                    <div
+                        className="absolute inset-0 bg-cover bg-center opacity-25"
+                        style={{ backgroundImage: `url(${thumbnailUrl})` }}
+                    />
+                )}
+                {/* Gradient overlay - lightens on hover */}
+                <div className={`absolute inset-0 transition-opacity duration-300 bg-gradient-to-t ${pathway.color.includes('red') ? 'from-scout-900 via-scout-900/90 to-red-900/40 group-hover:opacity-80' : pathway.color.includes('blue') ? 'from-scout-900 via-scout-900/90 to-blue-900/40 group-hover:opacity-80' : pathway.color.includes('orange') ? 'from-scout-900 via-scout-900/90 to-orange-900/40 group-hover:opacity-80' : 'from-scout-900 via-scout-900/90 to-gray-800/40 group-hover:opacity-80'}`} />
+
+                {/* Content */}
+                <div className="relative z-10 p-5 flex flex-col h-full">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className={`p-2.5 rounded-xl group-hover:scale-110 transition-transform duration-300 ${pathway.color.includes('red') ? 'bg-red-500/20 text-red-400' : pathway.color.includes('blue') ? 'bg-blue-500/20 text-blue-400' : pathway.color.includes('orange') ? 'bg-orange-500/20 text-orange-400' : 'bg-gray-500/20 text-gray-400'}`}>
+                            <Icon size={22} />
+                        </div>
+                        {videoId && (
+                            <div className="p-2 bg-white/10 rounded-full group-hover:bg-white/20 transition-colors duration-300">
+                                <PlayCircle size={16} className="text-white" />
+                            </div>
+                        )}
+                    </div>
+                    <h3 className="text-sm font-black text-white leading-tight uppercase tracking-tight mb-2">{pathway.title}</h3>
+                    <p className="text-gray-400 text-[11px] mb-4 flex-1 line-clamp-3 leading-relaxed">{pathway.shortDesc}</p>
+                    <div className={`flex items-center gap-2 text-[10px] font-black uppercase tracking-widest transition-colors duration-300 mt-auto ${pathway.color.includes('red') ? 'text-red-400/70 group-hover:text-red-400' : pathway.color.includes('blue') ? 'text-blue-400/70 group-hover:text-blue-400' : pathway.color.includes('orange') ? 'text-orange-400/70 group-hover:text-orange-400' : 'text-gray-400/70 group-hover:text-gray-400'}`}>
+                        View Strategy <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform duration-300" />
+                    </div>
+                </div>
             </div>
         );
     };
 
     return (
         <div className="flex h-screen gap-6 xl:gap-10 animate-fade-in relative">
-            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-32">
+            <div ref={contentRef} className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-32">
                 {view === 'HOME' && (
                     <div className="space-y-12 pb-10">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-white/5 pb-8 gap-6">
                             <div><h2 className="text-3xl lg:text-5xl font-black text-white tracking-tighter uppercase italic">Training Hub</h2><p className="text-gray-500 font-bold uppercase tracking-[0.2em] text-[10px] lg:text-xs">Master the network. Lead the talent.</p></div>
                             <div className="flex gap-3">
-                                <button onClick={() => setView('MODEL')} className="px-4 py-2.5 bg-scout-800 border border-scout-700 rounded-xl text-white font-black text-[10px] uppercase hover:border-scout-accent transition-all flex items-center gap-2 shrink-0"><Anchor size={14} /> The System Audit</button>
-                                <button onClick={() => setView('MASTERCLASS')} className="px-5 py-2.5 bg-scout-accent text-scout-900 rounded-xl font-black text-[10px] uppercase shadow-lg hover:bg-emerald-400 transition-all flex items-center gap-2 shrink-0"><Instagram size={14} /> Bio Masterclass</button>
+                                <button onClick={() => setView('MODEL')} className="px-5 py-2.5 bg-scout-accent text-scout-900 rounded-xl font-black text-[10px] uppercase shadow-glow hover:bg-emerald-400 transition-all flex items-center gap-2 shrink-0 animate-pulse hover:animate-none"><Anchor size={14} /> The System Audit</button>
+                                <button onClick={() => setView('MASTERCLASS')} className="px-4 py-2.5 bg-scout-800 border border-scout-700 rounded-xl text-white font-black text-[10px] uppercase hover:border-scout-accent transition-all flex items-center gap-2 shrink-0"><Instagram size={14} /> Bio Masterclass</button>
                             </div>
                         </div>
 
@@ -506,20 +494,6 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
                                         </div>
                                         <div className="text-gray-700 group-hover:text-white shrink-0 ml-2"><ChevronRight size={20} /></div>
                                     </div>
-                                    <div onClick={() => { setSelectedToolId('eval_tool'); setView('TOOL'); }} className="bg-scout-800 border-2 border-scout-700 p-6 rounded-[2rem] flex justify-between items-center cursor-pointer hover:border-scout-accent transition-all group">
-                                        <div className="flex gap-4 items-center min-w-0">
-                                            <div className="p-3 bg-scout-900 rounded-2xl text-scout-accent group-hover:scale-110 transition-transform shrink-0"><Smartphone size={24} /></div>
-                                            <div className="min-w-0"><h4 className="text-lg font-black text-white uppercase tracking-tight truncate">Link Customizer</h4><p className="text-[10px] text-gray-500 truncate">High-conversion Bio Link CTAs.</p></div>
-                                        </div>
-                                        <div className="text-gray-700 group-hover:text-white shrink-0 ml-2"><ChevronRight size={20} /></div>
-                                    </div>
-                                    <div onClick={() => { setSelectedToolId('transfer_val'); setView('TOOL'); }} className="bg-scout-800 border-2 border-scout-700 p-6 rounded-[2rem] flex justify-between items-center cursor-pointer hover:border-blue-500 transition-all group">
-                                        <div className="flex gap-4 items-center min-w-0">
-                                            <div className="p-3 bg-scout-900 rounded-2xl text-blue-400 group-hover:scale-110 transition-transform shrink-0"><TrendingUp size={24} /></div>
-                                            <div className="min-w-0"><h4 className="text-lg font-black text-white uppercase tracking-tight truncate">Transfer Portal</h4><p className="text-[10px] text-gray-500 truncate">D2 → D1 Potential Audit.</p></div>
-                                        </div>
-                                        <div className="text-gray-700 group-hover:text-white shrink-0 ml-2"><ChevronRight size={20} /></div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -535,7 +509,7 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
                                             <div className="bg-scout-800 px-2 py-1 rounded text-[8px] font-black text-gray-500 uppercase">{p.evaluation?.scholarshipTier}</div>
                                         </div>
                                         <h4 className="text-lg font-black text-white uppercase tracking-tight group-hover:text-scout-accent transition-colors truncate">{p.name}</h4>
-                                        <p className="text-[10px] text-gray-500 mt-2 line-clamp-2 italic font-mono">"{p.evaluation?.summary}"</p>
+                                        <p className="text-[10px] text-gray-500 mt-2 line-clamp-2 italic font-mono">"{p.evaluation?.summary || 'Awaiting evaluation.'}"</p>
                                     </button>
                                 ))}
                             </div>
@@ -546,12 +520,86 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
                 {view === 'PATHWAY_DETAIL' && selectedPathway && (
                     <div className="animate-fade-in space-y-8 pb-10">
                         <button onClick={() => setView('HOME')} className="text-gray-400 hover:text-white flex items-center gap-1 text-sm"><X size={16} /> Back</button>
-                        <div className={`p-8 md:p-12 rounded-[2.5rem] md:rounded-[3.5rem] border-2 ${selectedPathway.color.includes('red') ? 'bg-red-500/5 border-red-500/20' : selectedPathway.color.includes('blue') ? 'bg-blue-500/5 border-blue-500/20' : 'bg-orange-500/5 border-orange-500/20'}`}>
-                            <div className="max-w-2xl">
-                                <h2 className="text-3xl lg:text-5xl font-black text-white uppercase tracking-tighter italic mb-4">{selectedPathway.title}</h2>
-                                <p className="text-gray-300 text-lg md:text-xl font-medium">{selectedPathway.shortDesc}</p>
+                        <div className={`p-8 md:p-12 rounded-[2.5rem] md:rounded-[3.5rem] border-2 ${selectedPathway.color.includes('red') ? 'bg-red-500/5 border-red-500/20' : selectedPathway.color.includes('blue') ? 'bg-blue-500/5 border-blue-500/20' : selectedPathway.color.includes('orange') ? 'bg-orange-500/5 border-orange-500/20' : 'bg-gray-500/5 border-gray-500/20'}`}>
+                            <div className="flex flex-col lg:flex-row justify-between items-start gap-6">
+                                <div className="max-w-2xl">
+                                    <h2 className="text-3xl lg:text-5xl font-black text-white uppercase tracking-tighter italic mb-4">{selectedPathway.title}</h2>
+                                    <p className="text-gray-300 text-lg md:text-xl font-medium">{selectedPathway.shortDesc}</p>
+                                </div>
+                                {selectedPathway.websiteUrl && (
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(selectedPathway.websiteUrl || '');
+                                                alert('Link copied! Share with your player.');
+                                            }}
+                                            className="px-5 py-3 bg-scout-accent text-scout-900 font-black rounded-xl uppercase text-[10px] tracking-widest shadow-glow hover:bg-emerald-400 transition-all flex items-center gap-2"
+                                        >
+                                            <Share2 size={14} /> Share with Player
+                                        </button>
+                                        <a
+                                            href={selectedPathway.websiteUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="px-5 py-3 bg-scout-800 text-white font-black rounded-xl uppercase text-[10px] tracking-widest border border-scout-700 hover:border-scout-accent transition-all flex items-center gap-2"
+                                        >
+                                            <ExternalLink size={14} /> View on Website
+                                        </a>
+                                    </div>
+                                )}
                             </div>
                         </div>
+
+                        {/* Video Section */}
+                        {selectedPathway.videoUrl && (
+                            <div className="bg-scout-800 rounded-[2rem] border border-scout-700 overflow-hidden">
+                                <div className="aspect-video w-full">
+                                    <iframe
+                                        src={selectedPathway.videoUrl}
+                                        className="w-full h-full"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowFullScreen
+                                        title={`${selectedPathway.title} Video`}
+                                    />
+                                </div>
+                                <div className="p-4 flex justify-between items-center border-t border-scout-700">
+                                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                                        <PlayCircle size={14} className="text-scout-accent" /> Pathway Overview Video
+                                    </span>
+                                    <button
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(selectedPathway.videoUrl || '');
+                                            alert('Video link copied!');
+                                        }}
+                                        className="text-[10px] font-black text-scout-accent hover:text-white transition-colors flex items-center gap-1"
+                                    >
+                                        <Link size={12} /> Copy Video Link
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Placeholder when no video */}
+                        {!selectedPathway.videoUrl && (
+                            <div className="bg-scout-800/50 rounded-[2rem] border border-dashed border-scout-700 p-12 flex flex-col items-center justify-center text-center">
+                                <div className="w-16 h-16 bg-scout-900 rounded-2xl flex items-center justify-center mb-4">
+                                    <PlayCircle size={32} className="text-gray-600" />
+                                </div>
+                                <p className="text-gray-500 text-sm font-bold">Video coming soon</p>
+                                <p className="text-gray-600 text-xs mt-1">Check the website for the latest content</p>
+                                {selectedPathway.websiteUrl && (
+                                    <a
+                                        href={selectedPathway.websiteUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="mt-4 text-scout-accent text-xs font-bold hover:underline flex items-center gap-1"
+                                    >
+                                        <ExternalLink size={12} /> warubi-sports.com
+                                    </a>
+                                )}
+                            </div>
+                        )}
+
                         <div className="grid md:grid-cols-2 gap-8 font-mono">
                             <div className="bg-scout-800 p-8 rounded-[2rem] border border-scout-700">
                                 <h3 className="text-white font-black uppercase text-[10px] tracking-widest mb-6 flex items-center gap-2"><CheckCircle2 size={16} className="text-scout-accent" /> Ideal Profile</h3>
@@ -600,7 +648,7 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
                                     <div className="text-[10px] text-gray-500 font-black uppercase tracking-widest mt-1">Benchmark Score</div>
                                 </div>
                             </div>
-                            <div className="mt-8 md:mt-10 p-6 md:p-8 bg-black/30 rounded-3xl border border-white/5 italic text-gray-300 leading-relaxed text-sm md:text-base font-mono">"{selectedRefPlayer.evaluation?.summary}"</div>
+                            <div className="mt-8 md:mt-10 p-6 md:p-8 bg-black/30 rounded-3xl border border-white/5 italic text-gray-300 leading-relaxed text-sm md:text-base font-mono">"{selectedRefPlayer.evaluation?.summary || 'Awaiting evaluation.'}"</div>
                         </div>
 
                         <div className="grid md:grid-cols-2 gap-8 font-mono">
@@ -621,8 +669,6 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
                 {view === 'MODEL' && <SystemAuditView />}
                 {view === 'MASTERCLASS' && <LeadMagnetMasterclass />}
                 {view === 'TOOL' && selectedToolId === 'roi_calc' && <ROICalculatorView />}
-                {view === 'TOOL' && selectedToolId === 'eval_tool' && <LinkGeneratorView />}
-                {view === 'TOOL' && selectedToolId === 'transfer_val' && <CollegeTransferValuator />}
             </div>
 
             {/* AI SIDEBAR (Brain) */}
@@ -644,7 +690,7 @@ const KnowledgeTab: React.FC<KnowledgeTabProps> = ({ user }) => {
                                     <button onClick={(e) => handleAskAI(e, "What is the minimum GPA for NCAA D1 Eligibility?")} className="w-full text-left text-[11px] bg-scout-900 hover:bg-scout-700 p-4 rounded-2xl border border-scout-700 text-gray-300 font-bold transition-all leading-snug hover:border-scout-accent/50">"What is the D1 GPA minimum?"</button>
                                 </div>
                             </div>
-                            <div className="p-4 rounded-2xl bg-scout-accent/5 border border-scout-accent/20 text-center font-mono"><p className="text-[9px] text-scout-accent font-black uppercase tracking-wider">Aware of your persona: {user.roles.join(' / ')}</p></div>
+                            <div className="p-4 rounded-2xl bg-scout-accent/5 border border-scout-accent/20 text-center font-mono"><p className="text-[9px] text-scout-accent font-black uppercase tracking-wider">Context: {user.roles.join(' / ')}</p></div>
                         </div>
                     )}
 

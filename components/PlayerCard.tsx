@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Player, PlayerStatus } from '../types';
-import { TrendingUp, AlertTriangle, CheckCircle, MessageCircle, MessageSquare, ChevronDown, ChevronUp, MapPin, School, Compass, Send, GripVertical, Flame, Eye, StickyNote, Save, X, History, Clock, Edit2, Loader2, Trophy, Zap, Target, ArrowRight, Timer } from 'lucide-react';
+import { TrendingUp, AlertTriangle, CheckCircle, MessageCircle, MessageSquare, ChevronDown, ChevronUp, MapPin, School, Compass, Send, GripVertical, Flame, Eye, StickyNote, Save, X, History, Clock, Edit2, Loader2, Trophy, Zap, Target, ArrowRight, Timer, Trash2 } from 'lucide-react';
 
 interface PlayerCardProps {
     player: Player;
@@ -9,6 +9,7 @@ interface PlayerCardProps {
     onOutreach?: (player: Player) => void;
     onUpdateNotes?: (id: string, notes: string) => void;
     onEdit?: (player: Player) => void;
+    onDelete?: (id: string) => void;
     isReference?: boolean;
     onDragStart?: (id: string) => void;
     onDragEnd?: () => void;
@@ -20,6 +21,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
     onOutreach,
     onUpdateNotes,
     onEdit,
+    onDelete,
     isReference = false,
     onDragStart,
     onDragEnd
@@ -29,6 +31,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
     const [isExpanded, setIsExpanded] = useState(false);
     const [noteContent, setNoteContent] = useState(player.notes || '');
     const [showNotes, setShowNotes] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     const scoreColor = (score: number) => {
         if (score >= 85) return 'text-scout-accent';
@@ -88,8 +91,8 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
         const tier = player.evaluation?.scholarshipTier;
         const college = player.evaluation?.collegeLevel;
 
-        if (player.status === PlayerStatus.FINAL_REVIEW) {
-            return `Score ${score}. ${tier || 'Untiered'}. Ready to submit.`;
+        if (player.status === PlayerStatus.OFFERED) {
+            return `Score ${score}. ${tier || 'Untiered'}. Offer extended - follow up!`;
         }
         if (player.status === PlayerStatus.INTERESTED && player.interestedProgram) {
             return `Matched to ${player.interestedProgram}. Awaiting response.`;
@@ -106,16 +109,23 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
         if (score >= 65) {
             return `Solid fit for ${college || 'D2/NAIA'}. Good development case.`;
         }
-        return player.evaluation?.summary?.split('.')[0] + '.' || 'Needs more evaluation.';
+        // If we have a summary, use the first sentence. Otherwise return empty - we'll hide the box
+        if (player.evaluation?.summary) {
+            return player.evaluation.summary.split('.')[0] + '.';
+        }
+        return ''; // Empty = hide the confidence line box
     };
 
     // Determine the primary action
     const getAction = () => {
-        if (player.status === PlayerStatus.FINAL_REVIEW) {
-            return { label: 'Submit to HQ', onClick: sendFinalReviewEmail, primary: true };
+        if (player.status === PlayerStatus.PLACED) {
+            return { label: 'View Details', onClick: () => onEdit?.(player), primary: false };
         }
         if (player.status === PlayerStatus.OFFERED) {
-            return { label: 'Follow Up', onClick: () => onOutreach?.(player), primary: false };
+            return { label: 'Follow Up', onClick: () => onOutreach?.(player), primary: true };
+        }
+        if (player.status === PlayerStatus.INTERESTED) {
+            return { label: 'View Details', onClick: () => onEdit?.(player), primary: false };
         }
         if (player.activityStatus === 'signal' || player.activityStatus === 'spotlight') {
             return { label: 'Message Now', onClick: () => onOutreach?.(player), primary: true };
@@ -143,7 +153,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
             onDragEnd={() => {
                 if (!isReference && onDragEnd) onDragEnd();
             }}
-            className={`bg-scout-800 rounded-xl border shadow-sm transition-all 
+            className={`bg-scout-800 rounded-xl border shadow-sm transition-all overflow-hidden
         ${isReference ? 'opacity-80 border-scout-700' : 'border-scout-700 hover:border-scout-accent/50 cursor-grab active:cursor-grabbing hover:shadow-lg'}
         ${player.isRecalibrating ? 'ring-2 ring-scout-accent/50 animate-pulse' : ''}
         ${urgency?.urgent ? 'ring-1 ring-orange-500/30' : ''}`}
@@ -196,22 +206,35 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                         </div>
                     </div>
 
-                    {/* Score */}
-                    <div className="text-right shrink-0">
+                    {/* Score - Prominent visual indicator */}
+                    <div className="shrink-0">
                         {player.isRecalibrating ? (
-                            <Loader2 size={20} className="text-scout-accent animate-spin" />
+                            <div className="w-14 h-14 rounded-full border-4 border-scout-accent/30 flex items-center justify-center">
+                                <Loader2 size={20} className="text-scout-accent animate-spin" />
+                            </div>
+                        ) : score ? (
+                            <div className={`relative w-14 h-14 rounded-full flex items-center justify-center ${
+                                score >= 85 ? 'bg-gradient-to-br from-scout-accent/20 to-scout-accent/5 ring-2 ring-scout-accent' :
+                                score >= 70 ? 'bg-gradient-to-br from-scout-highlight/20 to-scout-highlight/5 ring-2 ring-scout-highlight' :
+                                'bg-scout-900/50 ring-2 ring-gray-600'
+                            }`}>
+                                <span className={`text-xl font-black ${scoreColor(score)}`}>{score}</span>
+                                {score >= 85 && <Zap size={10} className="absolute -top-1 -right-1 text-scout-accent" />}
+                            </div>
                         ) : (
-                            <div className={`text-2xl font-black leading-none ${scoreColor(score)}`}>
-                                {score || '?'}
+                            <div className="w-14 h-14 rounded-full bg-scout-900/50 ring-2 ring-dashed ring-gray-600 flex items-center justify-center">
+                                <span className="text-xs text-gray-500 font-bold">NEW</span>
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* CONFIDENCE LINE - One sentence verdict */}
-                <p className="text-[11px] text-gray-300 mt-2 leading-relaxed line-clamp-2 bg-scout-900/50 rounded-lg p-2 border border-scout-700/30">
-                    "{getConfidenceLine()}"
-                </p>
+                {/* CONFIDENCE LINE - One sentence verdict (only show if there's content) */}
+                {getConfidenceLine() && (
+                    <p className="text-[11px] text-gray-300 mt-2 leading-relaxed line-clamp-2 bg-scout-900/50 rounded-lg p-2 border border-scout-700/30">
+                        "{getConfidenceLine()}"
+                    </p>
+                )}
 
                 {/* URGENCY INDICATOR */}
                 {urgency && (
@@ -221,13 +244,15 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                     </div>
                 )}
 
-                {/* INTERESTED/PLACED DATA */}
-                {!isReference && (player.status === PlayerStatus.INTERESTED || player.status === PlayerStatus.PLACED) && (
+                {/* INTERESTED/OFFERED/PLACED DATA */}
+                {!isReference && (player.status === PlayerStatus.INTERESTED || player.status === PlayerStatus.OFFERED || player.status === PlayerStatus.PLACED) && (
                     <div className="mt-2 bg-scout-900/50 p-2 rounded-lg border border-scout-700/50 text-[10px]">
                         <div className="flex justify-between items-center mb-1 text-gray-400">
                             <span className="flex items-center gap-1">
-                                {player.status === PlayerStatus.INTERESTED ? <School size={10} /> : <MapPin size={10} />}
-                                {player.status === PlayerStatus.INTERESTED ? "Program" : "Placed at"}
+                                {player.status === PlayerStatus.INTERESTED && <School size={10} />}
+                                {player.status === PlayerStatus.OFFERED && <Target size={10} />}
+                                {player.status === PlayerStatus.PLACED && <MapPin size={10} />}
+                                {player.status === PlayerStatus.INTERESTED ? "Program" : player.status === PlayerStatus.OFFERED ? "Offered Pathway" : "Placed at"}
                             </span>
                             <button onClick={() => setIsEditingData(!isEditingData)} className="text-scout-accent hover:underline text-[9px]">
                                 {isEditingData ? 'Done' : 'Edit'}
@@ -239,13 +264,15 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                                     value={extraInput}
                                     onChange={(e) => setExtraInput(e.target.value)}
                                     className="bg-scout-800 border border-scout-600 rounded px-2 py-1 w-full text-white text-xs focus:outline-none"
-                                    placeholder={player.status === PlayerStatus.INTERESTED ? "e.g. UCLA" : "e.g. FC Dallas"}
+                                    placeholder={player.status === PlayerStatus.INTERESTED ? "e.g. UCLA" : player.status === PlayerStatus.OFFERED ? "e.g. ITP, College" : "e.g. FC Dallas"}
                                 />
                                 <button onClick={saveExtraData} className="bg-scout-accent text-scout-900 px-2 rounded font-bold text-xs">OK</button>
                             </div>
                         ) : (
                             <p className="text-white font-medium truncate">
-                                {player.status === PlayerStatus.INTERESTED ? (player.interestedProgram || "Not set") : (player.placedLocation || "Not set")}
+                                {player.status === PlayerStatus.INTERESTED ? (player.interestedProgram || "Not set") :
+                                 player.status === PlayerStatus.OFFERED ? (player.offeredPathway || "Not set") :
+                                 (player.placedLocation || "Not set")}
                             </p>
                         )}
                     </div>
@@ -253,7 +280,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
             </div>
 
             {/* COLLAPSED CONTROLS - Expand for more */}
-            <div className="px-3 pb-2 flex gap-2">
+            <div className="px-3 pb-2 flex flex-wrap gap-2">
                 <button
                     onClick={() => setIsExpanded(!isExpanded)}
                     className="flex-1 flex items-center justify-center gap-1 text-[9px] uppercase font-bold py-1.5 rounded-lg bg-scout-900/50 text-gray-500 hover:text-white hover:bg-scout-700/50 transition-colors"
@@ -274,16 +301,36 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                 >
                     <Edit2 size={10} />
                 </button>
+                {onDelete && !isReference && (
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(true); }}
+                        className="flex items-center justify-center gap-1 text-[9px] uppercase font-bold py-1.5 px-3 rounded-lg bg-scout-900/50 text-red-500/70 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        title="Delete player"
+                    >
+                        <Trash2 size={10} />
+                    </button>
+                )}
+                {player.phone && (
+                    <a
+                        href={`https://wa.me/${player.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hi ${player.name}, this is a scout from Warubi Sports. I noticed your talent and wanted to connect about potential opportunities.`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center justify-center gap-1 text-[9px] uppercase font-bold py-1.5 px-3 rounded-lg bg-green-600/20 text-green-400 hover:bg-green-600/40 hover:text-green-300 transition-colors"
+                        title="WhatsApp"
+                    >
+                        <MessageCircle size={10} />
+                    </a>
+                )}
                 {!isReference && (
                     <select
                         value={player.status}
                         onChange={handleStatusChange}
                         className="appearance-none bg-scout-900/50 text-[9px] font-bold uppercase pl-2 pr-5 py-1.5 rounded-lg border border-scout-700/50 text-gray-400 focus:border-scout-accent focus:outline-none cursor-pointer hover:bg-scout-700/50"
                     >
-                        <option value={PlayerStatus.PROSPECT}>Undiscovered</option>
                         <option value={PlayerStatus.LEAD}>Lead</option>
+                        <option value={PlayerStatus.CONTACTED}>Contacted</option>
                         <option value={PlayerStatus.INTERESTED}>Interested</option>
-                        <option value={PlayerStatus.FINAL_REVIEW}>Final Review</option>
                         <option value={PlayerStatus.OFFERED}>Offered</option>
                         <option value={PlayerStatus.PLACED}>Placed</option>
                         <option value={PlayerStatus.ARCHIVED}>Archived</option>
@@ -348,6 +395,29 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                             className="bg-scout-700 text-gray-300 text-[10px] font-bold py-1.5 px-3 rounded-lg"
                         >
                             Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* DELETE CONFIRMATION */}
+            {showDeleteConfirm && (
+                <div className="px-3 pb-3 animate-fade-in border-t border-red-500/30 pt-3 bg-red-500/5">
+                    <p className="text-xs text-red-400 mb-3 text-center">
+                        Delete <span className="font-bold">{player.name}</span>? This cannot be undone.
+                    </p>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setShowDeleteConfirm(false)}
+                            className="flex-1 bg-scout-700 text-gray-300 text-[10px] font-bold py-2 rounded-lg"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={() => { onDelete?.(player.id); setShowDeleteConfirm(false); }}
+                            className="flex-1 bg-red-500 text-white text-[10px] font-bold py-2 rounded-lg flex items-center justify-center gap-1 hover:bg-red-600 transition-colors"
+                        >
+                            <Trash2 size={10} /> Delete
                         </button>
                     </div>
                 </div>

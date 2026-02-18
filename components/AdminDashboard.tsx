@@ -1,19 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { Player, ScoutingEvent, PlayerStatus, UserProfile, NewsItem, AppNotification } from '../types';
-import { 
-    LayoutDashboard, Users, Calendar, CheckCircle, XCircle, 
-    ShieldCheck, Activity, Search, Filter, Briefcase, Award, 
-    LogOut, Globe, TrendingUp, AlertCircle, FileText, Check, 
+import {
+    LayoutDashboard, Users, Calendar, CheckCircle, XCircle,
+    ShieldCheck, Activity, Search, Filter, Briefcase, Award,
+    LogOut, Globe, TrendingUp, AlertCircle, FileText, Check,
     MoreHorizontal, Edit2, BadgeCheck, X, Save, Eye, Plus,
-    List, LayoutGrid, Newspaper, Flame, Trash2, Link, Bell
+    List, LayoutGrid, Newspaper, Flame, Trash2, Link, Bell, KeyRound, Bug, Copy, ExternalLink, Loader2
 } from 'lucide-react';
+import ApprovedScoutsManager from './ApprovedScoutsManager';
+import { getAllBugReports, updateBugReportStatus, generateClaudePrompt } from '../services/bugReportService';
+import { useAllScouts } from '../hooks/useAllScouts';
+import { useAllProspects, PlayerWithScout } from '../hooks/useAllProspects';
+import { supabase, supabaseRest } from '../lib/supabase';
+import type { BugReport, BugReportStatus } from '../types';
+import type { Scout } from '../lib/database.types';
 
 interface AdminDashboardProps {
     players: Player[];
     events: ScoutingEvent[];
     onUpdateEvent: (event: ScoutingEvent) => void;
     onUpdatePlayer: (player: Player) => void;
+    onAddEvent?: (event: ScoutingEvent) => void;
+    onDeleteEvent?: (eventId: string) => void;
     onLogout: () => void;
+    onSwitchToScoutView?: () => void;
     onImpersonate?: (scout: UserProfile) => void;
     // News Props
     newsItems?: NewsItem[];
@@ -26,61 +36,21 @@ interface AdminDashboardProps {
     onMarkAllRead?: () => void;
 }
 
-// EXTENDED MOCK DATA FOR SCOUTS
-// Fix: Changed 'role' to 'roles' to match UserProfile interface
-const INITIAL_MOCK_SCOUTS: (UserProfile & { id: string, leads: number, conversion: string, status: string })[] = [
-    { 
-        id: 'scout-1', 
-        name: 'Alex Scout', 
-        roles: ['Head Coach'], 
-        region: 'California', 
-        leads: 42, 
-        conversion: '12%', 
-        status: 'Active',
-        weeklyTasks: [], 
-        certifications: ['USSF B License', 'Talent ID Level 1'] 
-    },
-    { 
-        id: 'scout-2', 
-        name: 'Sarah Jenkins', 
-        roles: ['Independent'], 
-        region: 'New York', 
-        leads: 28, 
-        conversion: '15%', 
-        status: 'Active',
-        weeklyTasks: [],
-        certifications: ['Former D1 Player']
-    },
-    { 
-        id: 'scout-3', 
-        name: 'David Mueller', 
-        roles: ['Agent'], 
-        region: 'Berlin', 
-        leads: 15, 
-        conversion: '22%', 
-        status: 'Active',
-        weeklyTasks: [],
-        certifications: ['DFB Elite Youth', 'Registered Intermediary']
-    },
-    { 
-        id: 'scout-4', 
-        name: 'James O.', 
-        roles: ['Academy Director'], 
-        region: 'Lagos', 
-        leads: 60, 
-        conversion: '8%', 
-        status: 'Review',
-        weeklyTasks: [],
-        certifications: []
-    },
-];
+// Scout type with stats for display
+interface ScoutWithStats extends Scout {
+  prospects_count?: number
+  conversion_rate?: string
+}
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
-    players, 
-    events, 
-    onUpdateEvent, 
+const AdminDashboard: React.FC<AdminDashboardProps> = ({
+    players,
+    events,
+    onUpdateEvent,
     onUpdatePlayer,
+    onAddEvent,
+    onDeleteEvent,
     onLogout,
+    onSwitchToScoutView,
     onImpersonate,
     newsItems = [],
     tickerItems = [],
@@ -91,14 +61,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     onAddNotification,
     onMarkAllRead
 }) => {
-    const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'APPROVALS' | 'TALENT' | 'SCOUTS' | 'NEWS'>('OVERVIEW');
+    const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'APPROVALS' | 'TALENT' | 'SCOUTS' | 'ACCESS' | 'NEWS' | 'EVENTS' | 'BUGS'>('OVERVIEW');
     const [searchQuery, setSearchQuery] = useState('');
-    
+
+    // Real scout data from Supabase
+    const { scouts, loading: scoutsLoading, updateScout: updateScoutInDb, refresh: refreshScouts } = useAllScouts();
+
+    // All prospects from all scouts (for Global Talent view)
+    const { prospects: allProspects, loading: prospectsLoading, refresh: refreshProspects } = useAllProspects();
+
     // Scout Management State
-    const [scouts, setScouts] = useState(INITIAL_MOCK_SCOUTS);
-    const [selectedScout, setSelectedScout] = useState<(typeof scouts)[0] | null>(null);
+    const [selectedScout, setSelectedScout] = useState<ScoutWithStats | null>(null);
     const [isEditingScout, setIsEditingScout] = useState(false);
-    const [scoutFormData, setScoutFormData] = useState<(typeof scouts)[0] | null>(null);
+    const [scoutFormData, setScoutFormData] = useState<ScoutWithStats | null>(null);
     const [newBadge, setNewBadge] = useState('');
     const [scoutViewMode, setScoutViewMode] = useState<'grid' | 'list'>('grid');
 
@@ -115,6 +90,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     // Notification State
     const [showNotifications, setShowNotifications] = useState(false);
+
+    // Bug Reports State
+    const [bugReports, setBugReports] = useState<BugReport[]>([]);
+    const [bugReportsLoading, setBugReportsLoading] = useState(false);
+    const [selectedBugReport, setSelectedBugReport] = useState<BugReport | null>(null);
+    const [updatingBugId, setUpdatingBugId] = useState<string | null>(null);
+
+    // Historical Achievements State
+    const [historicalPlacements, setHistoricalPlacements] = useState(0);
+    const [historicalShowcases, setHistoricalShowcases] = useState(0);
+    const [historicalPlayerNames, setHistoricalPlayerNames] = useState('');
+    const [historicalEventNames, setHistoricalEventNames] = useState('');
+    const [awardingXP, setAwardingXP] = useState(false);
+    const [savingScout, setSavingScout] = useState(false);
 
     // --- DERIVED STATS ---
     const pendingEvents = events.filter(e => e.status === 'Pending Approval');
@@ -157,62 +146,153 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     // --- SCOUT MANAGEMENT HANDLERS ---
 
-    const handleScoutClick = (scout: typeof scouts[0]) => {
+    const handleScoutClick = (scout: ScoutWithStats) => {
         setSelectedScout(scout);
-        setScoutFormData(scout);
+        setScoutFormData({ ...scout });
         setIsEditingScout(false);
     };
 
-    const handleScoutUpdate = () => {
+    const handleScoutUpdate = async () => {
         if (!scoutFormData) return;
-        setScouts(prev => prev.map(s => s.id === scoutFormData.id ? scoutFormData : s));
-        setSelectedScout(scoutFormData);
-        setIsEditingScout(false);
-    };
-
-    const toggleVerification = () => {
-        if (!scoutFormData) return;
-        // Simple toggle logic for demo - assuming we might add a 'verified' boolean later, 
-        // for now we stick to the 'Active' status or certifications logic.
-        // Let's add a "Verified Scout" badge if not present, remove if present
-        const hasBadge = scoutFormData.certifications?.includes('Verified Scout');
-        let newCerts = scoutFormData.certifications || [];
-        
-        if (hasBadge) {
-            newCerts = newCerts.filter(c => c !== 'Verified Scout');
-        } else {
-            newCerts = [...newCerts, 'Verified Scout'];
+        setSavingScout(true);
+        try {
+            // Save to Supabase
+            const success = await updateScoutInDb(scoutFormData.id, {
+                name: scoutFormData.name,
+                region: scoutFormData.region,
+                roles: scoutFormData.roles,
+                status: scoutFormData.status,
+                bio: scoutFormData.bio,
+            });
+            if (success) {
+                setSelectedScout(scoutFormData);
+                setIsEditingScout(false);
+                refreshScouts();
+            } else {
+                alert('Failed to save scout. Please try again.');
+            }
+        } catch (err) {
+            console.error('Error saving scout:', err);
+            alert('Error saving scout. Please try again.');
+        } finally {
+            setSavingScout(false);
         }
-        setScoutFormData({ ...scoutFormData, certifications: newCerts });
     };
 
-    const addBadge = () => {
-        if (!newBadge || !scoutFormData) return;
-        setScoutFormData({
-            ...scoutFormData,
-            certifications: [...(scoutFormData.certifications || []), newBadge]
-        });
-        setNewBadge('');
+    // XP values for historical achievements
+    const HISTORICAL_XP = {
+        PLACEMENT: 500,
+        SHOWCASE_HOSTED: 250, // High value - showcases generate many leads
     };
 
-    const removeBadge = (badge: string) => {
-        if (!scoutFormData) return;
-        setScoutFormData({
-            ...scoutFormData,
-            certifications: scoutFormData.certifications?.filter(c => c !== badge)
+    const handleAwardHistorical = async () => {
+        if (!selectedScout || (historicalPlacements === 0 && historicalShowcases === 0)) return;
+
+        setAwardingXP(true);
+
+        // Calculate total XP to award
+        const placementXP = historicalPlacements * HISTORICAL_XP.PLACEMENT;
+        const showcaseXP = historicalShowcases * HISTORICAL_XP.SHOWCASE_HOSTED;
+        const totalXP = placementXP + showcaseXP;
+
+        // Parse player names (comma-separated)
+        const playerNames = historicalPlayerNames
+            .split(',')
+            .map(n => n.trim())
+            .filter(n => n.length > 0);
+
+        // Parse event names (comma-separated)
+        const eventNames = historicalEventNames
+            .split(',')
+            .map(n => n.trim())
+            .filter(n => n.length > 0);
+
+        // Create historical player records (use REST API to avoid hanging)
+        if (historicalPlacements > 0) {
+            for (let i = 0; i < historicalPlacements; i++) {
+                const playerName = playerNames[i] || `Historical Placement #${i + 1}`;
+                await supabaseRest.insert('scout_prospects', {
+                    scout_id: selectedScout.id,
+                    name: playerName,
+                    position: 'Unknown',
+                    status: 'placed',
+                    placed_location: 'Historical Record',
+                });
+            }
+        }
+
+        // Create historical event records (use REST API to avoid hanging)
+        if (historicalShowcases > 0) {
+            for (let i = 0; i < historicalShowcases; i++) {
+                const eventName = eventNames[i] || `Historical Showcase #${i + 1}`;
+                await supabaseRest.insert('scouting_events', {
+                    host_scout_id: selectedScout.id,
+                    title: eventName,
+                    event_type: 'Showcase',
+                    event_date: new Date().toISOString().split('T')[0],
+                    location: 'Historical Record',
+                    status: 'completed',
+                });
+            }
+        }
+
+        // Update scout's XP and placements count
+        const newXPScore = (selectedScout.xp_score || 0) + totalXP;
+        const newPlacementsCount = (selectedScout.placements_count || 0) + historicalPlacements;
+        const newLevel = Math.floor(newXPScore / 100) + 1;
+
+        const success = await updateScoutInDb(selectedScout.id, {
+            xp_score: newXPScore,
+            placements_count: newPlacementsCount,
+            level: newLevel,
         });
+
+        if (success) {
+            // Update local state
+            const updatedScout = {
+                ...selectedScout,
+                xp_score: newXPScore,
+                placements_count: newPlacementsCount,
+                level: newLevel,
+            };
+            setSelectedScout(updatedScout);
+            setScoutFormData(updatedScout);
+
+            // Reset inputs
+            setHistoricalPlacements(0);
+            setHistoricalShowcases(0);
+            setHistoricalPlayerNames('');
+            setHistoricalEventNames('');
+
+            // Refresh scouts list
+            refreshScouts();
+        }
+
+        setAwardingXP(false);
     };
+
+    const scoutToUserProfile = (scout: ScoutWithStats): UserProfile => ({
+        name: scout.name,
+        roles: scout.roles || ['Regional Scout'],
+        region: scout.region,
+        affiliation: scout.affiliation || undefined,
+        scoutPersona: scout.scout_persona || undefined,
+        weeklyTasks: [],
+        scoutId: scout.id,
+        isAdmin: scout.is_admin,
+        bio: scout.bio || undefined,
+        leadMagnetActive: scout.lead_magnet_active,
+    });
 
     const triggerImpersonation = () => {
         if (onImpersonate && selectedScout) {
-            // Map the extended mock scout back to UserProfile
-            onImpersonate(selectedScout);
+            onImpersonate(scoutToUserProfile(selectedScout));
         }
     };
 
-    const triggerRowImpersonation = (e: React.MouseEvent, scout: UserProfile) => {
+    const triggerRowImpersonation = (e: React.MouseEvent, scout: ScoutWithStats) => {
         e.stopPropagation();
-        if (onImpersonate) onImpersonate(scout);
+        if (onImpersonate) onImpersonate(scoutToUserProfile(scout));
     }
 
     // --- NEWS MANAGEMENT HANDLERS ---
@@ -244,6 +324,44 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         }
     };
 
+    // --- BUG REPORTS HANDLERS ---
+
+    const loadBugReports = async () => {
+        setBugReportsLoading(true);
+        const { reports, error } = await getAllBugReports();
+        if (!error) {
+            setBugReports(reports);
+        }
+        setBugReportsLoading(false);
+    };
+
+    const handleUpdateBugStatus = async (id: string, status: BugReportStatus, notes?: string) => {
+        setUpdatingBugId(id);
+        const result = await updateBugReportStatus(id, status, notes);
+        if (result.success) {
+            setBugReports(prev => prev.map(r =>
+                r.id === id ? { ...r, status, adminNotes: notes || r.adminNotes, updatedAt: new Date().toISOString() } : r
+            ));
+            if (selectedBugReport?.id === id) {
+                setSelectedBugReport({ ...selectedBugReport, status, adminNotes: notes || selectedBugReport.adminNotes });
+            }
+        }
+        setUpdatingBugId(null);
+    };
+
+    const copyClaudePrompt = (report: BugReport) => {
+        const prompt = generateClaudePrompt(report);
+        navigator.clipboard.writeText(prompt);
+        alert('Claude prompt copied to clipboard!');
+    };
+
+    // Load bug reports when tab is active
+    React.useEffect(() => {
+        if (activeTab === 'BUGS') {
+            loadBugReports();
+        }
+    }, [activeTab]);
+
     // --- SUB-VIEWS ---
 
     const OverviewTab = () => (
@@ -257,7 +375,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </div>
                         <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">+12%</span>
                     </div>
-                    <div className="text-3xl font-bold text-gray-900">{scouts.length + 120}</div>
+                    <div className="text-3xl font-bold text-gray-900">{scoutsLoading ? '...' : scouts.length}</div>
                     <div className="text-sm text-gray-500">Active Scouts</div>
                 </div>
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -265,9 +383,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <div className="p-3 bg-purple-50 rounded-lg text-purple-600">
                             <Activity size={24} />
                         </div>
-                        <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">+5%</span>
                     </div>
-                    <div className="text-3xl font-bold text-gray-900">{players.length + 850}</div>
+                    <div className="text-3xl font-bold text-gray-900">{players.length}</div>
                     <div className="text-sm text-gray-500">Players in Pipeline</div>
                 </div>
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -295,23 +412,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {/* Recent Activity */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                     <h3 className="font-bold text-gray-900 mb-4">Live Network Feed</h3>
-                    <div className="space-y-4">
-                        {[
-                            { text: "Sarah Jenkins submitted a Tier 1 Prospect", time: "2m ago", icon: Users, color: "text-blue-500 bg-blue-50" },
-                            { text: "New Event Request: 'Berlin Summer ID'", time: "15m ago", icon: Calendar, color: "text-orange-500 bg-orange-50" },
-                            { text: "James O. reached 60 leads milestone", time: "1h ago", icon: Award, color: "text-yellow-500 bg-yellow-50" },
-                            { text: "System Audit complete", time: "3h ago", icon: ShieldCheck, color: "text-green-500 bg-green-50" },
-                        ].map((item, i) => (
-                            <div key={i} className="flex items-start gap-3 pb-3 border-b border-gray-50 last:border-0 last:pb-0">
-                                <div className={`p-2 rounded-full ${item.color}`}>
-                                    <item.icon size={16} />
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-800 font-medium">{item.text}</p>
-                                    <p className="text-xs text-gray-400">{item.time}</p>
-                                </div>
-                            </div>
-                        ))}
+                    <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                        <Activity size={32} className="mb-3 opacity-50" />
+                        <p className="text-sm">No recent activity</p>
+                        <p className="text-xs mt-1">Activity will appear here as scouts work</p>
                     </div>
                 </div>
 
@@ -358,7 +462,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-2">
                                     <span className="bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-1 rounded uppercase">Pending Review</span>
-                                    <span className="text-sm text-gray-500">Submitted by Alex Scout</span>
+                                    {evt.scoutId && <span className="text-sm text-gray-500">Submitted by {scouts.find(s => s.id === evt.scoutId)?.name || 'Scout'}</span>}
                                 </div>
                                 <h3 className="text-xl font-bold text-gray-900 mb-1">{evt.title}</h3>
                                 <div className="flex gap-4 text-sm text-gray-600 mb-4">
@@ -400,71 +504,239 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="space-y-6 animate-fade-in">
             <div className="flex justify-between items-center">
                 <h2 className="text-2xl font-bold text-gray-900">Global Talent Pool</h2>
-                <div className="flex gap-2">
-                    <div className="relative">
-                        <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
-                        <input 
-                            placeholder="Search all players..." 
-                            className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm w-64 focus:ring-2 focus:ring-blue-500 outline-none"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
+                <div className="flex items-center gap-4">
+                    <span className="text-sm text-gray-500">
+                        {prospectsLoading ? 'Loading...' : `${allProspects.length} players from all scouts`}
+                    </span>
+                    <div className="flex gap-2">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
+                            <input
+                                placeholder="Search all players..."
+                                className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm w-64 focus:ring-2 focus:ring-blue-500 outline-none"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                        <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50">
+                            <Filter size={16} /> Filter
+                        </button>
                     </div>
-                    <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50">
-                        <Filter size={16} /> Filter
-                    </button>
                 </div>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <table className="w-full text-left">
-                    <thead className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold">
-                        <tr>
-                            <th className="p-4">Player</th>
-                            <th className="p-4">Position</th>
-                            <th className="p-4">Scout</th>
-                            <th className="p-4">Tier</th>
-                            <th className="p-4">Status</th>
-                            <th className="p-4 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {players.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map(p => (
-                            <tr key={p.id} className="hover:bg-gray-50 transition-colors">
-                                <td className="p-4 font-bold text-gray-900">{p.name}</td>
-                                <td className="p-4 text-gray-600">{p.position}</td>
-                                <td className="p-4 text-gray-600 text-sm">Alex Scout</td>
-                                <td className="p-4">
-                                    <span className={`text-[10px] px-2 py-1 rounded font-bold uppercase ${
-                                        p.evaluation?.scholarshipTier === 'Tier 1' ? 'bg-purple-100 text-purple-700' :
-                                        p.evaluation?.scholarshipTier === 'Tier 2' ? 'bg-blue-100 text-blue-700' :
-                                        'bg-gray-100 text-gray-600'
-                                    }`}>
-                                        {p.evaluation?.scholarshipTier || 'N/A'}
-                                    </span>
-                                </td>
-                                <td className="p-4 text-sm font-medium text-gray-700">
-                                    {p.status === PlayerStatus.PLACED ? (
-                                        <span className="text-green-600 flex items-center gap-1"><CheckCircle size={14}/> Placed</span>
-                                    ) : p.status}
-                                </td>
-                                <td className="p-4 text-right">
-                                    {p.status !== PlayerStatus.PLACED && (
-                                        <button 
-                                            onClick={() => placePlayer(p)}
-                                            className="text-xs bg-gray-900 hover:bg-gray-700 text-white px-3 py-1.5 rounded font-bold transition-colors"
-                                        >
-                                            Mark Placed
-                                        </button>
-                                    )}
-                                </td>
+                {prospectsLoading ? (
+                    <div className="flex items-center justify-center py-12">
+                        <Loader2 className="animate-spin text-gray-400" size={24} />
+                        <span className="ml-2 text-gray-500">Loading all prospects...</span>
+                    </div>
+                ) : allProspects.length === 0 ? (
+                    <div className="text-center py-12 text-gray-500">
+                        <Users size={48} className="mx-auto mb-4 text-gray-300" />
+                        <p className="font-medium">No players in the pipeline yet</p>
+                        <p className="text-sm">Players added by scouts will appear here</p>
+                    </div>
+                ) : (
+                    <table className="w-full text-left">
+                        <thead className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold">
+                            <tr>
+                                <th className="p-4">Player</th>
+                                <th className="p-4">Position</th>
+                                <th className="p-4">Scout</th>
+                                <th className="p-4">Tier</th>
+                                <th className="p-4">Status</th>
+                                <th className="p-4 text-right">Actions</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {allProspects
+                                .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                                           p.scoutName.toLowerCase().includes(searchQuery.toLowerCase()))
+                                .map(p => (
+                                <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                                    <td className="p-4 font-bold text-gray-900">{p.name}</td>
+                                    <td className="p-4 text-gray-600">{p.position || '-'}</td>
+                                    <td className="p-4">
+                                        <span className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                                            {p.scoutName}
+                                        </span>
+                                    </td>
+                                    <td className="p-4">
+                                        <span className={`text-[10px] px-2 py-1 rounded font-bold uppercase ${
+                                            p.evaluation?.scholarshipTier === 'Tier 1' ? 'bg-purple-100 text-purple-700' :
+                                            p.evaluation?.scholarshipTier === 'Tier 2' ? 'bg-blue-100 text-blue-700' :
+                                            'bg-gray-100 text-gray-600'
+                                        }`}>
+                                            {p.evaluation?.scholarshipTier || 'N/A'}
+                                        </span>
+                                    </td>
+                                    <td className="p-4 text-sm font-medium text-gray-700">
+                                        {p.status === PlayerStatus.PLACED ? (
+                                            <span className="text-green-600 flex items-center gap-1"><CheckCircle size={14}/> Placed</span>
+                                        ) : p.status}
+                                    </td>
+                                    <td className="p-4 text-right">
+                                        {p.status !== PlayerStatus.PLACED && (
+                                            <button
+                                                onClick={() => placePlayer(p)}
+                                                className="text-xs bg-gray-900 hover:bg-gray-700 text-white px-3 py-1.5 rounded font-bold transition-colors"
+                                            >
+                                                Mark Placed
+                                            </button>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
             </div>
         </div>
     );
+
+    // Global Events State
+    const [isAddingGlobalEvent, setIsAddingGlobalEvent] = useState(false);
+    const [editingEvent, setEditingEvent] = useState<ScoutingEvent | null>(null);
+    const [globalEventForm, setGlobalEventForm] = useState({
+        title: '',
+        location: '',
+        date: '',
+        endDate: '',
+        time: '',
+        type: 'Showcase' as 'ID Day' | 'Showcase' | 'Camp' | 'Tournament' | 'Trial',
+        fee: ''
+    });
+
+    const handleSaveGlobalEvent = async () => {
+        if (!globalEventForm.title || !globalEventForm.location || !globalEventForm.date) {
+            alert('Please fill in title, location, and date');
+            return;
+        }
+
+        const newEvent: ScoutingEvent = {
+            id: `global-event-${Date.now()}`,
+            title: globalEventForm.title,
+            location: globalEventForm.location,
+            date: globalEventForm.date,
+            endDate: globalEventForm.endDate || undefined,
+            time: globalEventForm.time || 'TBD',
+            type: globalEventForm.type,
+            fee: globalEventForm.fee ? parseFloat(globalEventForm.fee) : undefined,
+            isMine: false,
+            role: 'ATTENDEE',
+            status: 'Published',
+            marketingCopy: '',
+            agenda: [],
+            checklist: [
+                { task: "Get the Roster", completed: false },
+                { task: "Prepare Warubi QR Code", completed: false }
+            ],
+            isGlobal: true // Mark as global event
+        };
+
+        if (onAddEvent) {
+            try {
+                await onAddEvent(newEvent);
+                setGlobalEventForm({
+                    title: '',
+                    location: '',
+                    date: '',
+                    endDate: '',
+                    time: '',
+                    type: 'Showcase',
+                    fee: ''
+                });
+                setIsAddingGlobalEvent(false);
+                if (onAddNotification) {
+                    onAddNotification({
+                        type: 'SUCCESS',
+                        title: 'Global Event Created',
+                        message: `${newEvent.title} is now visible to all scouts.`
+                    });
+                }
+            } catch (error) {
+                alert('Failed to create event: ' + (error instanceof Error ? error.message : String(error)));
+            }
+        }
+    };
+
+    const handleEditEvent = (event: ScoutingEvent) => {
+        setEditingEvent(event);
+        setGlobalEventForm({
+            title: event.title,
+            location: event.location,
+            date: event.date,
+            endDate: event.endDate || '',
+            time: event.time || '',
+            type: event.type,
+            fee: event.fee ? String(event.fee) : ''
+        });
+    };
+
+    const handleUpdateGlobalEvent = async () => {
+        if (!editingEvent) return;
+        if (!globalEventForm.title || !globalEventForm.location || !globalEventForm.date) {
+            alert('Please fill in title, location, and date');
+            return;
+        }
+
+        const updatedEvent: ScoutingEvent = {
+            ...editingEvent,
+            title: globalEventForm.title,
+            location: globalEventForm.location,
+            date: globalEventForm.date,
+            endDate: globalEventForm.endDate || undefined,
+            time: globalEventForm.time || 'TBD',
+            type: globalEventForm.type,
+            fee: globalEventForm.fee ? parseFloat(globalEventForm.fee) : undefined,
+        };
+
+        try {
+            onUpdateEvent(updatedEvent);
+            setEditingEvent(null);
+            setGlobalEventForm({
+                title: '',
+                location: '',
+                date: '',
+                endDate: '',
+                time: '',
+                type: 'Showcase',
+                fee: ''
+            });
+            if (onAddNotification) {
+                onAddNotification({
+                    type: 'SUCCESS',
+                    title: 'Event Updated',
+                    message: `${updatedEvent.title} has been updated.`
+                });
+            }
+        } catch (error) {
+            alert('Failed to update event: ' + (error instanceof Error ? error.message : String(error)));
+        }
+    };
+
+    const handleDeleteGlobalEvent = async (eventId: string) => {
+        if (!confirm('Are you sure you want to delete this event?')) return;
+
+        if (onDeleteEvent) {
+            try {
+                await onDeleteEvent(eventId);
+                if (onAddNotification) {
+                    onAddNotification({
+                        type: 'INFO',
+                        title: 'Event Deleted',
+                        message: 'The event has been removed.'
+                    });
+                }
+            } catch (error) {
+                alert('Failed to delete event: ' + (error instanceof Error ? error.message : String(error)));
+            }
+        }
+    };
+
+    // Filter global events (published events visible to all scouts)
+    const globalEvents = events.filter(e => e.status === 'Published');
 
     const NewsRoomTab = () => (
         <div className="space-y-6 animate-fade-in flex gap-6 h-[calc(100vh-140px)]">
@@ -602,168 +874,236 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
     );
 
-    const ScoutManagementModal = () => {
-        if (!selectedScout || !scoutFormData) return null;
-
-        return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
-                <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                    {/* Header */}
-                    <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-xl font-bold text-blue-700">
-                                {selectedScout.name.charAt(0)}
-                            </div>
-                            <div>
-                                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                                    {selectedScout.name}
-                                    {scoutFormData.certifications?.includes('Verified Scout') && (
-                                        <BadgeCheck size={18} className="text-blue-500 fill-blue-50" />
-                                    )}
-                                </h3>
-                                <p className="text-sm text-gray-500">ID: {selectedScout.id}</p>
-                            </div>
-                        </div>
-                        <button onClick={() => setSelectedScout(null)} className="text-gray-400 hover:text-gray-700">
-                            <X size={24} />
-                        </button>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-6 overflow-y-auto">
-                        
-                        {/* 1. Account Actions & Status */}
-                        <div className="flex gap-4 mb-8">
-                            <div className="flex-1 bg-blue-50 rounded-lg p-4 border border-blue-100 flex items-center justify-between">
-                                <div>
-                                    <p className="text-xs font-bold text-blue-700 uppercase">Verification</p>
-                                    <p className="text-sm text-blue-900">{scoutFormData.certifications?.includes('Verified Scout') ? 'Verified Account' : 'Unverified'}</p>
+    return (
+        <div className="flex min-h-screen bg-gray-50 font-sans text-gray-900 relative">
+            {/* Scout Management Modal - inlined to prevent re-render issues */}
+            {selectedScout && scoutFormData && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+                    <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                        {/* Header */}
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-xl font-bold text-blue-700">
+                                    {selectedScout.name.charAt(0)}
                                 </div>
-                                <button 
-                                    onClick={toggleVerification}
-                                    className={`px-3 py-1 rounded text-xs font-bold transition-colors ${scoutFormData.certifications?.includes('Verified Scout') ? 'bg-white text-blue-600' : 'bg-blue-600 text-white'}`}
-                                >
-                                    {scoutFormData.certifications?.includes('Verified Scout') ? 'Revoke' : 'Verify'}
-                                </button>
-                            </div>
-                            <div className="flex-1 bg-purple-50 rounded-lg p-4 border border-purple-100 flex items-center justify-between">
                                 <div>
-                                    <p className="text-xs font-bold text-purple-700 uppercase">Access</p>
-                                    <p className="text-sm text-purple-900">"God Mode"</p>
+                                    <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                                        {selectedScout.name}
+                                        {selectedScout.is_admin && (
+                                            <BadgeCheck size={18} className="text-blue-500 fill-blue-50" />
+                                        )}
+                                    </h3>
+                                    <p className="text-sm text-gray-500">Level {selectedScout.level || 1} • {selectedScout.xp_score || 0} XP</p>
                                 </div>
-                                <button 
-                                    onClick={triggerImpersonation}
-                                    className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-xs font-bold flex items-center gap-1"
-                                >
-                                    <Eye size={12} /> Login as User
-                                </button>
                             </div>
+                            <button onClick={() => setSelectedScout(null)} className="text-gray-400 hover:text-gray-700">
+                                <X size={24} />
+                            </button>
                         </div>
 
-                        <div className="grid md:grid-cols-2 gap-8">
-                            {/* 2. Profile Editor */}
+                        {/* Content */}
+                        <div className="p-6 overflow-y-auto">
+
+                            {/* Stats Row */}
+                            <div className="flex gap-4 mb-8">
+                                <div className="flex-1 bg-gray-50 rounded-lg p-4 border border-gray-200 text-center">
+                                    <div className="text-2xl font-bold text-gray-900">{selectedScout.prospects_count || 0}</div>
+                                    <div className="text-xs text-gray-500 uppercase">Prospects</div>
+                                </div>
+                                <div className="flex-1 bg-green-50 rounded-lg p-4 border border-green-200 text-center">
+                                    <div className="text-2xl font-bold text-green-600">{selectedScout.placements_count || 0}</div>
+                                    <div className="text-xs text-gray-500 uppercase">Placed</div>
+                                </div>
+                                <div className="flex-1 bg-purple-50 rounded-lg p-4 border border-purple-200 text-center">
+                                    <div className="text-2xl font-bold text-purple-600">{selectedScout.xp_score || 0}</div>
+                                    <div className="text-xs text-gray-500 uppercase">XP Score</div>
+                                </div>
+                                <div className="flex-1 bg-blue-50 rounded-lg p-4 border border-blue-100 flex items-center justify-center">
+                                    <button
+                                        onClick={triggerImpersonation}
+                                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-bold flex items-center gap-2"
+                                    >
+                                        <Eye size={16} /> View as Scout
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Profile Editor */}
                             <div className="space-y-4">
                                 <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
                                     <Edit2 size={16} className="text-gray-400" /> Edit Profile
                                 </h4>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 mb-1">Full Name</label>
-                                    <input 
-                                        className="w-full border border-gray-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        value={scoutFormData.name}
-                                        onChange={e => setScoutFormData({...scoutFormData!, name: e.target.value})}
-                                    />
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 mb-1">Full Name</label>
+                                        <input
+                                            className="w-full border border-gray-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                                            value={scoutFormData.name}
+                                            onChange={e => setScoutFormData({...scoutFormData, name: e.target.value})}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 mb-1">Region</label>
+                                        <input
+                                            className="w-full border border-gray-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                                            value={scoutFormData.region}
+                                            onChange={e => setScoutFormData({...scoutFormData, region: e.target.value})}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 mb-1">Role</label>
+                                        <input
+                                            className="w-full border border-gray-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                                            value={scoutFormData.roles?.[0] || ''}
+                                            onChange={e => setScoutFormData({...scoutFormData, roles: [e.target.value]})}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 mb-1">Account Status</label>
+                                        <select
+                                            className="w-full border border-gray-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                                            value={scoutFormData.status}
+                                            onChange={e => setScoutFormData({...scoutFormData, status: e.target.value as 'active' | 'inactive' | 'pending'})}
+                                        >
+                                            <option value="active">Active</option>
+                                            <option value="pending">Pending</option>
+                                            <option value="inactive">Inactive</option>
+                                        </select>
+                                    </div>
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-500 mb-1">Role / Title</label>
-                                    <input 
-                                        className="w-full border border-gray-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        // Fix: Using roles[0] as a placeholder for editing the primary role
-                                        value={scoutFormData.roles[0] || ''}
-                                        onChange={e => setScoutFormData({...scoutFormData!, roles: [e.target.value]})}
+                                    <label className="block text-xs font-bold text-gray-500 mb-1">Bio</label>
+                                    <textarea
+                                        className="w-full border border-gray-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none h-20 resize-none"
+                                        value={scoutFormData.bio || ''}
+                                        onChange={e => setScoutFormData({...scoutFormData, bio: e.target.value})}
+                                        placeholder="Scout bio..."
                                     />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 mb-1">Region</label>
-                                    <input 
-                                        className="w-full border border-gray-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        value={scoutFormData.region}
-                                        onChange={e => setScoutFormData({...scoutFormData!, region: e.target.value})}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 mb-1">Account Status</label>
-                                    <select 
-                                        className="w-full border border-gray-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        value={scoutFormData.status}
-                                        onChange={e => setScoutFormData({...scoutFormData!, status: e.target.value})}
-                                    >
-                                        <option value="Active">Active</option>
-                                        <option value="Review">Under Review</option>
-                                        <option value="Suspended">Suspended</option>
-                                    </select>
                                 </div>
                             </div>
 
-                            {/* 3. Badges & Certs */}
-                            <div className="space-y-4">
+                            {/* Historical Achievements */}
+                            <div className="mt-8 pt-6 border-t border-gray-200 space-y-4">
                                 <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                                    <Award size={16} className="text-gray-400" /> Credentials & Badges
+                                    <Award size={16} className="text-yellow-500" /> Award Historical Achievements
                                 </h4>
-                                <div className="flex gap-2">
-                                    <input 
-                                        className="flex-1 border border-gray-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
-                                        placeholder="e.g. UEFA A License"
-                                        value={newBadge}
-                                        onChange={e => setNewBadge(e.target.value)}
-                                        onKeyDown={e => e.key === 'Enter' && addBadge()}
-                                    />
-                                    <button 
-                                        onClick={addBadge}
-                                        className="bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 rounded"
-                                    >
-                                        <Plus size={18} />
-                                    </button>
+                                <p className="text-xs text-gray-500">
+                                    Credit this scout for past placements and showcases they hosted before joining the platform.
+                                </p>
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
+                                        <label className="block text-xs font-bold text-green-700 mb-2">
+                                            Historical Placements (+500 XP each)
+                                        </label>
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                value={historicalPlacements}
+                                                onChange={e => setHistoricalPlacements(Math.max(0, parseInt(e.target.value) || 0))}
+                                                className="w-20 border border-green-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-green-500 outline-none text-center font-bold"
+                                            />
+                                            <span className="text-xs text-green-600 font-medium">
+                                                = {historicalPlacements * 500} XP
+                                            </span>
+                                        </div>
+                                        <div className={historicalPlacements > 0 ? '' : 'hidden'}>
+                                            <label className="block text-[10px] text-green-600 mb-1">
+                                                Player names (comma-separated, optional)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={historicalPlayerNames}
+                                                onChange={e => setHistoricalPlayerNames(e.target.value)}
+                                                placeholder="John Smith, Mike Jones, Alex Chen"
+                                                className="w-full border border-green-300 rounded p-2 text-xs text-gray-900 focus:ring-2 focus:ring-green-500 outline-none placeholder:text-gray-400"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 space-y-3">
+                                        <label className="block text-xs font-bold text-orange-700 mb-2">
+                                            Historical Showcases Hosted (+250 XP each)
+                                        </label>
+                                        <div className="flex items-center gap-3">
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                value={historicalShowcases}
+                                                onChange={e => setHistoricalShowcases(Math.max(0, parseInt(e.target.value) || 0))}
+                                                className="w-20 border border-orange-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-orange-500 outline-none text-center font-bold"
+                                            />
+                                            <span className="text-xs text-orange-600 font-medium">
+                                                = {historicalShowcases * 250} XP
+                                            </span>
+                                        </div>
+                                        <div className={historicalShowcases > 0 ? '' : 'hidden'}>
+                                            <label className="block text-[10px] text-orange-600 mb-1">
+                                                Event names (comma-separated, optional)
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={historicalEventNames}
+                                                onChange={e => setHistoricalEventNames(e.target.value)}
+                                                placeholder="Miami Spring Showcase, Atlanta ID Day"
+                                                className="w-full border border-orange-300 rounded p-2 text-xs text-gray-900 focus:ring-2 focus:ring-orange-500 outline-none placeholder:text-gray-400"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
-                                <div className="flex flex-wrap gap-2 mt-2">
-                                    {scoutFormData.certifications?.map((badge, idx) => (
-                                        <span key={idx} className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold border border-blue-100">
-                                            {badge}
-                                            <button onClick={() => removeBadge(badge)} className="hover:text-red-500"><X size={12}/></button>
-                                        </span>
-                                    ))}
-                                    {(!scoutFormData.certifications || scoutFormData.certifications.length === 0) && (
-                                        <span className="text-sm text-gray-400 italic">No badges added yet.</span>
-                                    )}
-                                </div>
+                                {(historicalPlacements > 0 || historicalShowcases > 0) && (
+                                    <div className="flex items-center justify-between bg-purple-50 border border-purple-200 rounded-lg p-4">
+                                        <div>
+                                            <p className="text-xs text-purple-600 font-medium">Total XP to Award</p>
+                                            <p className="text-2xl font-black text-purple-700">
+                                                +{(historicalPlacements * 500) + (historicalShowcases * 250)} XP
+                                            </p>
+                                            <p className="text-[10px] text-purple-500">
+                                                {historicalPlacements > 0 && `${historicalPlacements} placement${historicalPlacements > 1 ? 's' : ''}`}
+                                                {historicalPlacements > 0 && historicalShowcases > 0 && ' + '}
+                                                {historicalShowcases > 0 && `${historicalShowcases} showcase${historicalShowcases > 1 ? 's' : ''}`}
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={handleAwardHistorical}
+                                            disabled={awardingXP}
+                                            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white font-bold text-sm rounded-lg shadow-lg flex items-center gap-2 transition-all"
+                                        >
+                                            {awardingXP ? (
+                                                <>
+                                                    <Loader2 size={16} className="animate-spin" /> Awarding...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <TrendingUp size={16} /> Award XP
+                                                </>
+                                            )}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
-                    </div>
 
-                    {/* Footer */}
-                    <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-                        <button 
-                            onClick={() => setSelectedScout(null)}
-                            className="px-4 py-2 text-gray-500 hover:text-gray-700 font-bold text-sm"
-                        >
-                            Cancel
-                        </button>
-                        <button 
-                            onClick={handleScoutUpdate}
-                            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded shadow-lg flex items-center gap-2"
-                        >
-                            <Save size={16} /> Save Changes
-                        </button>
+                        {/* Footer */}
+                        <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
+                            <button
+                                onClick={() => setSelectedScout(null)}
+                                className="px-4 py-2 text-gray-500 hover:text-gray-700 font-bold text-sm"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleScoutUpdate}
+                                disabled={savingScout}
+                                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-bold text-sm rounded shadow-lg flex items-center gap-2"
+                            >
+                                {savingScout ? <><Loader2 size={16} className="animate-spin" /> Saving...</> : <><Save size={16} /> Save Changes</>}
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
-        );
-    };
-
-    return (
-        <div className="flex min-h-screen bg-gray-50 font-sans text-gray-900 relative">
-            {/* Modal Injection */}
-            {selectedScout && <ScoutManagementModal />}
+            )}
 
             {/* Notification Bell (Absolute for Admin) */}
             <div className="absolute top-6 right-8 z-30">
@@ -811,7 +1151,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
 
             {/* Admin Sidebar */}
-            <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full z-10">
+            <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full z-10 overflow-y-auto">
                 <div className="p-6 border-b border-gray-100">
                     <h1 className="text-xl font-black tracking-tighter text-gray-900">WARUBI<span className="text-blue-600">HQ</span></h1>
                     <p className="text-xs text-gray-400 mt-1 font-medium tracking-wide">ADMIN CONTROL TOWER</p>
@@ -837,23 +1177,51 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     >
                         <Globe size={20} /> Global Talent
                     </button>
-                    <button 
+                    <button
                         onClick={() => setActiveTab('SCOUTS')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'SCOUTS' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
                     >
                         <Briefcase size={20} /> Scout Network
                     </button>
-                    <button 
+                    <button
+                        onClick={() => setActiveTab('ACCESS')}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'ACCESS' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                    >
+                        <KeyRound size={20} /> Access Control
+                    </button>
+                    <button
                         onClick={() => setActiveTab('NEWS')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'NEWS' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
                     >
                         <Newspaper size={20} /> Newsroom
                     </button>
+                    <button
+                        onClick={() => setActiveTab('EVENTS')}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'EVENTS' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                    >
+                        <Calendar size={20} /> Global Events
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('BUGS')}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'BUGS' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                    >
+                        <Bug size={20} /> Bug Reports
+                        {bugReports.filter(r => r.status === 'open').length > 0 && (
+                            <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                {bugReports.filter(r => r.status === 'open').length}
+                            </span>
+                        )}
+                    </button>
                 </nav>
 
-                <div className="p-4 border-t border-gray-100">
+                <div className="p-4 border-t border-gray-100 space-y-2">
+                    {onSwitchToScoutView && (
+                        <button onClick={onSwitchToScoutView} className="flex items-center gap-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 w-full px-4 py-2 rounded-lg transition-colors">
+                            <Eye size={18} /> Switch to Scout View
+                        </button>
+                    )}
                     <button onClick={onLogout} className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-red-600 w-full px-4 py-2 transition-colors">
-                        <LogOut size={18} /> Logout to App
+                        <LogOut size={18} /> Logout
                     </button>
                 </div>
             </aside>
@@ -888,16 +1256,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             </div>
                         </div>
 
-                        {scoutViewMode === 'grid' ? (
+                        {scoutsLoading ? (
+                            <div className="bg-white p-12 rounded-xl border border-gray-200 text-center">
+                                <Loader2 size={32} className="mx-auto text-gray-400 animate-spin mb-4" />
+                                <p className="text-gray-500">Loading scouts...</p>
+                            </div>
+                        ) : scouts.length === 0 ? (
+                            <div className="bg-white p-12 rounded-xl border border-gray-200 text-center">
+                                <Users size={48} className="mx-auto text-gray-300 mb-4" />
+                                <h3 className="text-lg font-bold text-gray-900">No Scouts Yet</h3>
+                                <p className="text-gray-500">Add scouts via Access Control to see them here.</p>
+                            </div>
+                        ) : scoutViewMode === 'grid' ? (
                             <div className="grid grid-cols-3 gap-6">
                                 {scouts.map(scout => (
-                                    <div 
-                                        key={scout.id} 
+                                    <div
+                                        key={scout.id}
                                         onClick={() => handleScoutClick(scout)}
                                         className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col items-center text-center cursor-pointer hover:border-blue-300 hover:shadow-md transition-all group relative"
                                     >
-                                        {scout.certifications?.includes('Verified Scout') && (
-                                            <div className="absolute top-3 right-3 text-blue-500" title="Verified">
+                                        {scout.is_admin && (
+                                            <div className="absolute top-3 right-3 text-blue-500" title="Admin">
                                                 <BadgeCheck size={18} />
                                             </div>
                                         )}
@@ -905,21 +1284,25 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                             {scout.name.charAt(0)}
                                         </div>
                                         <h3 className="font-bold text-gray-900">{scout.name}</h3>
-                                        <p className="text-xs text-gray-500 mb-4">{scout.roles.join(', ')} • {scout.region}</p>
-                                        
+                                        <p className="text-xs text-gray-500 mb-4">{scout.roles?.join(', ') || 'Scout'} • {scout.region}</p>
+
                                         <div className="flex justify-center gap-4 w-full mb-4 border-t border-b border-gray-50 py-3">
                                             <div>
-                                                <div className="text-lg font-bold text-gray-900">{scout.leads}</div>
-                                                <div className="text-[10px] text-gray-400 uppercase">Leads</div>
+                                                <div className="text-lg font-bold text-gray-900">{scout.prospects_count || 0}</div>
+                                                <div className="text-[10px] text-gray-400 uppercase">Prospects</div>
                                             </div>
                                             <div>
-                                                <div className="text-lg font-bold text-green-600">{scout.conversion}</div>
-                                                <div className="text-[10px] text-gray-400 uppercase">Conv.</div>
+                                                <div className="text-lg font-bold text-green-600">{scout.placements_count || 0}</div>
+                                                <div className="text-[10px] text-gray-400 uppercase">Placed</div>
+                                            </div>
+                                            <div>
+                                                <div className="text-lg font-bold text-purple-600">{scout.xp_score || 0}</div>
+                                                <div className="text-[10px] text-gray-400 uppercase">XP</div>
                                             </div>
                                         </div>
-                                        
+
                                         <div className="flex justify-center items-center gap-2">
-                                            <span className={`text-xs px-2 py-1 rounded font-bold uppercase ${scout.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                            <span className={`text-xs px-2 py-1 rounded font-bold uppercase ${scout.status === 'active' ? 'bg-green-100 text-green-700' : scout.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
                                                 {scout.status}
                                             </span>
                                             <span className="text-xs text-blue-600 font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
@@ -937,15 +1320,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                             <th className="p-4">Scout Identity</th>
                                             <th className="p-4">Region</th>
                                             <th className="p-4">Performance</th>
-                                            <th className="p-4">Credentials</th>
+                                            <th className="p-4">Level</th>
                                             <th className="p-4">Status</th>
                                             <th className="p-4 text-right">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100 text-sm">
                                         {scouts.map(scout => (
-                                            <tr 
-                                                key={scout.id} 
+                                            <tr
+                                                key={scout.id}
                                                 onClick={() => handleScoutClick(scout)}
                                                 className="hover:bg-gray-50 transition-colors cursor-pointer group"
                                             >
@@ -957,11 +1340,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                                         <div>
                                                             <div className="font-bold text-gray-900 flex items-center gap-1">
                                                                 {scout.name}
-                                                                {scout.certifications?.includes('Verified Scout') && (
+                                                                {scout.is_admin && (
                                                                     <BadgeCheck size={14} className="text-blue-500 fill-blue-50" />
                                                                 )}
                                                             </div>
-                                                            <div className="text-xs text-gray-500">{scout.roles.join(', ')}</div>
+                                                            <div className="text-xs text-gray-500">{scout.roles?.join(', ') || 'Scout'}</div>
                                                         </div>
                                                     </div>
                                                 </td>
@@ -969,46 +1352,36 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                                 <td className="p-4">
                                                     <div className="flex gap-4">
                                                         <div>
-                                                            <span className="block font-bold text-gray-900">{scout.leads}</span>
-                                                            <span className="text-[10px] text-gray-400 uppercase">Leads</span>
+                                                            <span className="block font-bold text-gray-900">{scout.prospects_count || 0}</span>
+                                                            <span className="text-[10px] text-gray-400 uppercase">Prospects</span>
                                                         </div>
                                                         <div>
-                                                            <span className="block font-bold text-green-600">{scout.conversion}</span>
-                                                            <span className="text-[10px] text-gray-400 uppercase">Conv.</span>
+                                                            <span className="block font-bold text-green-600">{scout.placements_count || 0}</span>
+                                                            <span className="text-[10px] text-gray-400 uppercase">Placed</span>
                                                         </div>
                                                     </div>
                                                 </td>
                                                 <td className="p-4">
-                                                    {scout.certifications && scout.certifications.length > 0 ? (
-                                                        <div className="flex flex-wrap gap-1">
-                                                            {scout.certifications.slice(0, 2).map((cert, idx) => (
-                                                                <span key={idx} className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-100 truncate max-w-[120px]">
-                                                                    {cert}
-                                                                </span>
-                                                            ))}
-                                                            {scout.certifications.length > 2 && (
-                                                                <span className="text-[10px] text-gray-400 px-1.5 py-0.5">+{scout.certifications.length - 2} more</span>
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-xs text-gray-400 italic">Unverified</span>
-                                                    )}
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm font-bold text-purple-600">Lv.{scout.level || 1}</span>
+                                                        <span className="text-xs text-gray-400">({scout.xp_score || 0} XP)</span>
+                                                    </div>
                                                 </td>
                                                 <td className="p-4">
-                                                    <span className={`text-[10px] px-2 py-1 rounded font-bold uppercase ${scout.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                                    <span className={`text-[10px] px-2 py-1 rounded font-bold uppercase ${scout.status === 'active' ? 'bg-green-100 text-green-700' : scout.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
                                                         {scout.status}
                                                     </span>
                                                 </td>
                                                 <td className="p-4 text-right">
                                                     <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <button 
+                                                        <button
                                                             onClick={(e) => { e.stopPropagation(); handleScoutClick(scout); }}
                                                             className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded"
                                                             title="Edit Profile"
                                                         >
                                                             <Edit2 size={16} />
                                                         </button>
-                                                        <button 
+                                                        <button
                                                             onClick={(e) => triggerRowImpersonation(e, scout)}
                                                             className="p-1.5 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded"
                                                             title="Login as User"
@@ -1026,10 +1399,565 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                 )}
 
+                {activeTab === 'ACCESS' && (
+                    <div className="space-y-6 animate-fade-in">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-900">Access Control</h2>
+                                <p className="text-gray-500 text-sm">Manage which scouts can access the platform</p>
+                            </div>
+                        </div>
+                        <ApprovedScoutsManager />
+                    </div>
+                )}
+
                 {activeTab === 'NEWS' && <NewsRoomTab />}
+
+                {activeTab === 'EVENTS' && (
+                    <div className="space-y-6 animate-fade-in">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-900">Global Events</h2>
+                                <p className="text-gray-500 text-sm">Create events visible to all scouts in the network</p>
+                            </div>
+                            <button
+                                onClick={() => setIsAddingGlobalEvent(!isAddingGlobalEvent)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2"
+                            >
+                                <Plus size={18} /> {isAddingGlobalEvent ? 'Cancel' : 'Create Event'}
+                            </button>
+                        </div>
+
+                        {/* Add Event Form */}
+                        {isAddingGlobalEvent && (
+                            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
+                                <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                                    <Globe size={20} className="text-blue-500" /> New Global Event
+                                </h3>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Title *</label>
+                                        <input
+                                            className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                            value={globalEventForm.title}
+                                            onChange={e => setGlobalEventForm({ ...globalEventForm, title: e.target.value })}
+                                            placeholder="e.g. WARUBI Summer Showcase 2025"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Location *</label>
+                                        <input
+                                            className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                            value={globalEventForm.location}
+                                            onChange={e => setGlobalEventForm({ ...globalEventForm, location: e.target.value })}
+                                            placeholder="e.g. Dallas, TX"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-4 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Start Date *</label>
+                                        <input
+                                            type="date"
+                                            className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                            value={globalEventForm.date}
+                                            onChange={e => setGlobalEventForm({ ...globalEventForm, date: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">End Date</label>
+                                        <input
+                                            type="date"
+                                            className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                            value={globalEventForm.endDate}
+                                            onChange={e => setGlobalEventForm({ ...globalEventForm, endDate: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Time</label>
+                                        <input
+                                            type="time"
+                                            className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                            value={globalEventForm.time}
+                                            onChange={e => setGlobalEventForm({ ...globalEventForm, time: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Type</label>
+                                        <select
+                                            className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                            value={globalEventForm.type}
+                                            onChange={e => setGlobalEventForm({ ...globalEventForm, type: e.target.value as any })}
+                                        >
+                                            <option value="ID Day">ID Day</option>
+                                            <option value="Showcase">Showcase</option>
+                                            <option value="Camp">Camp</option>
+                                            <option value="Tournament">Tournament</option>
+                                            <option value="Trial">Trial</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Fee (Optional)</label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-2.5 text-gray-400">$</span>
+                                            <input
+                                                type="number"
+                                                className="w-full border border-gray-300 rounded-lg p-2.5 pl-7 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={globalEventForm.fee}
+                                                onChange={e => setGlobalEventForm({ ...globalEventForm, fee: e.target.value })}
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                                    <button
+                                        onClick={() => setIsAddingGlobalEvent(false)}
+                                        className="px-4 py-2 text-gray-500 hover:text-gray-700 font-bold text-sm"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        onClick={handleSaveGlobalEvent}
+                                        className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-lg flex items-center gap-2"
+                                    >
+                                        <Check size={16} /> Create Global Event
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Edit Event Modal */}
+                        {editingEvent && (
+                            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                                <div className="bg-white p-6 rounded-xl shadow-xl max-w-2xl w-full mx-4 space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                                            <Edit2 size={20} className="text-blue-500" /> Edit Event
+                                        </h3>
+                                        <button
+                                            onClick={() => setEditingEvent(null)}
+                                            className="p-1 text-gray-400 hover:text-gray-600"
+                                        >
+                                            <X size={20} />
+                                        </button>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Title *</label>
+                                            <input
+                                                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={globalEventForm.title}
+                                                onChange={e => setGlobalEventForm({ ...globalEventForm, title: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Location *</label>
+                                            <input
+                                                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={globalEventForm.location}
+                                                onChange={e => setGlobalEventForm({ ...globalEventForm, location: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-4 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Start Date *</label>
+                                            <input
+                                                type="date"
+                                                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={globalEventForm.date}
+                                                onChange={e => setGlobalEventForm({ ...globalEventForm, date: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">End Date</label>
+                                            <input
+                                                type="date"
+                                                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={globalEventForm.endDate}
+                                                onChange={e => setGlobalEventForm({ ...globalEventForm, endDate: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Time</label>
+                                            <input
+                                                type="time"
+                                                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={globalEventForm.time}
+                                                onChange={e => setGlobalEventForm({ ...globalEventForm, time: e.target.value })}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Type</label>
+                                            <select
+                                                className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                value={globalEventForm.type}
+                                                onChange={e => setGlobalEventForm({ ...globalEventForm, type: e.target.value as 'ID Day' | 'Showcase' | 'Camp' | 'Tournament' | 'Trial' })}
+                                            >
+                                                <option value="ID Day">ID Day</option>
+                                                <option value="Showcase">Showcase</option>
+                                                <option value="Camp">Camp</option>
+                                                <option value="Tournament">Tournament</option>
+                                                <option value="Trial">Trial</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Fee (Optional)</label>
+                                            <div className="relative">
+                                                <span className="absolute left-3 top-2.5 text-gray-400">$</span>
+                                                <input
+                                                    type="number"
+                                                    className="w-full border border-gray-300 rounded-lg p-2.5 pl-7 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                    value={globalEventForm.fee}
+                                                    onChange={e => setGlobalEventForm({ ...globalEventForm, fee: e.target.value })}
+                                                    placeholder="0"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                                        <button
+                                            onClick={() => setEditingEvent(null)}
+                                            className="px-4 py-2 text-gray-500 hover:text-gray-700 font-bold text-sm"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={handleUpdateGlobalEvent}
+                                            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-lg flex items-center gap-2"
+                                        >
+                                            <Save size={16} /> Save Changes
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Events List */}
+                        {globalEvents.length === 0 && !isAddingGlobalEvent ? (
+                            <div className="bg-white p-12 rounded-xl border border-gray-200 text-center">
+                                <Calendar size={48} className="mx-auto text-gray-300 mb-4" />
+                                <h3 className="text-lg font-bold text-gray-900">No Global Events</h3>
+                                <p className="text-gray-500 mb-4">Create events that all scouts in your network can see and attend.</p>
+                                <button
+                                    onClick={() => setIsAddingGlobalEvent(true)}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold inline-flex items-center gap-2"
+                                >
+                                    <Plus size={18} /> Create First Event
+                                </button>
+                            </div>
+                        ) : globalEvents.length > 0 && (
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                <table className="w-full text-left">
+                                    <thead className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold">
+                                        <tr>
+                                            <th className="p-4">Event</th>
+                                            <th className="p-4">Location</th>
+                                            <th className="p-4">Date</th>
+                                            <th className="p-4">Type</th>
+                                            <th className="p-4">Fee</th>
+                                            <th className="p-4">Status</th>
+                                            <th className="p-4 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {globalEvents.map(event => (
+                                            <tr key={event.id} className="hover:bg-gray-50 transition-colors">
+                                                <td className="p-4 font-bold text-gray-900">{event.title}</td>
+                                                <td className="p-4 text-gray-600">{event.location}</td>
+                                                <td className="p-4 text-gray-600">
+                                                    {event.date}{event.endDate ? ` - ${event.endDate}` : ''}
+                                                </td>
+                                                <td className="p-4">
+                                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-bold">
+                                                        {event.type}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4 text-gray-600">
+                                                    {event.fee ? `$${event.fee}` : 'Free'}
+                                                </td>
+                                                <td className="p-4">
+                                                    <span className={`text-xs px-2 py-1 rounded font-bold ${
+                                                        event.status === 'Published' ? 'bg-green-100 text-green-700' :
+                                                        event.status === 'Approved' ? 'bg-blue-100 text-blue-700' :
+                                                        'bg-gray-100 text-gray-600'
+                                                    }`}>
+                                                        {event.status}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={() => handleEditEvent(event)}
+                                                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                            title="Edit event"
+                                                        >
+                                                            <Edit2 size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteGlobalEvent(event.id)}
+                                                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                            title="Delete event"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {activeTab === 'BUGS' && (
+                    <div className="space-y-6 animate-fade-in">
+                        <div className="flex justify-between items-center">
+                            <div>
+                                <h2 className="text-2xl font-bold text-gray-900">Bug Reports</h2>
+                                <p className="text-gray-500 text-sm">Review and manage reported issues</p>
+                            </div>
+                            <button
+                                onClick={loadBugReports}
+                                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"
+                            >
+                                {bugReportsLoading ? <Loader2 size={16} className="animate-spin" /> : null}
+                                Refresh
+                            </button>
+                        </div>
+
+                        {/* Stats */}
+                        <div className="grid grid-cols-4 gap-4">
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                                <div className="text-2xl font-bold text-gray-900">{bugReports.length}</div>
+                                <div className="text-sm text-gray-500">Total Reports</div>
+                            </div>
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-red-100">
+                                <div className="text-2xl font-bold text-red-600">{bugReports.filter(r => r.status === 'open').length}</div>
+                                <div className="text-sm text-gray-500">Open</div>
+                            </div>
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-yellow-100">
+                                <div className="text-2xl font-bold text-yellow-600">{bugReports.filter(r => r.status === 'in_progress').length}</div>
+                                <div className="text-sm text-gray-500">In Progress</div>
+                            </div>
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-green-100">
+                                <div className="text-2xl font-bold text-green-600">{bugReports.filter(r => r.status === 'resolved' || r.status === 'closed').length}</div>
+                                <div className="text-sm text-gray-500">Resolved</div>
+                            </div>
+                        </div>
+
+                        {bugReportsLoading ? (
+                            <div className="bg-white p-12 rounded-xl border border-gray-200 text-center">
+                                <Loader2 size={32} className="mx-auto text-gray-400 animate-spin mb-4" />
+                                <p className="text-gray-500">Loading bug reports...</p>
+                            </div>
+                        ) : bugReports.length === 0 ? (
+                            <div className="bg-white p-12 rounded-xl border border-gray-200 text-center">
+                                <Bug size={48} className="mx-auto text-gray-300 mb-4" />
+                                <h3 className="text-lg font-bold text-gray-900">No Bug Reports</h3>
+                                <p className="text-gray-500">When users report bugs, they'll appear here.</p>
+                            </div>
+                        ) : (
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                <table className="w-full text-left">
+                                    <thead className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold">
+                                        <tr>
+                                            <th className="p-4">Bug</th>
+                                            <th className="p-4">Reporter</th>
+                                            <th className="p-4">Priority</th>
+                                            <th className="p-4">Status</th>
+                                            <th className="p-4">Reported</th>
+                                            <th className="p-4 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {bugReports.map(report => (
+                                            <tr key={report.id} className="hover:bg-gray-50 transition-colors">
+                                                <td className="p-4">
+                                                    <div className="font-bold text-gray-900 mb-1">{report.title}</div>
+                                                    {report.description && (
+                                                        <p className="text-xs text-gray-500 line-clamp-1">{report.description}</p>
+                                                    )}
+                                                    {report.screenshotUrl && (
+                                                        <a href={report.screenshotUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1 mt-1">
+                                                            <ExternalLink size={10} /> View Screenshot
+                                                        </a>
+                                                    )}
+                                                </td>
+                                                <td className="p-4 text-sm text-gray-600">{report.reporterName || 'Anonymous'}</td>
+                                                <td className="p-4">
+                                                    <span className={`text-[10px] px-2 py-1 rounded font-bold uppercase ${
+                                                        report.priority === 'critical' ? 'bg-red-100 text-red-700' :
+                                                        report.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                                                        report.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                                                        'bg-gray-100 text-gray-600'
+                                                    }`}>
+                                                        {report.priority}
+                                                    </span>
+                                                </td>
+                                                <td className="p-4">
+                                                    <select
+                                                        value={report.status}
+                                                        onChange={(e) => handleUpdateBugStatus(report.id, e.target.value as BugReportStatus)}
+                                                        disabled={updatingBugId === report.id}
+                                                        className={`text-xs font-bold px-2 py-1 rounded border outline-none cursor-pointer ${
+                                                            report.status === 'open' ? 'bg-red-50 text-red-700 border-red-200' :
+                                                            report.status === 'in_progress' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                                                            report.status === 'resolved' ? 'bg-green-50 text-green-700 border-green-200' :
+                                                            'bg-gray-50 text-gray-600 border-gray-200'
+                                                        }`}
+                                                    >
+                                                        <option value="open">Open</option>
+                                                        <option value="in_progress">In Progress</option>
+                                                        <option value="resolved">Resolved</option>
+                                                        <option value="closed">Closed</option>
+                                                    </select>
+                                                </td>
+                                                <td className="p-4 text-xs text-gray-500">
+                                                    {new Date(report.createdAt).toLocaleDateString()}
+                                                </td>
+                                                <td className="p-4 text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <button
+                                                            onClick={() => copyClaudePrompt(report)}
+                                                            className="p-1.5 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded"
+                                                            title="Copy Claude Code Prompt"
+                                                        >
+                                                            <Copy size={16} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setSelectedBugReport(report)}
+                                                            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded"
+                                                            title="View Details"
+                                                        >
+                                                            <Eye size={16} />
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+
+                        {/* Bug Report Detail Modal */}
+                        {selectedBugReport && (
+                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+                                <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                                    <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                                selectedBugReport.priority === 'critical' ? 'bg-red-100' :
+                                                selectedBugReport.priority === 'high' ? 'bg-orange-100' :
+                                                'bg-gray-100'
+                                            }`}>
+                                                <Bug size={20} className={
+                                                    selectedBugReport.priority === 'critical' ? 'text-red-600' :
+                                                    selectedBugReport.priority === 'high' ? 'text-orange-600' :
+                                                    'text-gray-600'
+                                                } />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-lg font-bold text-gray-900">{selectedBugReport.title}</h3>
+                                                <p className="text-xs text-gray-500">Reported by {selectedBugReport.reporterName || 'Anonymous'}</p>
+                                            </div>
+                                        </div>
+                                        <button onClick={() => setSelectedBugReport(null)} className="text-gray-400 hover:text-gray-700">
+                                            <X size={24} />
+                                        </button>
+                                    </div>
+
+                                    <div className="p-6 overflow-y-auto space-y-6">
+                                        {/* Description */}
+                                        <div>
+                                            <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Description</h4>
+                                            <p className="text-sm text-gray-700 bg-gray-50 p-4 rounded-lg border border-gray-100">
+                                                {selectedBugReport.description || 'No description provided'}
+                                            </p>
+                                        </div>
+
+                                        {/* Page URL */}
+                                        {selectedBugReport.pageUrl && (
+                                            <div>
+                                                <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Page URL</h4>
+                                                <a href={selectedBugReport.pageUrl} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline break-all">
+                                                    {selectedBugReport.pageUrl}
+                                                </a>
+                                            </div>
+                                        )}
+
+                                        {/* Screenshot */}
+                                        {selectedBugReport.screenshotUrl && (
+                                            <div>
+                                                <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Screenshot</h4>
+                                                <a href={selectedBugReport.screenshotUrl} target="_blank" rel="noreferrer">
+                                                    <img
+                                                        src={selectedBugReport.screenshotUrl}
+                                                        alt="Bug screenshot"
+                                                        className="max-w-full h-auto rounded-lg border border-gray-200 hover:opacity-90 transition-opacity"
+                                                    />
+                                                </a>
+                                            </div>
+                                        )}
+
+                                        {/* Claude Prompt */}
+                                        <div>
+                                            <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">Claude Code Prompt</h4>
+                                            <div className="bg-gray-900 text-gray-100 p-4 rounded-lg text-xs font-mono overflow-x-auto whitespace-pre-wrap max-h-48">
+                                                {generateClaudePrompt(selectedBugReport)}
+                                            </div>
+                                            <button
+                                                onClick={() => copyClaudePrompt(selectedBugReport)}
+                                                className="mt-2 flex items-center gap-2 text-xs text-purple-600 hover:text-purple-700 font-medium"
+                                            >
+                                                <Copy size={14} /> Copy to Clipboard
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
+                                        <select
+                                            value={selectedBugReport.status}
+                                            onChange={(e) => handleUpdateBugStatus(selectedBugReport.id, e.target.value as BugReportStatus)}
+                                            className="text-sm font-bold px-3 py-2 rounded-lg border border-gray-200 outline-none"
+                                        >
+                                            <option value="open">Open</option>
+                                            <option value="in_progress">In Progress</option>
+                                            <option value="resolved">Resolved</option>
+                                            <option value="closed">Closed</option>
+                                        </select>
+                                        <button
+                                            onClick={() => setSelectedBugReport(null)}
+                                            className="px-6 py-2 bg-gray-900 hover:bg-gray-800 text-white font-bold text-sm rounded-lg"
+                                        >
+                                            Close
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
             </main>
         </div>
     );
 };
 
-export default AdminDashboard;
+// Memoize to prevent unnecessary re-renders when parent state changes
+export default memo(AdminDashboard);

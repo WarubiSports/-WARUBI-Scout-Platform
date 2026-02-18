@@ -1,14 +1,17 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Player, UserProfile, OutreachLog, PlayerStatus } from '../types';
-import { 
-    Search, Sparkles, Copy, CheckCircle, MessageCircle, Send, Link, 
-    Clock, Upload, Loader2, X, Trash2, Smartphone, 
-    MousePointer, Zap, ArrowRight, Check, Flame, Ghost, HelpCircle, 
+import {
+    Search, Sparkles, Copy, CheckCircle, MessageCircle, Send, Link,
+    Clock, Upload, Loader2, X, Trash2, Smartphone,
+    MousePointer, Zap, ArrowRight, Check, Flame, Ghost, HelpCircle,
     ChevronDown, LayoutList, Plus, TrendingUp, Info, Trophy, FileText, Camera,
     RotateCcw, Users, Globe, FileUp, Clipboard
 } from 'lucide-react';
-import { generateOutreachMessage, extractPlayersFromBulkData, extractRosterFromPhoto } from '../services/geminiService';
+import { generateOutreachMessage, extractPlayersFromBulkData, extractRosterFromPhoto, AIUsageLimitError, OutreachOptions } from '../services/geminiService';
+import { CompactErrorBoundary } from './ErrorBoundary';
+import { handleMobileFocus, haptic } from '../hooks/useMobileFeatures';
+import { toast } from 'sonner';
 
 interface OutreachTabProps {
   players: Player[];
@@ -17,16 +20,17 @@ interface OutreachTabProps {
   onMessageSent: (id: string, log: Omit<OutreachLog, 'id'>) => void;
   onAddPlayers: (players: Player[]) => void;
   onStatusChange?: (id: string, newStatus: PlayerStatus) => void;
+  onDeletePlayer?: (id: string) => void;
 }
 
 const INTENTS = [
-  { id: 'first_spark', title: 'First Spark', desc: 'Initial contact + Assessment Link', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' },
+  { id: 'first_spark', title: 'First Spark', desc: 'Initial contact message', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' },
   { id: 'invite_id', title: 'Invite to ID', desc: 'Formal invitation to event', color: 'bg-blue-500/10 text-blue-400 border-blue-500/30' },
   { id: 'request_video', title: 'Request Video', desc: 'Ask for highlight footage', color: 'bg-purple-500/10 text-purple-400 border-purple-500/30' },
   { id: 'follow_up', title: 'Follow-up', desc: 'Second spark after no signal', color: 'bg-amber-500/10 text-amber-400 border-amber-500/30' },
 ];
 
-const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerId, onMessageSent, onAddPlayers, onStatusChange }) => {
+const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerId, onMessageSent, onAddPlayers, onStatusChange, onDeletePlayer }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(initialPlayerId || null);
   const [draftedMessage, setDraftedMessage] = useState('');
@@ -39,19 +43,97 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
   const [extractedProspects, setExtractedProspects] = useState<Partial<Player>[]>([]);
   const [rosterUrl, setRosterUrl] = useState('');
   const [copied, setCopied] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [outreachLang, setOutreachLang] = useState<'en' | 'de'>('en');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Handle drag and drop
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    // Process the dropped file
+    setIngestionMode('PROCESSING');
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64Data = event.target?.result?.toString().split(',')[1];
+      if (!base64Data) return;
+
+      try {
+        let prospects: Partial<Player>[] = [];
+        if (file.type.startsWith('image/')) {
+          prospects = await extractRosterFromPhoto(base64Data, file.type);
+        } else {
+          // If it's CSV or text, we can pass it as a bulk string to Gemini
+          const text = atob(base64Data);
+          prospects = await extractPlayersFromBulkData(text, false);
+        }
+        setExtractedProspects(prospects);
+        setIngestionMode('REVIEW');
+      } catch (error) {
+        console.error("Extraction failed", error);
+        setIngestionMode('DROPZONE');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
   
   const selectedPlayer = players.find(p => p.id === selectedPlayerId);
 
-  // Grouping for the Sidebar
-  const undiscoveredTalent = players.filter(p => p.status === PlayerStatus.PROSPECT);
-  
-  const spotlights = undiscoveredTalent.filter(p => p.activityStatus === 'spotlight');
-  const signals = undiscoveredTalent.filter(p => p.activityStatus === 'signal');
-  const sparks = undiscoveredTalent.filter(p => p.activityStatus === 'spark');
-  const undiscovered = undiscoveredTalent.filter(p => !p.activityStatus || p.activityStatus === 'undiscovered');
+  // Prevent browser from opening files when dropped outside dropzone
+  useEffect(() => {
+    const preventDefaults = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    // Add listeners to prevent default drag behavior
+    window.addEventListener('dragover', preventDefaults);
+    window.addEventListener('drop', preventDefaults);
+
+    return () => {
+      window.removeEventListener('dragover', preventDefaults);
+      window.removeEventListener('drop', preventDefaults);
+    };
+  }, []);
+
+  // Scouting Pool shows early-stage prospects: Lead and Contacted statuses
+  const scoutingPool = players.filter(p =>
+    p.status === PlayerStatus.LEAD || p.status === PlayerStatus.CONTACTED
+  );
+
+  // Group by activity status for the sidebar
+  const spotlights = scoutingPool.filter(p => p.activityStatus === 'spotlight');
+  const signals = scoutingPool.filter(p => p.activityStatus === 'signal');
+  const sparks = scoutingPool.filter(p => p.activityStatus === 'spark');
+  const contacted = scoutingPool.filter(p => p.status === PlayerStatus.CONTACTED && (!p.activityStatus || p.activityStatus === 'undiscovered'));
+  const undiscovered = scoutingPool.filter(p => p.status === PlayerStatus.LEAD && (!p.activityStatus || p.activityStatus === 'undiscovered'));
 
   const filteredUndiscovered = undiscovered.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredContacted = contacted.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredSparks = sparks.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredSignals = signals.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
   const filteredSpotlights = spotlights.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -105,16 +187,78 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
     setActiveIntent(intentId);
     setIsLoading(true);
     setDraftedMessage('');
-    
+    setAiError(null);
+
     const intent = INTENTS.find(i => i.id === intentId);
     const smartLink = includeSmartLink ? `app.warubi-sports.com/audit?sid=${user.scoutId || 'demo'}&pid=${selectedPlayer.id}` : undefined;
+    const outreachOptions: OutreachOptions = {
+        scoutBio: user.bio,
+        language: outreachLang
+    };
 
     try {
-        const message = await generateOutreachMessage(user.name, selectedPlayer, intent?.title || 'Intro', smartLink);
+        const message = await generateOutreachMessage(user.name, selectedPlayer, intent?.title || 'Intro', smartLink, outreachOptions);
         setDraftedMessage(message);
         setIsTyping(true);
     } catch (e) {
-        setDraftedMessage(`Hi ${selectedPlayer.name}, let's talk about your football future.`);
+        // Handle AI usage limit specifically
+        if (e instanceof AIUsageLimitError) {
+            setAiError(e.message);
+        }
+        // Use fallback template - generate based on language and bio
+        const position = selectedPlayer.position || 'player';
+        const name = selectedPlayer.name;
+        const hasCollege = user.bio?.toLowerCase().includes('college') || user.bio?.toLowerCase().includes('university');
+
+        if (outreachLang === 'de') {
+            if (hasCollege) {
+                setDraftedMessage(`Hey ${name},
+
+ich bin ${user.name} und arbeite mit Warubi Sports zusammen. Ich hab selbst College-Fußball in den USA gespielt und helfe jetzt Spielern wie dir, den richtigen Weg dorthin zu finden.
+
+Dein Profil ist mir aufgefallen und ich denke, du hast echtes Potenzial als ${position}. Falls dich ein Wechsel in die USA interessiert, würde ich mich gerne mal mit dir unterhalten, wie das aussehen könnte.
+
+${smartLink ? `Hier kannst du deine kostenlose Talent-Einschätzung machen:\n${smartLink}\n` : ''}Kein Druck - will nur schauen, ob es passt.
+
+Beste Grüße,
+${user.name}`);
+            } else {
+                setDraftedMessage(`Hey ${name},
+
+ich bin ${user.name} von Warubi Sports. Ich arbeite mit College-Trainern in den USA und dem International Talent Program von FC Köln zusammen, um Spielern die richtige Möglichkeit zu finden.
+
+Dein Profil ist mir aufgefallen und ich denke, du hast echtes Potenzial als ${position}. Falls dich ein Wechsel in die USA interessiert, würde ich mich gerne mal mit dir unterhalten, wie das aussehen könnte.
+
+${smartLink ? `Hier kannst du deine kostenlose Talent-Einschätzung machen:\n${smartLink}\n` : ''}Kein Druck - will nur schauen, ob es passt.
+
+Beste Grüße,
+${user.name}`);
+            }
+        } else {
+            if (hasCollege) {
+                setDraftedMessage(`Hey ${name},
+
+I'm ${user.name} and I work with Warubi Sports. I played college soccer in the US and now help players like you find the right path there.
+
+I came across your profile and think you've got real potential as a ${position}. If playing in the US is something you're interested in, I'd love to chat about what that could look like for you.
+
+${smartLink ? `Take 2 minutes to complete your free talent assessment:\n${smartLink}\n` : ''}No pressure - just want to see if it's a good fit.
+
+Best,
+${user.name}`);
+            } else {
+                setDraftedMessage(`Hey ${name},
+
+I'm ${user.name} with Warubi Sports. I work with college coaches across the US and FC Köln's International Talent Program to help players find the right opportunity.
+
+I came across your profile and think you've got real potential as a ${position}. If playing in the US is something you're interested in, I'd love to chat about what that could look like for you.
+
+${smartLink ? `Take 2 minutes to complete your free talent assessment:\n${smartLink}\n` : ''}No pressure - just want to see if it's a good fit.
+
+Best,
+${user.name}`);
+            }
+        }
     } finally {
         setIsLoading(false);
     }
@@ -141,12 +285,36 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
     });
   };
 
-  const promoteToSpotlight = () => {
+  // Move player to "My Players" section (Interested status) with rewarding feedback
+  const promoteToMyPlayers = (playerId?: string, playerName?: string) => {
+      const targetId = playerId || selectedPlayer?.id;
+      const targetName = playerName || selectedPlayer?.name || 'Player';
+
+      if (targetId && onStatusChange) {
+          // Trigger haptic feedback
+          haptic.success();
+
+          // Show rewarding toast notification
+          toast.success(`${targetName} moved to My Players! 🎯`, {
+              description: 'Player is now in your active pipeline',
+              duration: 3000,
+          });
+
+          onStatusChange(targetId, PlayerStatus.INTERESTED);
+
+          // Clear selection if it was the selected player
+          if (targetId === selectedPlayer?.id) {
+              setSelectedPlayerId(null);
+              setDraftedMessage('');
+              setActiveIntent(null);
+          }
+      }
+  };
+
+  // Mark as contacted (first outreach sent)
+  const markAsContacted = () => {
       if (selectedPlayer && onStatusChange) {
-          onStatusChange(selectedPlayer.id, PlayerStatus.LEAD);
-          setSelectedPlayerId(null);
-          setDraftedMessage('');
-          setActiveIntent(null);
+          onStatusChange(selectedPlayer.id, PlayerStatus.CONTACTED);
       }
   };
 
@@ -156,7 +324,7 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
         name: p.name || 'Unknown Ghost',
         age: p.age || 17,
         position: p.position || 'ST',
-        status: PlayerStatus.PROSPECT,
+        status: PlayerStatus.LEAD,
         submittedAt: new Date().toISOString(),
         outreachLogs: [],
         evaluation: null,
@@ -181,7 +349,7 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
   };
 
   return (
-    <div className="flex h-[calc(100vh-140px)] gap-6 animate-fade-in flex-col overflow-hidden">
+    <div className="flex h-full gap-4 md:gap-6 animate-fade-in flex-col overflow-y-auto md:overflow-hidden relative z-0">
       
       {/* Workflow Ribbon */}
       <div className="bg-scout-800/50 border border-scout-700 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-6 shrink-0">
@@ -190,16 +358,16 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
                   <Info size={20} />
               </div>
               <div>
-                  <h3 className="text-sm font-black text-white uppercase tracking-tighter italic">Talent Spotlight Protocol</h3>
-                  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Bridging the Gap from Shadow to Lead</p>
+                  <h3 className="text-sm font-black text-white uppercase tracking-tighter italic">Scouting Funnel</h3>
+                  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">From Discovery to My Players</p>
               </div>
           </div>
           <div className="flex gap-4 md:gap-12">
               {[
-                  { i: <Ghost size={16}/>, l: '1. Undiscovered', s: 'Hidden Talent', c: 'text-gray-500' },
-                  { i: <Zap size={16}/>, l: '2. Spark', s: 'Initial Contact', c: 'text-yellow-500' },
-                  { i: <Flame size={16} className="animate-pulse"/>, l: '3. Signal', s: 'Click Detected', c: 'text-orange-500' },
-                  { i: <Trophy size={16} className="text-scout-accent"/>, l: '4. Spotlight', s: 'Data Verified', c: 'text-scout-accent' }
+                  { i: <Ghost size={16}/>, l: '1. Lead', s: 'New Lead', c: 'text-gray-500' },
+                  { i: <Send size={16}/>, l: '2. Contacted', s: 'Outreach Sent', c: 'text-blue-500' },
+                  { i: <Flame size={16} className="animate-pulse"/>, l: '3. Signal', s: 'Engaged', c: 'text-orange-500' },
+                  { i: <Trophy size={16} className="text-scout-accent"/>, l: '4. My Players', s: 'Interested', c: 'text-scout-accent' }
               ].map((step, idx) => (
                   <div key={idx} className="flex flex-col items-center text-center">
                       <div className={`flex items-center gap-1.5 font-black uppercase text-[10px] mb-1 ${step.c}`}>
@@ -212,24 +380,27 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
           <button onClick={() => setShowGuide(!showGuide)} className="text-gray-600 hover:text-white transition-colors"><HelpCircle size={18}/></button>
       </div>
 
-      <div className="flex flex-1 gap-6 overflow-hidden">
-        {/* LEFT: UNIFIED SIDEBAR */}
-        <div className="w-1/3 bg-scout-800 rounded-[2rem] border border-scout-700 flex flex-col overflow-hidden shadow-2xl shrink-0">
+      <div className="flex flex-col md:flex-row flex-1 gap-4 md:gap-6 overflow-visible md:overflow-hidden">
+        {/* LEFT: UNIFIED SIDEBAR - Hidden on mobile when player selected */}
+        <CompactErrorBoundary name="Scouting Pool">
+        <div className={`${selectedPlayerId ? 'hidden md:flex' : 'flex'} w-full md:w-1/3 bg-scout-800 rounded-2xl md:rounded-[2rem] border border-scout-700 flex-col overflow-visible md:overflow-hidden shadow-2xl md:shrink-0 min-h-fit md:min-h-0`}>
             <div className="p-4 border-b border-scout-700 bg-scout-900/50">
                 <div className="flex justify-between items-center mb-4">
                     <div className="flex items-center gap-2">
                         <Users className="text-scout-highlight" size={18} />
-                        <h3 className="font-black text-white uppercase tracking-tighter italic">Discovery Pool</h3>
+                        <h3 className="font-black text-white uppercase tracking-tighter italic">Scouting Pool</h3>
                     </div>
-                    <div className="flex bg-scout-800 p-1 rounded-xl border border-scout-700">
-                        <button onClick={() => setIngestionMode('LIST')} className={`p-2 rounded-lg transition-all ${ingestionMode === 'LIST' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><LayoutList size={16} /></button>
-                        <button onClick={() => setIngestionMode('DROPZONE')} className={`p-2 rounded-lg transition-all ${ingestionMode !== 'LIST' ? 'bg-scout-accent text-scout-900' : 'text-gray-500 hover:text-gray-300'}`}><Plus size={16} /></button>
+                    <div className="flex gap-2">
+                        <button onClick={() => setIngestionMode('LIST')} className={`p-2 rounded-xl transition-all ${ingestionMode === 'LIST' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><LayoutList size={16} /></button>
+                        <button onClick={() => setIngestionMode('DROPZONE')} className={`px-4 py-2 rounded-xl transition-all font-black text-[10px] uppercase tracking-wide flex items-center gap-2 ${ingestionMode !== 'LIST' ? 'bg-scout-accent text-scout-900 shadow-glow' : 'bg-scout-accent text-scout-900 hover:bg-emerald-400 shadow-glow animate-pulse'}`}>
+                            <Plus size={14} /> Bulk Add
+                        </button>
                     </div>
                 </div>
                 {ingestionMode === 'LIST' && (
                     <div className="relative">
                         <Search className="absolute left-3 top-2.5 text-gray-500" size={16} />
-                        <input type="text" placeholder="Search uncontacted..." className="w-full bg-scout-900 border border-scout-700 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-scout-accent transition-all" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                        <input type="text" placeholder="Search uncontacted..." className="w-full bg-scout-900 border border-scout-700 rounded-xl pl-10 pr-4 py-2 text-sm text-white focus:outline-none focus:border-scout-accent transition-all" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} onFocus={handleMobileFocus} />
                     </div>
                 )}
             </div>
@@ -246,9 +417,27 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
                                 </div>
                                 {filteredSpotlights.map(p => (
                                     <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all border-l-4 ${selectedPlayerId === p.id ? 'border-scout-accent bg-scout-accent/10' : 'border-transparent bg-scout-accent/5'} flex items-center justify-between group`}>
-                                        <div className="min-w-0">
+                                        <div className="min-w-0 flex-1">
                                             <p className="text-sm font-bold text-white truncate">{p.name}</p>
                                             <p className="text-[9px] text-scout-accent font-black uppercase">Verified • View Report</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {onDeletePlayer && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); onDeletePlayer(p.id); }}
+                                                    className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                                                    title="Delete player"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
+                                                className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
+                                                title="Move to My Players"
+                                            >
+                                                <span>→ My Players</span>
+                                            </button>
                                         </div>
                                     </div>
                                 ))}
@@ -264,9 +453,27 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
                                 </div>
                                 {filteredSignals.map(p => (
                                     <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all border-l-4 signal-pulse ${selectedPlayerId === p.id ? 'border-orange-500 bg-orange-500/10' : 'border-transparent bg-orange-500/5'} flex items-center justify-between group`}>
-                                        <div className="min-w-0">
+                                        <div className="min-w-0 flex-1">
                                             <p className="text-sm font-bold text-white truncate">{p.name}</p>
                                             <p className="text-[9px] text-orange-400 font-black uppercase">Interacting • Live</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {onDeletePlayer && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); onDeletePlayer(p.id); }}
+                                                    className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                                                    title="Delete player"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
+                                                className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
+                                                title="Move to My Players"
+                                            >
+                                                <span>→ My Players</span>
+                                            </button>
                                         </div>
                                     </div>
                                 ))}
@@ -281,63 +488,168 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
                                     <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Sparks Sent</h4>
                                 </div>
                                 {filteredSparks.map(p => (
-                                    <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all hover:bg-scout-700/30 flex items-center border-l-4 ${selectedPlayerId === p.id ? 'border-yellow-500 bg-yellow-500/5' : 'border-transparent'}`}>
-                                        <div className="min-w-0">
+                                    <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all hover:bg-scout-700/30 flex items-center border-l-4 group ${selectedPlayerId === p.id ? 'border-yellow-500 bg-yellow-500/5' : 'border-transparent'}`}>
+                                        <div className="min-w-0 flex-1">
                                             <p className="text-sm font-bold text-white truncate">{p.name}</p>
                                             <p className="text-[9px] text-gray-500 uppercase font-black">Waiting for Click</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {onDeletePlayer && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); onDeletePlayer(p.id); }}
+                                                    className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                                                    title="Delete player"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
+                                                className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
+                                                title="Move to My Players"
+                                            >
+                                                <span>→ My Players</span>
+                                            </button>
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         )}
 
-                        {/* 4. UNDISCOVERED */}
+                        {/* 4. PROSPECTS */}
                         <div className="px-6 py-4 border-t border-scout-700/30 flex items-center gap-2 mt-4">
                             <Ghost size={14} className="text-gray-600" />
-                            <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Undiscovered</h4>
+                            <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Prospects</h4>
                         </div>
                         <div className="divide-y divide-scout-700/30">
                             {filteredUndiscovered.map(p => (
-                                <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all hover:bg-scout-700/50 flex items-center opacity-60 grayscale border-l-4 ${selectedPlayerId === p.id ? 'border-white/20 bg-white/5 grayscale-0 opacity-100' : 'border-transparent'}`}>
+                                <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all hover:bg-scout-700/50 flex items-center opacity-60 grayscale border-l-4 group ${selectedPlayerId === p.id ? 'border-white/20 bg-white/5 grayscale-0 opacity-100' : 'border-transparent'}`}>
                                     <div className="min-w-0 flex-1">
                                         <h4 className="text-sm font-bold truncate text-white">{p.name}</h4>
                                         <p className="text-[9px] text-gray-500 font-black uppercase">{p.position} • {p.age}yo</p>
                                     </div>
+                                    <div className="flex items-center gap-2">
+                                        {onDeletePlayer && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onDeletePlayer(p.id); }}
+                                                className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                                                title="Delete player"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        )}
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
+                                            className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
+                                            title="Move to My Players"
+                                        >
+                                            <span>→ My Players</span>
+                                        </button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
+
+                        {/* 5. CONTACTED (Awaiting Response) */}
+                        {filteredContacted.length > 0 && (
+                            <>
+                                <div className="px-6 py-4 border-t border-scout-700/30 flex items-center gap-2 mt-4">
+                                    <Send size={14} className="text-blue-500" />
+                                    <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Contacted</h4>
+                                </div>
+                                <div className="divide-y divide-scout-700/30">
+                                    {filteredContacted.map(p => (
+                                        <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all hover:bg-scout-700/50 flex items-center border-l-4 group ${selectedPlayerId === p.id ? 'border-blue-500 bg-blue-500/10' : 'border-transparent'}`}>
+                                            <div className="min-w-0 flex-1">
+                                                <h4 className="text-sm font-bold truncate text-white">{p.name}</h4>
+                                                <p className="text-[9px] text-blue-400 font-black uppercase">{p.position} • Awaiting Response</p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {onDeletePlayer && (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); onDeletePlayer(p.id); }}
+                                                        className="p-1.5 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                                                        title="Delete player"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
+                                                    className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
+                                                    title="Move to My Players"
+                                                >
+                                                    <span>→ My Players</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        )}
                     </div>
                 ) : ingestionMode === 'DROPZONE' ? (
-                    <div className="p-6 h-full flex flex-col animate-fade-in space-y-6">
-                        <div 
-                            onClick={() => fileInputRef.current?.click()}
-                            className="w-full py-12 border-2 border-dashed border-scout-700 rounded-[2rem] flex flex-col items-center justify-center gap-4 hover:border-scout-accent hover:bg-scout-accent/5 transition-all cursor-pointer group"
-                        >
-                            <div className="w-12 h-12 bg-scout-900 rounded-2xl flex items-center justify-center text-gray-500 group-hover:text-scout-accent transition-all">
-                                <FileUp size={24} />
+                    <div className="p-6 h-full flex flex-col animate-fade-in">
+                        {/* Header */}
+                        <div className="text-center mb-6">
+                            <div className="inline-flex items-center gap-2 bg-scout-accent/10 border border-scout-accent/30 rounded-full px-4 py-2 mb-3">
+                                <Sparkles size={14} className="text-scout-accent" />
+                                <span className="text-[10px] font-black text-scout-accent uppercase tracking-widest">AI-Powered Import</span>
                             </div>
-                            <div className="text-center">
-                                <p className="text-white font-black uppercase text-xs tracking-widest">Upload Roster File</p>
-                                <p className="text-[10px] text-gray-500 mt-1">Image, PDF, or CSV</p>
-                            </div>
+                            <h3 className="text-xl font-black text-white uppercase tracking-tight italic">Add Multiple Players</h3>
+                            <p className="text-xs text-gray-500 mt-1">Import entire rosters in seconds</p>
                         </div>
 
-                        <div 
-                            onClick={() => setIngestionMode('LINK')}
-                            className="w-full py-12 border-2 border-dashed border-scout-700 rounded-[2rem] flex flex-col items-center justify-center gap-4 hover:border-blue-400 hover:bg-blue-400/5 transition-all cursor-pointer group"
-                        >
-                            <div className="w-12 h-12 bg-scout-900 rounded-2xl flex items-center justify-center text-gray-500 group-hover:text-blue-400 transition-all">
-                                <Globe size={24} />
+                        <div className="space-y-4 flex-1">
+                            {/* Upload File - Primary Option */}
+                            <div
+                                onClick={() => fileInputRef.current?.click()}
+                                onDragOver={handleDragOver}
+                                onDragEnter={handleDragEnter}
+                                onDragLeave={handleDragLeave}
+                                onDrop={handleDrop}
+                                className={`w-full py-10 border-2 rounded-[2rem] flex flex-col items-center justify-center gap-4 transition-all cursor-pointer group ${
+                                    isDragging
+                                        ? 'border-scout-accent bg-scout-accent/20 scale-[1.02] shadow-glow'
+                                        : 'border-scout-accent/50 bg-scout-accent/5 hover:border-scout-accent hover:bg-scout-accent/10 hover:shadow-glow'
+                                }`}
+                            >
+                                <div className={`w-16 h-16 bg-scout-accent/20 rounded-2xl flex items-center justify-center transition-all border-2 border-scout-accent/30 ${
+                                    isDragging ? 'text-scout-accent scale-110' : 'text-scout-accent group-hover:scale-110'
+                                }`}>
+                                    <FileUp size={32} />
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-scout-accent font-black uppercase text-sm tracking-widest">
+                                        {isDragging ? 'Drop File Here' : 'Upload Roster'}
+                                    </p>
+                                    <p className="text-xs text-gray-400 mt-2 max-w-[200px]">
+                                        {isDragging ? 'Release to upload' : 'Drop a roster photo, PDF, or CSV file'}
+                                    </p>
+                                    <p className="text-[10px] text-scout-accent/60 mt-2 font-bold">
+                                        AI extracts all player data automatically
+                                    </p>
+                                </div>
                             </div>
-                            <div className="text-center">
-                                <p className="text-white font-black uppercase text-xs tracking-widest">Paste Roster Link</p>
-                                <p className="text-[10px] text-gray-500 mt-1">AI will extract from URL</p>
+
+                            {/* Paste Link - Secondary Option */}
+                            <div
+                                onClick={() => setIngestionMode('LINK')}
+                                className="w-full py-8 border-2 border-dashed border-scout-700 rounded-[2rem] flex flex-col items-center justify-center gap-3 hover:border-blue-400 hover:bg-blue-400/5 transition-all cursor-pointer group"
+                            >
+                                <div className="w-12 h-12 bg-scout-900 rounded-2xl flex items-center justify-center text-gray-500 group-hover:text-blue-400 transition-all border border-scout-700 group-hover:border-blue-400/50">
+                                    <Globe size={24} />
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-white font-black uppercase text-xs tracking-widest group-hover:text-blue-400 transition-colors">Or Paste a Roster URL</p>
+                                    <p className="text-[10px] text-gray-500 mt-1">Club website, tournament roster, etc.</p>
+                                </div>
                             </div>
                         </div>
 
                         <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.pdf,.csv,.txt" onChange={handleFileUpload} />
-                        
-                        <button onClick={() => setIngestionMode('LIST')} className="w-full py-4 text-gray-500 hover:text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
+
+                        <button onClick={() => setIngestionMode('LIST')} className="w-full py-4 text-gray-500 hover:text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 mt-4">
                              <LayoutList size={14}/> Back to Pool
                         </button>
                     </div>
@@ -348,13 +660,14 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
                             <p className="text-xs text-gray-500 leading-relaxed">Provide a URL to a club roster or tournament page. AI will scan the content for player identities.</p>
                             <div className="relative">
                                 <Globe className="absolute left-3 top-3.5 text-gray-500" size={18} />
-                                <input 
+                                <input
                                     autoFocus
-                                    type="text" 
-                                    placeholder="https://club-soccer.com/u17-roster" 
+                                    type="text"
+                                    placeholder="https://club-soccer.com/u17-roster"
                                     className="w-full bg-scout-900 border-2 border-scout-700 rounded-2xl pl-10 pr-4 py-3 text-sm text-white focus:outline-none focus:border-blue-400 transition-all"
                                     value={rosterUrl}
                                     onChange={(e) => setRosterUrl(e.target.value)}
+                                    onFocus={handleMobileFocus}
                                 />
                             </div>
                             <button 
@@ -402,9 +715,11 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
                 )}
             </div>
         </div>
+        </CompactErrorBoundary>
 
         {/* RIGHT: COMMAND CONSOLE */}
-        <div className="flex-1 flex flex-col gap-4 overflow-hidden">
+        <CompactErrorBoundary name="Message Console">
+        <div className={`${selectedPlayerId ? 'flex' : 'hidden md:flex'} flex-1 flex-col gap-4 overflow-hidden relative`}>
             {!selectedPlayer ? (
                 <div className="flex-1 bg-scout-800/30 rounded-[3rem] border border-scout-700 border-dashed flex flex-col items-center justify-center text-center p-12 opacity-50">
                     <MousePointer size={64} className="text-gray-700 mb-6" />
@@ -412,6 +727,14 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
                 </div>
             ) : (
                 <div className="flex-1 flex flex-col gap-4 animate-fade-in overflow-hidden">
+                    {/* MOBILE BACK BUTTON */}
+                    <button
+                        onClick={() => setSelectedPlayerId(null)}
+                        className="md:hidden flex items-center gap-2 text-gray-400 hover:text-white text-xs font-bold uppercase tracking-wide py-2"
+                    >
+                        <ArrowRight size={14} className="rotate-180" /> Back to Pool
+                    </button>
+
                     {/* SPOTLIGHT PROMOTION BANNER */}
                     {(selectedPlayer.activityStatus === 'signal' || selectedPlayer.activityStatus === 'spotlight') && (
                         <div className="bg-emerald-500/10 border-2 border-scout-accent/30 rounded-3xl p-4 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0 overflow-hidden group">
@@ -428,11 +751,11 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
                                      </p>
                                  </div>
                              </div>
-                             <button 
-                                onClick={promoteToSpotlight}
-                                className="px-6 py-2 bg-scout-accent hover:bg-emerald-600 text-scout-900 font-black rounded-xl shadow-glow relative z-10 transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest"
+                             <button
+                                onClick={() => promoteToMyPlayers()}
+                                className="px-6 py-2 bg-scout-accent hover:bg-emerald-600 text-scout-900 font-black rounded-xl shadow-glow relative z-10 transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest hover:scale-105"
                              >
-                                <Trophy size={14}/> Promote to Pipeline
+                                <Trophy size={14}/> → My Players
                              </button>
                         </div>
                     )}
@@ -450,16 +773,42 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
                                         <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest border border-gray-700 px-1.5 py-0.5 rounded">{selectedPlayer.position}</span>
                                         <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest border border-gray-700 px-1.5 py-0.5 rounded">{selectedPlayer.age} Years Old</span>
                                         <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${selectedPlayer.activityStatus === 'spotlight' ? 'bg-scout-accent/10 text-scout-accent' : 'bg-gray-700 text-gray-400'}`}>
-                                            {selectedPlayer.activityStatus === 'spotlight' ? 'Spotlight Verified' : selectedPlayer.activityStatus === 'signal' ? 'Signal Active' : selectedPlayer.activityStatus === 'spark' ? 'Spark Sent' : 'Undiscovered Ghost'}
+                                            {selectedPlayer.activityStatus === 'spotlight' ? 'Spotlight Verified' : selectedPlayer.activityStatus === 'signal' ? 'Signal Active' : selectedPlayer.activityStatus === 'spark' ? 'Spark Sent' : 'New Lead'}
                                         </span>
                                     </div>
                                 </div>
                             </div>
+                            <button
+                                onClick={() => setSelectedPlayerId(null)}
+                                className="p-2 text-gray-500 hover:text-white hover:bg-scout-700 rounded-xl transition-colors"
+                                title="Close"
+                            >
+                                <X size={20} />
+                            </button>
                         </div>
                     </div>
 
-                    {/* INTENT BAR */}
-                    <div className="grid grid-cols-4 gap-3 shrink-0">
+                    {/* LANGUAGE TOGGLE + INTENT BAR */}
+                    <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex bg-scout-800 rounded-xl p-1 border border-scout-700">
+                            <button
+                                onClick={() => setOutreachLang('en')}
+                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${outreachLang === 'en' ? 'bg-scout-accent text-scout-900' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                EN
+                            </button>
+                            <button
+                                onClick={() => setOutreachLang('de')}
+                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${outreachLang === 'de' ? 'bg-scout-accent text-scout-900' : 'text-gray-400 hover:text-white'}`}
+                            >
+                                DE
+                            </button>
+                        </div>
+                        <span className="text-[9px] text-gray-600 font-bold uppercase tracking-widest hidden md:inline">
+                            {outreachLang === 'de' ? 'German Template' : 'English Template'}
+                        </span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-3 shrink-0 relative z-10">
                         {INTENTS.map(intent => (
                             <button 
                                 key={intent.id}
@@ -482,19 +831,22 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
                         </div>
 
                         {/* Terminal Header Controls */}
-                        <div className="absolute top-4 right-6 flex items-center gap-4">
-                            <div className="flex items-center gap-2 bg-scout-900/80 border border-scout-700 px-2.5 py-1 rounded-full">
-                                <Link size={10} className={includeSmartLink ? "text-scout-accent" : "text-gray-600"} />
-                                <span className="text-[8px] font-black uppercase text-gray-500 tracking-widest">Assessment Link</span>
-                                <button 
-                                    onClick={() => setIncludeSmartLink(!includeSmartLink)}
-                                    className={`w-7 h-3.5 rounded-full relative transition-all ${includeSmartLink ? 'bg-scout-accent' : 'bg-scout-800'}`}
-                                >
-                                    <div className={`absolute top-0.5 w-2.5 h-2.5 bg-white rounded-full transition-all ${includeSmartLink ? 'left-[16px]' : 'left-0.5'}`}></div>
-                                </button>
-                            </div>
+                        <div className="absolute top-4 right-6 flex items-center gap-4 z-10">
                             <div className="text-[9px] font-mono text-gray-700 uppercase tracking-widest hidden lg:block">Outreach v3.0</div>
                         </div>
+
+                        {/* AI LIMIT WARNING */}
+                        {aiError && (
+                            <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-start gap-3">
+                                <Sparkles size={16} className="text-amber-400 shrink-0 mt-0.5" />
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-bold text-amber-400 mb-1">AI Credits Depleted</p>
+                                    <p className="text-[10px] text-amber-300/70">{aiError}</p>
+                                    <p className="text-[10px] text-gray-500 mt-1">Using template message instead.</p>
+                                </div>
+                                <button onClick={() => setAiError(null)} className="text-gray-500 hover:text-white"><X size={14} /></button>
+                            </div>
+                        )}
 
                         {/* CONTENT AREA - SCROLLABLE */}
                         <div className="mt-8 flex-1 overflow-y-auto custom-scrollbar">
@@ -515,7 +867,7 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
 
                         {/* ACTION FOOTER */}
                         {draftedMessage && !isLoading && (
-                            <div className="pt-6 flex gap-3 border-t border-scout-700 mt-4 shrink-0 bg-scout-950/80 backdrop-blur-sm">
+                            <div className="pt-6 flex gap-3 border-t border-scout-700 mt-4 shrink-0 bg-scout-950/80 backdrop-blur-sm relative z-20">
                                 <button 
                                     onClick={handleCopyAndLog}
                                     className="flex-[2] bg-white hover:bg-gray-100 text-scout-900 font-black py-3 md:py-4 rounded-xl shadow-xl transition-all flex items-center justify-center gap-2 md:gap-3 uppercase tracking-widest text-xs md:text-sm"
@@ -540,6 +892,7 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
                 </div>
             )}
         </div>
+        </CompactErrorBoundary>
       </div>
     </div>
   );

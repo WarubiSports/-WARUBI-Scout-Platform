@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, memo } from 'react';
 import { ScoutingEvent, UserProfile, EventStatus } from '../types';
 import { generateEventPlan } from '../services/geminiService';
-import { 
-  Calendar, MapPin, Sparkles, Plus, Copy, CheckCircle, 
+import { haptic, handleMobileFocus } from '../hooks/useMobileFeatures';
+import { parseEventType } from '../lib/guards';
+import { useEventAttendees, AttendeeWithScout } from '../hooks/useEventAttendees';
+import {
+  Calendar, MapPin, Sparkles, Plus, Copy, CheckCircle,
   Share2, Users, FileText, CheckSquare, Loader2, ArrowRight,
   ClipboardList, X, ShieldCheck, Lock, Eye,
-  HelpCircle, Check, QrCode, ChevronRight, Navigation, History, CalendarPlus, Ticket, Clock, Camera
+  HelpCircle, Check, QrCode, ChevronRight, Navigation, History, CalendarPlus, Ticket, Clock, Camera, Edit3, Timer, ExternalLink, StickyNote
 } from 'lucide-react';
 
 interface EventHubProps {
@@ -15,46 +18,6 @@ interface EventHubProps {
   onUpdateEvent: (event: ScoutingEvent) => void;
   onScanRoster?: (event: ScoutingEvent) => void;
 }
-
-// Mock Data for "Inspiration" / Overview
-const MOCK_OPPORTUNITIES: ScoutingEvent[] = [
-    {
-        id: 'global-1',
-        isMine: false,
-        role: 'ATTENDEE',
-        status: 'Published',
-        title: 'Dallas Cup 2024',
-        date: '2024-04-14',
-        location: 'Dallas, TX',
-        type: 'Tournament',
-        fee: 'N/A',
-        registeredCount: 400
-    },
-    {
-        id: 'global-2',
-        isMine: false,
-        role: 'ATTENDEE',
-        status: 'Published',
-        title: 'Surf Cup Summer',
-        date: '2024-07-25',
-        location: 'San Diego, CA',
-        type: 'Tournament',
-        fee: 'N/A',
-        registeredCount: 600
-    },
-    {
-        id: 'global-3',
-        isMine: false,
-        role: 'ATTENDEE',
-        status: 'Published',
-        title: 'WARUBI Germany Showcase',
-        date: '2024-08-10',
-        location: 'Frankfurt, DE',
-        type: 'Showcase',
-        fee: '€150',
-        registeredCount: 85
-    }
-];
 
 // --- EXTRACTED COMPONENTS ---
 
@@ -108,8 +71,18 @@ const AttendancePrepModal = ({ event, onCancel, onConfirm }: { event: ScoutingEv
             </div>
 
             <div className="p-4 bg-scout-900 flex gap-3 border-t border-scout-700">
-                <button onClick={onCancel} className="flex-1 py-3 text-gray-400 hover:text-white text-sm font-medium transition-colors">Cancel</button>
-                <button onClick={onConfirm} className="flex-[2] bg-scout-accent hover:bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
+                <button type="button" onClick={onCancel} className="flex-1 py-3 text-gray-400 hover:text-white text-sm font-medium transition-colors">Cancel</button>
+                <button
+                    type="button"
+                    onClick={() => {
+                        if (typeof onConfirm !== 'function') {
+                            alert('onConfirm is not a function!');
+                            return;
+                        }
+                        onConfirm();
+                    }}
+                    className="flex-[2] bg-scout-accent hover:bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+                >
                     Got it, Add to Schedule
                 </button>
             </div>
@@ -152,10 +125,17 @@ const HostGuideModal = ({ onClose }: { onClose: () => void }) => (
 // --- NEW COMPONENT: SCOUT LEDGER ROW ---
 const EventRow: React.FC<{ event: ScoutingEvent; isOpportunity?: boolean; isAdded?: boolean; onClick: (e: ScoutingEvent) => void; onAdd?: (e: ScoutingEvent) => void; onScan?: (e: ScoutingEvent) => void }> = ({ event, isOpportunity, isAdded, onClick, onAdd, onScan }) => {
     const isHost = event.role === 'HOST' || event.isMine;
-    const dateObj = new Date(event.date);
-    
+    // Parse date parts directly to avoid timezone issues
+    const [year, month, day] = event.date.split('-').map(Number);
+    const dateObj = new Date(year, month - 1, day);
+    const endDateObj = event.endDate ? (() => {
+        const [ey, em, ed] = event.endDate.split('-').map(Number);
+        return new Date(ey, em - 1, ed);
+    })() : null;
+    const isMultiDay = endDateObj && event.endDate !== event.date;
+
     return (
-        <div 
+        <div
             onClick={() => onClick(event)}
             className="group flex items-center bg-scout-800 hover:bg-scout-700/50 border border-scout-700 rounded-lg overflow-hidden transition-all cursor-pointer shadow-sm mb-2"
         >
@@ -165,7 +145,11 @@ const EventRow: React.FC<{ event: ScoutingEvent; isOpportunity?: boolean; isAdde
             {/* Date Block */}
             <div className="flex flex-col items-center justify-center px-4 py-2 min-w-[70px] border-r border-scout-700/50">
                 <span className="text-[10px] font-black uppercase tracking-tighter text-gray-500">{dateObj.toLocaleString('default', { month: 'short' })}</span>
-                <span className="text-xl font-black text-white leading-none">{dateObj.getDate() + 1}</span>
+                {isMultiDay ? (
+                    <span className="text-lg font-black text-white leading-none">{day}-{endDateObj!.getDate()}</span>
+                ) : (
+                    <span className="text-xl font-black text-white leading-none">{day}</span>
+                )}
             </div>
 
             {/* Event Info */}
@@ -198,8 +182,13 @@ const EventRow: React.FC<{ event: ScoutingEvent; isOpportunity?: boolean; isAdde
                             <CheckCircle size={14}/> Scheduled
                         </div>
                     ) : (
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); onAdd && onAdd(event); }}
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (onAdd) {
+                                    onAdd(event);
+                                }
+                            }}
                             className="bg-scout-accent hover:bg-emerald-600 text-scout-900 font-bold text-xs px-4 py-1.5 rounded-full shadow-lg active:scale-95 transition-all flex items-center gap-1"
                         >
                             <Plus size={14} /> Add to Schedule
@@ -256,18 +245,19 @@ const CreateEventForm = ({ formData, setFormData, loading, handleCreate, onCance
 
                 <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Title</label>
-                    <input 
+                    <input
                         value={formData.title}
                         onChange={e => setFormData({...formData, title: e.target.value})}
                         placeholder={formData.isHosting ? "e.g. Winter Talent ID Showcase" : "e.g. State Cup Final"}
+                        onFocus={handleMobileFocus}
                         className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
                     />
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-6">
+                <div className="grid md:grid-cols-3 gap-6">
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Date</label>
-                        <input 
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Start Date</label>
+                        <input
                             type="date"
                             value={formData.date}
                             onChange={e => setFormData({...formData, date: e.target.value})}
@@ -275,11 +265,22 @@ const CreateEventForm = ({ formData, setFormData, loading, handleCreate, onCance
                         />
                     </div>
                     <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">End Date <span className="text-gray-600 normal-case">(optional)</span></label>
+                        <input
+                            type="date"
+                            value={formData.endDate || ''}
+                            onChange={e => setFormData({...formData, endDate: e.target.value})}
+                            min={formData.date}
+                            className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
+                        />
+                    </div>
+                    <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Location</label>
-                        <input 
+                        <input
                             value={formData.location}
                             onChange={e => setFormData({...formData, location: e.target.value})}
                             placeholder="City, State or Field Name"
+                            onFocus={handleMobileFocus}
                             className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
                         />
                     </div>
@@ -288,7 +289,7 @@ const CreateEventForm = ({ formData, setFormData, loading, handleCreate, onCance
                 <div className="grid md:grid-cols-2 gap-6">
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Type</label>
-                        <select 
+                        <select
                             value={formData.type}
                             onChange={e => setFormData({...formData, type: e.target.value})}
                             className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
@@ -302,13 +303,36 @@ const CreateEventForm = ({ formData, setFormData, loading, handleCreate, onCance
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{formData.isHosting ? 'Player Fee' : 'Scout Fee / Cost'}</label>
-                        <input 
+                        <input
                             value={formData.fee}
                             onChange={e => setFormData({...formData, fee: e.target.value})}
                             placeholder="e.g. Free, $50, €20"
                             className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
                         />
                     </div>
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Link <span className="text-gray-600 normal-case">(optional)</span></label>
+                    <input
+                        value={formData.link || ''}
+                        onChange={e => setFormData({...formData, link: e.target.value})}
+                        placeholder="https://example.com/registration"
+                        onFocus={handleMobileFocus}
+                        className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
+                    />
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Notes <span className="text-gray-600 normal-case">(optional)</span></label>
+                    <textarea
+                        value={formData.notes || ''}
+                        onChange={e => setFormData({...formData, notes: e.target.value})}
+                        placeholder="Add any additional notes about this event..."
+                        rows={3}
+                        onFocus={handleMobileFocus}
+                        className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none resize-none"
+                    />
                 </div>
 
                 <div className="pt-4 border-t border-scout-700/50">
@@ -326,10 +350,40 @@ const CreateEventForm = ({ formData, setFormData, loading, handleCreate, onCance
     </div>
 );
 
-const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateAttendance, copyToClipboard, copied, onSubmitForApproval, onSimulateHQApproval, onPublishEvent }: any) => {
+const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateAttendance, copyToClipboard, copied, onSubmitForApproval, onPublishEvent, attendees, attendeeCount, isUserAttending, onRegisterAttendance, onCancelAttendance, currentScoutId }: any) => {
     const isMine = event.role === 'HOST' || event.isMine;
-    const isAttending = isMine || events.some((e: any) => e.id === event.id || (e.title === event.title && e.date === event.date));
+    const isAttending = isUserAttending || isMine || events.some((e: any) => e.id === event.id || (e.title === event.title && e.date === event.date));
     const [mobileTab, setMobileTab] = useState<'overview' | 'agenda' | 'tasks'>('overview');
+    const [isEditing, setIsEditing] = useState(false);
+    const [editData, setEditData] = useState({
+        title: event.title,
+        date: event.date,
+        endDate: event.endDate || '',
+        location: event.location,
+        type: event.type,
+        fee: event.fee,
+        link: event.link || '',
+        notes: event.notes || ''
+    });
+
+    const handleSaveEdit = () => {
+        onUpdateEvent({ ...event, ...editData });
+        setIsEditing(false);
+    };
+
+    const handleCancelEdit = () => {
+        setEditData({
+            title: event.title,
+            date: event.date,
+            endDate: event.endDate || '',
+            location: event.location,
+            type: event.type,
+            fee: event.fee,
+            link: event.link || '',
+            notes: event.notes || ''
+        });
+        setIsEditing(false);
+    };
 
     const toggleChecklist = (index: number) => {
         if (!event.checklist) return;
@@ -355,18 +409,126 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                           <div className="mb-6">
                               <div className="flex justify-between items-start">
                                   <StatusPill status={event.status} />
-                                  {!isMine && isAttending && (
-                                      <span className="text-[10px] font-bold bg-green-900/30 text-green-400 px-2 py-1 rounded border border-green-500/30 flex items-center gap-1">
-                                          <Check size={10}/> Attending
-                                      </span>
-                                  )}
+                                  <div className="flex items-center gap-2">
+                                      {!isMine && isAttending && (
+                                          <span className="text-[10px] font-bold bg-green-900/30 text-green-400 px-2 py-1 rounded border border-green-500/30 flex items-center gap-1">
+                                              <Check size={10}/> Attending
+                                          </span>
+                                      )}
+                                      {(isMine || isAttending) && !isEditing && (
+                                          <button
+                                              onClick={() => setIsEditing(true)}
+                                              className="text-[10px] font-bold bg-scout-700 text-gray-300 px-2 py-1 rounded border border-scout-600 hover:bg-scout-600 flex items-center gap-1"
+                                          >
+                                              <Edit3 size={10}/> Edit
+                                          </button>
+                                      )}
+                                  </div>
                               </div>
-                              <h2 className="text-2xl font-bold text-white mt-2 mb-1">{event.title}</h2>
-                              <div className="space-y-2 text-sm text-gray-400 mt-4">
-                                  <div className="flex items-center gap-2"><Calendar size={14}/> {event.date}</div>
-                                  <div className="flex items-center gap-2"><MapPin size={14}/> {event.location}</div>
-                                  <div className="flex items-center gap-2"><Sparkles size={14}/> {event.type} • {event.fee}</div>
-                              </div>
+                              {isEditing ? (
+                                  <div className="mt-3 space-y-3">
+                                      <input
+                                          value={editData.title}
+                                          onChange={e => setEditData({...editData, title: e.target.value})}
+                                          className="w-full bg-scout-900 border border-scout-600 rounded-lg px-3 py-2 text-white text-lg font-bold focus:border-scout-accent outline-none"
+                                          placeholder="Event Title"
+                                      />
+                                      <div className="grid grid-cols-2 gap-2">
+                                          <input
+                                              type="date"
+                                              value={editData.date}
+                                              onChange={e => setEditData({...editData, date: e.target.value})}
+                                              className="bg-scout-900 border border-scout-600 rounded-lg px-3 py-2 text-white text-sm focus:border-scout-accent outline-none"
+                                          />
+                                          <input
+                                              type="date"
+                                              value={editData.endDate}
+                                              onChange={e => setEditData({...editData, endDate: e.target.value})}
+                                              className="bg-scout-900 border border-scout-600 rounded-lg px-3 py-2 text-white text-sm focus:border-scout-accent outline-none"
+                                              placeholder="End Date"
+                                          />
+                                      </div>
+                                      <input
+                                          value={editData.location}
+                                          onChange={e => setEditData({...editData, location: e.target.value})}
+                                          className="w-full bg-scout-900 border border-scout-600 rounded-lg px-3 py-2 text-white text-sm focus:border-scout-accent outline-none"
+                                          placeholder="Location"
+                                      />
+                                      <div className="grid grid-cols-2 gap-2">
+                                          <select
+                                              value={editData.type}
+                                              onChange={e => setEditData({...editData, type: e.target.value})}
+                                              className="bg-scout-900 border border-scout-600 rounded-lg px-3 py-2 text-white text-sm focus:border-scout-accent outline-none"
+                                          >
+                                              <option value="ID Day">ID Day</option>
+                                              <option value="Showcase">Showcase</option>
+                                              <option value="Camp">Camp</option>
+                                              <option value="Tournament">Tournament</option>
+                                              <option value="League Match">League Match</option>
+                                          </select>
+                                          <input
+                                              value={editData.fee}
+                                              onChange={e => setEditData({...editData, fee: e.target.value})}
+                                              className="bg-scout-900 border border-scout-600 rounded-lg px-3 py-2 text-white text-sm focus:border-scout-accent outline-none"
+                                              placeholder="Fee (e.g. Free, $50)"
+                                          />
+                                      </div>
+                                      <input
+                                          value={editData.link}
+                                          onChange={e => setEditData({...editData, link: e.target.value})}
+                                          className="w-full bg-scout-900 border border-scout-600 rounded-lg px-3 py-2 text-white text-sm focus:border-scout-accent outline-none"
+                                          placeholder="Event Link (https://...)"
+                                      />
+                                      <textarea
+                                          value={editData.notes}
+                                          onChange={e => setEditData({...editData, notes: e.target.value})}
+                                          className="w-full bg-scout-900 border border-scout-600 rounded-lg px-3 py-2 text-white text-sm focus:border-scout-accent outline-none resize-none"
+                                          placeholder="Notes..."
+                                          rows={2}
+                                      />
+                                      <div className="flex gap-2 pt-2">
+                                          <button
+                                              onClick={handleSaveEdit}
+                                              className="flex-1 bg-scout-accent hover:bg-emerald-600 text-scout-900 font-bold py-2 rounded-lg text-sm flex items-center justify-center gap-1"
+                                          >
+                                              <Check size={14}/> Save
+                                          </button>
+                                          <button
+                                              onClick={handleCancelEdit}
+                                              className="flex-1 bg-scout-700 hover:bg-scout-600 text-white font-bold py-2 rounded-lg text-sm"
+                                          >
+                                              Cancel
+                                          </button>
+                                      </div>
+                                  </div>
+                              ) : (
+                                  <>
+                                      <h2 className="text-2xl font-bold text-white mt-2 mb-1">{event.title}</h2>
+                                      <div className="space-y-2 text-sm text-gray-400 mt-4">
+                                          <div className="flex items-center gap-2"><Calendar size={14}/> {event.date}{event.endDate && event.endDate !== event.date ? ` - ${event.endDate}` : ''}</div>
+                                          <div className="flex items-center gap-2"><MapPin size={14}/> {event.location}</div>
+                                          <div className="flex items-center gap-2"><Sparkles size={14}/> {event.type} • {event.fee}</div>
+                                      </div>
+                                      {event.link && (
+                                          <a
+                                              href={event.link}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="mt-4 w-full bg-scout-700 hover:bg-scout-600 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-all border border-scout-600 text-sm"
+                                          >
+                                              <ExternalLink size={14}/> Open Event Link
+                                          </a>
+                                      )}
+                                      {event.notes && (
+                                          <div className="mt-4 p-3 bg-scout-900/50 rounded-lg border border-scout-700">
+                                              <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase mb-2">
+                                                  <StickyNote size={12}/> Notes
+                                              </div>
+                                              <p className="text-sm text-gray-300 whitespace-pre-wrap">{event.notes}</p>
+                                          </div>
+                                      )}
+                                  </>
+                              )}
                           </div>
 
                           {isMine ? (
@@ -386,8 +548,7 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                   {event.status === 'Pending Approval' && (
                                       <div className="bg-yellow-500/10 p-4 rounded-lg border border-yellow-500/30">
                                           <h4 className="text-yellow-500 font-bold text-sm mb-2 flex items-center gap-2"><Loader2 size={14} className="animate-spin"/> Under Review</h4>
-                                          <p className="text-xs text-yellow-200/70 mb-4">HQ is reviewing your proposal.</p>
-                                          <button onClick={() => onSimulateHQApproval(event)} className="w-full bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 font-bold py-2 rounded text-xs border border-yellow-500/50 uppercase tracking-wider">(Demo: HQ Approve)</button>
+                                          <p className="text-xs text-yellow-200/70">Warubi HQ is reviewing your event proposal. You'll be notified when approved.</p>
                                       </div>
                                   )}
                                   {event.status === 'Approved' && (
@@ -409,17 +570,50 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                               </div>
                           ) : (
                               <div className="bg-scout-900/50 p-4 rounded-lg border border-scout-700">
-                                  {!isAttending ? (
+                                  {!isUserAttending ? (
                                       <>
                                           <p className="text-xs text-gray-400 mb-4">Interested in scouting at this event?</p>
-                                          <button onClick={() => initiateAttendance(event)} className="w-full bg-scout-700 hover:bg-scout-600 text-white font-bold py-2 rounded-lg transition-all border border-scout-600 text-sm">Mark Attendance</button>
+                                          <button onClick={onRegisterAttendance} className="w-full bg-scout-700 hover:bg-scout-600 text-white font-bold py-2 rounded-lg transition-all border border-scout-600 text-sm">Mark Attendance</button>
                                       </>
                                   ) : (
                                       <div className="text-center py-2">
                                           <div className="inline-block p-2 bg-green-500/10 rounded-full text-green-400 mb-2"><CheckCircle size={24} /></div>
-                                          <p className="text-white font-bold text-sm">Attendance Logged</p>
+                                          <p className="text-white font-bold text-sm">You&apos;re Attending</p>
+                                          <button onClick={onCancelAttendance} className="text-xs text-gray-500 hover:text-red-400 mt-2 transition-colors">Cancel attendance</button>
                                       </div>
                                   )}
+                              </div>
+                          )}
+
+                          {/* Scouts Attending */}
+                          {attendeeCount > 0 && (
+                              <div className="bg-scout-900/50 p-4 rounded-lg border border-scout-700 mt-4">
+                                  <div className="flex items-center justify-between mb-3">
+                                      <span className="text-xs font-bold text-gray-400 uppercase flex items-center gap-2">
+                                          <Users size={14} /> Scouts Attending
+                                      </span>
+                                      <span className="text-xs bg-scout-700 text-white px-2 py-0.5 rounded-full font-bold">{attendeeCount}</span>
+                                  </div>
+                                  <div className="space-y-2 max-h-32 overflow-y-auto custom-scrollbar">
+                                      {attendees?.map((a: any) => (
+                                          <div key={a.id} className="flex items-center gap-2 text-sm">
+                                              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                                                  a.scout_id === currentScoutId
+                                                      ? 'bg-scout-accent text-white'
+                                                      : 'bg-scout-700 text-gray-300'
+                                              }`}>
+                                                  {a.scout?.name?.charAt(0) || '?'}
+                                              </div>
+                                              <span className="text-gray-300">
+                                                  {a.scout?.name || 'Unknown Scout'}
+                                                  {a.scout_id === currentScoutId && <span className="text-scout-accent ml-1">(you)</span>}
+                                              </span>
+                                              {a.scout?.region && (
+                                                  <span className="text-[10px] text-gray-500 ml-auto">{a.scout.region}</span>
+                                              )}
+                                          </div>
+                                      ))}
+                                  </div>
                               </div>
                           )}
                       </div>
@@ -483,12 +677,19 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                   <div>
                                       <label className="text-sm font-semibold text-gray-300 flex items-center gap-2 mb-3"><Calendar size={14}/> Agenda</label>
                                       <ul className="space-y-2">
-                                          {(event.agenda || []).map((item: string, i: number) => (
-                                              <li key={i} className="flex items-start gap-2 text-sm text-gray-400">
-                                                  <span className="text-scout-accent font-mono text-xs mt-0.5">{item.split(' - ')[0]}</span>
-                                                  <span>{item.split(' - ')[1] || item}</span>
-                                              </li>
-                                          ))}
+                                          {(event.agenda || []).map((item: string, i: number) => {
+                                              const parts = item.split(' - ');
+                                              const time = parts[0];
+                                              // Remove time prefix from description (e.g., "09:30 AM: Registration" -> "Registration")
+                                              const descPart = parts[1] || item;
+                                              const description = descPart.replace(/^\d{1,2}:\d{2}\s*(AM|PM):?\s*/i, '');
+                                              return (
+                                                  <li key={i} className="flex items-start gap-2 text-sm text-gray-400">
+                                                      <span className="text-scout-accent font-mono text-xs mt-0.5">{time}</span>
+                                                      <span>{description}</span>
+                                                  </li>
+                                              );
+                                          })}
                                       </ul>
                                   </div>
                                   <div>
@@ -543,7 +744,7 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                 <MapPin size={20} className="text-scout-accent mt-1" />
                                 <div>
                                     <h3 className="font-bold text-white text-lg">{event.location}</h3>
-                                    <p className="text-gray-400 text-sm">{event.date}</p>
+                                    <p className="text-gray-400 text-sm">{event.date}{event.endDate && event.endDate !== event.date ? ` - ${event.endDate}` : ''}</p>
                                 </div>
                             </div>
                             <button className="w-full bg-scout-700 text-white font-bold py-2 rounded-lg text-sm flex items-center justify-center gap-2">
@@ -565,19 +766,54 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                 </div>
                             </div>
                         )}
+
+                        {/* Scouts Attending - Mobile */}
+                        {attendeeCount > 0 && (
+                            <div className="bg-scout-800 rounded-xl p-4 border border-scout-700">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-xs font-bold text-gray-400 uppercase flex items-center gap-2">
+                                        <Users size={14} /> Scouts Attending
+                                    </span>
+                                    <span className="text-xs bg-scout-700 text-white px-2 py-0.5 rounded-full font-bold">{attendeeCount}</span>
+                                </div>
+                                <div className="space-y-2">
+                                    {attendees?.map((a: any) => (
+                                        <div key={a.id} className="flex items-center gap-2 text-sm">
+                                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                                                a.scout_id === currentScoutId
+                                                    ? 'bg-scout-accent text-white'
+                                                    : 'bg-scout-700 text-gray-300'
+                                            }`}>
+                                                {a.scout?.name?.charAt(0) || '?'}
+                                            </div>
+                                            <span className="text-gray-300">
+                                                {a.scout?.name || 'Unknown Scout'}
+                                                {a.scout_id === currentScoutId && <span className="text-scout-accent ml-1">(you)</span>}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
                 {mobileTab === 'agenda' && (
                     <div className="relative pl-6 space-y-6">
                         <div className="absolute left-[9px] top-2 bottom-2 w-0.5 bg-scout-700"></div>
-                        {(event.agenda || []).map((item: string, i: number) => (
-                            <div key={i} className="relative">
-                                <div className="absolute -left-6 top-1 w-2.5 h-2.5 rounded-full bg-scout-accent border-2 border-scout-900"></div>
-                                <p className="text-scout-accent font-mono text-xs font-bold mb-1">{item.split(' - ')[0]}</p>
-                                <p className="text-white text-sm bg-scout-800 p-3 rounded-lg border border-scout-700 shadow-sm">{item.split(' - ')[1] || item}</p>
-                            </div>
-                        ))}
+                        {(event.agenda || []).map((item: string, i: number) => {
+                            const parts = item.split(' - ');
+                            const time = parts[0];
+                            const descPart = parts[1] || item;
+                            const description = descPart.replace(/^\d{1,2}:\d{2}\s*(AM|PM):?\s*/i, '');
+                            return (
+                                <div key={i} className="relative">
+                                    <div className="absolute -left-6 top-1 w-2.5 h-2.5 rounded-full bg-scout-accent border-2 border-scout-900"></div>
+                                    <p className="text-scout-accent font-mono text-xs font-bold mb-1">{time}</p>
+                                    <p className="text-white text-sm bg-scout-800 p-3 rounded-lg border border-scout-700 shadow-sm">{description}</p>
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
 
@@ -617,7 +853,6 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
 
 const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateEvent, onScanRoster }) => {
   const [view, setView] = useState<'list' | 'create' | 'detail'>('list');
-  const [mobileTab, setMobileTab] = useState<'schedule' | 'discover'>('schedule');
   const [selectedEvent, setSelectedEvent] = useState<ScoutingEvent | null>(null);
   const [attendingEvent, setAttendingEvent] = useState<ScoutingEvent | null>(null);
   const [loading, setLoading] = useState(false);
@@ -625,20 +860,49 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
   const [showGuide, setShowGuide] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
+  // Attendees management
+  const {
+    loadEventAttendees,
+    isAttending: checkIsAttending,
+    getAttendees,
+    getAttendeeCount,
+    registerAttendance,
+    cancelAttendance,
+  } = useEventAttendees(user.scoutId);
+
+  // Wrapper to sync selectedEvent when an event is updated
+  const handleUpdateEvent = (updatedEvent: ScoutingEvent) => {
+    onUpdateEvent(updatedEvent);
+    // If the updated event is currently selected, sync the local state
+    if (selectedEvent && selectedEvent.id === updatedEvent.id) {
+      setSelectedEvent(updatedEvent);
+    }
+  };
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Load attendees when viewing event detail
+  useEffect(() => {
+    if (selectedEvent && view === 'detail') {
+      loadEventAttendees(selectedEvent.id);
+    }
+  }, [selectedEvent?.id, view, loadEventAttendees]);
+
   // Form State
   const [formData, setFormData] = useState({
     title: '',
     location: '',
     date: '',
+    endDate: '',
     type: 'ID Day',
     fee: 'Free',
-    isHosting: false 
+    isHosting: false,
+    link: '',
+    notes: ''
   });
 
   // Date Logic for Grouping
@@ -662,18 +926,21 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
     const newId = Date.now().toString();
     const baseEvent: ScoutingEvent = {
         id: newId,
-        isMine: formData.isHosting, 
+        isMine: formData.isHosting,
         role: formData.isHosting ? 'HOST' : 'ATTENDEE',
         status: formData.isHosting ? 'Draft' : 'Published',
         title: formData.title,
         location: formData.location,
         date: formData.date,
-        type: formData.type as any,
+        endDate: formData.endDate || undefined,
+        type: parseEventType(formData.type),
         fee: formData.fee,
         registeredCount: 0,
         marketingCopy: '',
         agenda: [],
-        checklist: []
+        checklist: [],
+        link: formData.link || undefined,
+        notes: formData.notes || undefined
     };
 
     try {
@@ -697,7 +964,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
         }
         
         setView('detail');
-        setFormData({ title: '', location: '', date: '', type: 'ID Day', fee: 'Free', isHosting: false });
+        setFormData({ title: '', location: '', date: '', endDate: '', type: 'ID Day', fee: 'Free', isHosting: false, link: '', notes: '' });
     } catch (e) {
         onAddEvent(baseEvent);
         setSelectedEvent(baseEvent);
@@ -708,8 +975,8 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
   };
 
   const initiateAttendance = (eventToMark: ScoutingEvent) => {
-      const isAlreadyAdded = events.some(e => 
-          e.id === eventToMark.id || 
+      const isAlreadyAdded = events.some(e =>
+          e.id === eventToMark.id ||
           (e.title === eventToMark.title && e.date === eventToMark.date)
       );
 
@@ -720,19 +987,33 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
       setAttendingEvent(eventToMark);
   };
 
-  const confirmAttendance = () => {
-      if (!attendingEvent) return;
+  const confirmAttendance = async () => {
+      if (!attendingEvent) {
+          alert('No event selected');
+          return;
+      }
 
       const newEvent: ScoutingEvent = {
           ...attendingEvent,
-          id: `${attendingEvent.id}-${Date.now()}`, 
+          id: `event-${Date.now()}`,
           isMine: false,
           role: 'ATTENDEE',
-          status: 'Published'
+          status: 'Published',
+          marketingCopy: '',
+          agenda: [],
+          checklist: [
+              { task: "Get the Roster", completed: false },
+              { task: "Prepare Warubi QR Code", completed: false }
+          ]
       };
-      
-      onAddEvent(newEvent);
-      setAttendingEvent(null);
+
+      try {
+          await onAddEvent(newEvent);
+          setAttendingEvent(null);
+      } catch (error) {
+          console.error('Failed to add event:', error);
+          alert('Failed to add event: ' + (error instanceof Error ? error.message : String(error)));
+      }
   };
 
   const copyToClipboard = (text: string, id: string) => {
@@ -743,30 +1024,22 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
 
   const submitForApproval = (event: ScoutingEvent) => {
       const updated = { ...event, status: 'Pending Approval' as EventStatus };
-      onUpdateEvent(updated);
-      setSelectedEvent(updated);
-  };
-
-  const simulateHQApproval = (event: ScoutingEvent) => {
-    const updated = { ...event, status: 'Approved' as EventStatus };
-    onUpdateEvent(updated);
-    setSelectedEvent(updated);
+      handleUpdateEvent(updated);
   };
 
   const publishEvent = (event: ScoutingEvent) => {
       const updated = { ...event, status: 'Published' as EventStatus };
-      onUpdateEvent(updated);
-      setSelectedEvent(updated);
+      handleUpdateEvent(updated);
   };
 
   return (
     <div className="h-full relative">
         {showGuide && <HostGuideModal onClose={() => setShowGuide(false)} />}
         {attendingEvent && (
-            <AttendancePrepModal 
-                event={attendingEvent} 
-                onCancel={() => setAttendingEvent(null)} 
-                onConfirm={confirmAttendance} 
+            <AttendancePrepModal
+                event={attendingEvent}
+                onCancel={() => setAttendingEvent(null)}
+                onConfirm={confirmAttendance}
             />
         )}
 
@@ -779,18 +1052,23 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
                 onCancel={() => setView('list')}
             />
         ) : view === 'detail' && selectedEvent ? (
-            <DetailView 
+            <DetailView
                 event={selectedEvent}
                 events={events}
                 isMobile={isMobile}
                 onClose={() => setView('list')}
-                onUpdateEvent={onUpdateEvent}
+                onUpdateEvent={handleUpdateEvent}
                 initiateAttendance={initiateAttendance}
                 copyToClipboard={copyToClipboard}
                 copied={copied}
                 onSubmitForApproval={submitForApproval}
-                onSimulateHQApproval={simulateHQApproval}
                 onPublishEvent={publishEvent}
+                attendees={getAttendees(selectedEvent.id)}
+                attendeeCount={getAttendeeCount(selectedEvent.id)}
+                isUserAttending={checkIsAttending(selectedEvent.id)}
+                onRegisterAttendance={() => registerAttendance(selectedEvent.id)}
+                onCancelAttendance={() => cancelAttendance(selectedEvent.id)}
+                currentScoutId={user.scoutId}
             />
         ) : (
             <div className="h-full flex flex-col animate-fade-in">
@@ -798,7 +1076,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
                 {!isMobile && (
                     <div className="flex justify-between items-end mb-6">
                         <div>
-                            <h2 className="text-3xl font-black text-white tracking-tight uppercase">Scout Ledger</h2>
+                            <h2 className="text-3xl font-black text-white tracking-tight uppercase">My Events</h2>
                             <p className="text-gray-400 mt-1">Direct access to your scheduled and upcoming events.</p>
                         </div>
                         <div className="flex gap-3">
@@ -818,19 +1096,65 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
                     </div>
                 )}
 
-                {/* Mobile Tab Toggle */}
-                {isMobile && (
-                    <div className="flex border-b border-scout-700 bg-scout-900 sticky top-0 z-20">
-                        <button onClick={() => setMobileTab('schedule')} className={`flex-1 py-4 text-xs font-black uppercase tracking-widest ${mobileTab === 'schedule' ? 'text-scout-accent border-b-2 border-scout-accent' : 'text-gray-500'}`}>My Schedule</button>
-                        <button onClick={() => setMobileTab('discover')} className={`flex-1 py-4 text-xs font-black uppercase tracking-widest ${mobileTab === 'discover' ? 'text-scout-accent border-b-2 border-scout-accent' : 'text-gray-500'}`}>Opportunities</button>
-                    </div>
-                )}
+                {/* Next Event Countdown Banner */}
+                {(() => {
+                    const allUpcoming = [...thisWeekEvents, ...futureEvents];
+                    if (allUpcoming.length === 0) return null;
+
+                    const nextEvent = allUpcoming[0];
+                    const [year, month, day] = nextEvent.date.split('-').map(Number);
+                    const eventDate = new Date(year, month - 1, day);
+                    const nowTime = new Date();
+                    const diffMs = eventDate.getTime() - nowTime.getTime();
+                    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                    const diffHours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
+                    if (diffMs < 0) return null;
+
+                    const isToday = diffDays === 0;
+                    const isTomorrow = diffDays === 1;
+
+                    return (
+                        <div
+                            onClick={() => { setSelectedEvent(nextEvent); setView('detail'); }}
+                            className="mb-6 p-4 bg-gradient-to-r from-scout-accent/10 via-emerald-500/5 to-scout-accent/10 border border-scout-accent/30 rounded-2xl cursor-pointer hover:border-scout-accent/50 transition-all group"
+                        >
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-scout-accent/20 rounded-xl flex items-center justify-center border border-scout-accent/30">
+                                        <Timer size={24} className="text-scout-accent" />
+                                    </div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-scout-accent uppercase tracking-widest">Next Event</p>
+                                        <h3 className="text-lg font-bold text-white truncate max-w-[200px] md:max-w-none">{nextEvent.title}</h3>
+                                        <p className="text-xs text-gray-400">{nextEvent.location}</p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <div className="text-2xl md:text-3xl font-black text-white">
+                                        {isToday ? (
+                                            <span className="text-scout-accent">TODAY</span>
+                                        ) : isTomorrow ? (
+                                            <span>Tomorrow</span>
+                                        ) : (
+                                            <span>{diffDays}<span className="text-base font-bold text-gray-400 ml-1">days</span></span>
+                                        )}
+                                    </div>
+                                    {!isToday && !isTomorrow && diffHours > 0 && (
+                                        <p className="text-xs text-gray-500">{diffHours}h remaining</p>
+                                    )}
+                                    {isToday && diffHours > 0 && (
+                                        <p className="text-xs text-scout-accent font-bold">{diffHours} hours to go</p>
+                                    )}
+                                </div>
+                                <ChevronRight size={20} className="text-gray-600 group-hover:text-scout-accent transition-colors hidden md:block" />
+                            </div>
+                        </div>
+                    );
+                })()}
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar pb-24 md:pb-8">
-                    
-                    {/* SCHEDULE VIEW */}
-                    {(mobileTab === 'schedule' || !isMobile) && (
-                        <div className="space-y-8">
+                    <div className="space-y-8">
                             {/* THIS WEEK */}
                             {thisWeekEvents.length > 0 && (
                                 <div>
@@ -869,11 +1193,41 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
 
                             {/* EMPTY STATE */}
                             {thisWeekEvents.length === 0 && futureEvents.length === 0 && (
-                                <div className="text-center py-20 bg-scout-800/30 rounded-xl border border-dashed border-scout-700">
-                                    <Calendar size={48} className="mx-auto mb-4 text-gray-700" />
-                                    <h3 className="text-lg font-bold text-gray-400">Schedule is empty</h3>
-                                    <p className="text-sm text-gray-600 mb-6">Find an event to attend or host your own.</p>
-                                    <button onClick={() => setView('create')} className="bg-scout-700 hover:bg-scout-600 text-white px-6 py-2 rounded-lg font-bold transition-all">Add Event</button>
+                                <div className="bg-gradient-to-br from-scout-800/50 to-scout-900/30 rounded-2xl border border-scout-700 p-8 md:p-12">
+                                    <div className="max-w-lg mx-auto text-center">
+                                        <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-scout-accent/20 to-scout-highlight/10 flex items-center justify-center">
+                                            <Calendar size={40} className="text-scout-accent" />
+                                        </div>
+                                        <h3 className="text-2xl font-black text-white mb-2">No Events Yet</h3>
+                                        <p className="text-gray-400 mb-8">Events are where you find talent. Add ID days, showcases, and camps to your calendar.</p>
+
+                                        {/* Quick-add event type buttons */}
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+                                            {[
+                                                { type: 'ID Day', icon: '🎯', desc: 'College recruiting day' },
+                                                { type: 'Showcase', icon: '⚽', desc: 'Competitive event' },
+                                                { type: 'Camp', icon: '🏕️', desc: 'Training opportunity' },
+                                                { type: 'Tournament', icon: '🏆', desc: 'Competition' },
+                                            ].map(item => (
+                                                <button
+                                                    key={item.type}
+                                                    onClick={() => setView('create')}
+                                                    className="p-4 bg-scout-900/50 border border-scout-700/50 rounded-xl hover:border-scout-accent/50 hover:bg-scout-800/50 transition-all group text-left"
+                                                >
+                                                    <span className="text-2xl mb-2 block">{item.icon}</span>
+                                                    <p className="text-sm font-bold text-white group-hover:text-scout-accent transition-colors">{item.type}</p>
+                                                    <p className="text-[10px] text-gray-500">{item.desc}</p>
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        <button
+                                            onClick={() => setView('create')}
+                                            className="inline-flex items-center gap-2 bg-scout-accent text-scout-900 px-8 py-3 rounded-xl font-black text-sm uppercase hover:bg-emerald-400 transition-all shadow-glow"
+                                        >
+                                            <CalendarPlus size={18} /> Create Your First Event
+                                        </button>
+                                    </div>
                                 </div>
                             )}
 
@@ -893,38 +1247,13 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
                                     ))}
                                 </div>
                             )}
-                        </div>
-                    )}
-
-                    {/* OPPORTUNITIES / DISCOVER (ALWAYS VISIBLE ON DESKTOP RIGHT OR VIA MOBILE TAB) */}
-                    {(mobileTab === 'discover' || !isMobile) && (
-                        <div className={!isMobile ? "mt-12 pt-12 border-t border-scout-800" : ""}>
-                            <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
-                                <Sparkles size={12} className="text-scout-highlight"/> Opportunities to Scout
-                            </h4>
-                            <div className="space-y-2">
-                                {MOCK_OPPORTUNITIES.map(evt => {
-                                    const isAdded = events.some(e => e.id === evt.id || (e.title === evt.title && e.date === evt.date));
-                                    return (
-                                        <EventRow 
-                                            key={evt.id} 
-                                            event={evt} 
-                                            isOpportunity={true} 
-                                            isAdded={isAdded}
-                                            onClick={(e) => { setSelectedEvent(e); setView('detail'); }}
-                                            onAdd={initiateAttendance}
-                                        />
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    )}
+                    </div>
                 </div>
                 
                 {/* Mobile FAB */}
                 {isMobile && (
-                    <button 
-                        onClick={() => setView('create')}
+                    <button
+                        onClick={() => { haptic.medium(); setView('create'); }}
                         className="fixed bottom-24 right-6 w-14 h-14 bg-scout-accent rounded-full flex items-center justify-center text-scout-900 shadow-2xl border-4 border-scout-900 active:scale-90 transition-transform z-30"
                     >
                         <CalendarPlus size={28} />
@@ -936,4 +1265,5 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
   );
 };
 
-export default EventHub;
+// Memoize to prevent unnecessary re-renders
+export default memo(EventHub);

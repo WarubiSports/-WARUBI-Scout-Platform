@@ -11,15 +11,14 @@ export enum DashboardTab {
   EVENTS = 'EVENTS',
   KNOWLEDGE = 'KNOWLEDGE',
   PROFILE = 'PROFILE',
-  OUTREACH = 'OUTREACH',
-  NEWS = 'NEWS'
+  OUTREACH = 'OUTREACH'
 }
 
+// Simplified 5-stage pipeline: Lead → Contacted → Interested → Offered → Placed
 export enum PlayerStatus {
-  PROSPECT = 'Prospect', // Shadow Pipeline / Sandbox
   LEAD = 'Lead',
+  CONTACTED = 'Contacted',
   INTERESTED = 'Interested',
-  FINAL_REVIEW = 'Final Review',
   OFFERED = 'Offered',
   PLACED = 'Placed',
   ARCHIVED = 'Archived'
@@ -101,6 +100,7 @@ export interface Player {
   club?: string;
   teamLevel?: string;
   interestedProgram?: string;
+  offeredPathway?: 'europe' | 'college' | 'events' | 'coaching';
   placedLocation?: string;
   evaluation: PlayerEvaluation | null;
   outreachLogs: OutreachLog[];
@@ -111,6 +111,8 @@ export interface Player {
   activityStatus?: 'signal' | 'spotlight' | 'spark' | 'undiscovered';
   isRecalibrating?: boolean;
   previousScore?: number;
+  dateOfBirth?: string;
+  trialProspectId?: string;
 }
 
 export type EventStatus = 'Draft' | 'Pending Approval' | 'Approved' | 'Published' | 'Completed' | 'Rejected';
@@ -122,14 +124,19 @@ export interface ScoutingEvent {
   status: EventStatus;
   title: string;
   date: string;
+  time?: string;
+  endDate?: string; // For multi-day events
   location: string;
-  type: 'ID Day' | 'Showcase' | 'Camp' | 'Tournament';
-  fee: string;
+  type: 'ID Day' | 'ID Camp' | 'Showcase' | 'Camp' | 'Tournament' | 'Training' | 'Tryout';
+  fee?: string | number;
   marketingCopy?: string;
   agenda?: string[];
   checklist?: { task: string; completed: boolean }[];
-  registeredCount: number;
+  registeredCount?: number;
   hostName?: string;
+  isGlobal?: boolean; // Admin-created events visible to all scouts
+  link?: string; // External URL (e.g., registration page)
+  notes?: string; // Additional notes about the event
 }
 
 export interface NewsItem {
@@ -171,6 +178,8 @@ export interface PathwayDef {
     redFlags: string[];
     keySellingPoints: string[];
     scriptSnippet: string;
+    videoUrl?: string; // YouTube or Vimeo embed URL
+    websiteUrl?: string; // Link to warubi-sports.com pathway page
 }
 
 export interface ToolDef {
@@ -179,4 +188,23 @@ export interface ToolDef {
     desc: string;
     actionLabel: string;
     type: 'CALCULATOR' | 'ASSESSMENT' | 'COMPARE';
+}
+
+// Bug Report Types
+export type BugReportStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
+export type BugReportPriority = 'low' | 'medium' | 'high' | 'critical';
+
+export interface BugReport {
+    id: string;
+    title: string;
+    description?: string;
+    pageUrl?: string;
+    reporterId?: string;
+    reporterName?: string;
+    screenshotUrl?: string;
+    status: BugReportStatus;
+    priority: BugReportPriority;
+    adminNotes?: string;
+    createdAt: string;
+    updatedAt: string;
 }
