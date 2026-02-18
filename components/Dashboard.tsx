@@ -71,6 +71,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     const [pendingOfferedPlayer, setPendingOfferedPlayer] = useState<Player | null>(null);
     const [pipelineFilter, setPipelineFilter] = useState<'all' | 'active'>('all');
     const [showMobileProfile, setShowMobileProfile] = useState(false);
+    const [showXpGuide, setShowXpGuide] = useState(false);
 
     useEffect(() => {
         const handleResize = () => {
@@ -476,14 +477,17 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
                 <div className="flex-1" /> {/* Spacer */}
                 <div className="p-4 border-t border-scout-700 bg-scout-900/30 space-y-3">
-                    {/* XP Level Display */}
+                    {/* XP Level Display - Clickable */}
                     {(() => {
                         const level = Math.floor(scoutScore / 100) + 1;
                         const xpInLevel = scoutScore % 100;
                         const levelNames = ['Rookie', 'Scout', 'Hunter', 'Pro Scout', 'Elite', 'Legend', 'Master', 'Grand Master'];
                         const levelName = levelNames[Math.min(level - 1, levelNames.length - 1)];
                         return (
-                            <div className="bg-gradient-to-r from-scout-accent/10 to-scout-highlight/10 border border-scout-accent/30 rounded-xl p-3">
+                            <button
+                                onClick={() => setShowXpGuide(!showXpGuide)}
+                                className="w-full text-left bg-gradient-to-r from-scout-accent/10 to-scout-highlight/10 border border-scout-accent/30 rounded-xl p-3 hover:border-scout-accent/50 transition-all"
+                            >
                                 <div className="flex items-center justify-between mb-2">
                                     <div className="flex items-center gap-2">
                                         <div className="w-8 h-8 rounded-lg bg-scout-accent/20 flex items-center justify-center">
@@ -505,10 +509,27 @@ const Dashboard: React.FC<DashboardProps> = ({
                                         style={{ width: `${xpInLevel}%` }}
                                     />
                                 </div>
-                                <p className="text-[9px] text-gray-500 mt-1 text-center">{100 - xpInLevel} XP to next level</p>
-                            </div>
+                                <p className="text-[9px] text-gray-500 mt-1 text-center">{100 - xpInLevel} XP to next level • <span className="text-scout-accent">tap for details</span></p>
+                            </button>
                         );
                     })()}
+
+                    {/* XP Guide - Desktop */}
+                    {showXpGuide && (
+                        <div className="bg-scout-900/50 rounded-xl p-3 border border-scout-700/50 animate-fade-in">
+                            <p className="text-[10px] font-bold uppercase text-gray-500 mb-2">How to earn XP</p>
+                            <div className="space-y-1 text-[11px]">
+                                <div className="flex justify-between"><span className="text-gray-400">Add player</span><span className="text-scout-accent font-bold">+5</span></div>
+                                <div className="flex justify-between"><span className="text-gray-400">Complete profile</span><span className="text-scout-accent font-bold">+5</span></div>
+                                <div className="flex justify-between"><span className="text-gray-400">First outreach</span><span className="text-scout-accent font-bold">+5</span></div>
+                                <div className="flex justify-between"><span className="text-gray-400">→ Interested</span><span className="text-scout-accent font-bold">+10</span></div>
+                                <div className="flex justify-between"><span className="text-gray-400">→ Offered</span><span className="text-scout-accent font-bold">+25</span></div>
+                                <div className="flex justify-between"><span className="text-gray-400">Attend event</span><span className="text-scout-accent font-bold">+15</span></div>
+                                <div className="flex justify-between"><span className="text-gray-400">Host event</span><span className="text-scout-accent font-bold">+50</span></div>
+                                <div className="flex justify-between pt-1 border-t border-scout-700/50"><span className="text-white font-bold">Placement</span><span className="text-scout-accent font-black">+500</span></div>
+                            </div>
+                        </div>
+                    )}
                     <div className="flex items-center gap-3 px-2 py-2">
                         <div className="w-10 h-10 rounded-lg bg-scout-accent flex items-center justify-center font-black text-scout-900">{user.name.charAt(0)}</div>
                         <p className="text-sm font-bold text-white truncate">{user.name}</p>
@@ -526,7 +547,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
             </aside>
 
-            <main className={`flex-1 min-h-0 ${activeTab === DashboardTab.OUTREACH ? 'overflow-hidden p-4' : 'overflow-auto p-4 md:p-10 pb-32 custom-scrollbar'}`}>
+            <main className={`flex-1 min-h-0 ${activeTab === DashboardTab.OUTREACH ? 'overflow-hidden p-4' : 'overflow-auto p-4 md:p-10 pb-28 md:pb-10 custom-scrollbar'}`}>
                 {activeTab === DashboardTab.PLAYERS && (
                     <ErrorBoundary name="Pipeline">
                     <div className="space-y-8 animate-fade-in">
@@ -756,7 +777,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             {/* Mobile Feedback Button */}
             <button
                 onClick={() => setIsBugReportOpen(true)}
-                className="md:hidden fixed bottom-24 left-4 z-[100] w-12 h-12 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 active:scale-95 transition-all shadow-lg"
+                className="md:hidden fixed bottom-[5.5rem] left-4 z-[115] w-10 h-10 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 active:scale-95 transition-all shadow-lg"
             >
                 <Lightbulb size={20} />
             </button>
@@ -766,11 +787,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                 <div className="md:hidden fixed inset-0 z-[200]" onClick={() => setShowMobileProfile(false)}>
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
                     <div
-                        className="absolute bottom-0 left-0 right-0 bg-scout-800 rounded-t-3xl border-t border-scout-700 p-6 pb-10 animate-slide-up"
+                        className="absolute bottom-0 left-0 right-0 bg-scout-800 rounded-t-3xl border-t border-scout-700 p-6 animate-slide-up max-h-[75vh] overflow-y-auto custom-scrollbar"
+                        style={{ paddingBottom: 'max(2.5rem, env(safe-area-inset-bottom))' }}
                         onClick={e => e.stopPropagation()}
                     >
-                        {/* Handle bar */}
-                        <div className="w-12 h-1 bg-scout-600 rounded-full mx-auto mb-6" />
+                        {/* Handle bar - tappable to dismiss */}
+                        <button onClick={() => setShowMobileProfile(false)} className="w-full flex justify-center py-2 -mt-2 mb-4" aria-label="Close">
+                            <div className="w-12 h-1 bg-scout-600 rounded-full" />
+                        </button>
 
                         {/* User info */}
                         <div className="flex items-center gap-4 mb-6">
@@ -879,7 +903,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
             )}
 
-            <nav className="md:hidden fixed bottom-0 w-full bg-[#05080f]/95 backdrop-blur-2xl border-t border-scout-700 z-[110] px-2 pt-2 pb-6">
+            <nav className="md:hidden fixed bottom-0 w-full bg-[#05080f]/95 backdrop-blur-2xl border-t border-scout-700 z-[110] px-2 pt-2 pb-6" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
                 <div className="flex justify-around items-end max-w-md mx-auto">
                     <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.PLAYERS); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.PLAYERS ? 'text-scout-accent' : 'text-gray-600'}`}>
                         <Users size={20} />
