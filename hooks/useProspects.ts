@@ -45,6 +45,7 @@ export function playerToProspect(player: Player, scoutId: string): ScoutProspect
     placed_location: player.placedLocation || null,
     notes: player.notes || null,
     last_contacted_at: player.lastContactedAt || null,
+    date_of_birth: player.dateOfBirth || null,
   }
 }
 
@@ -76,6 +77,7 @@ export function prospectToPlayer(prospect: ScoutProspect, outreachLogs: Outreach
     gradYear: prospect.grad_year || undefined,
     satAct: prospect.sat_act || undefined,
     videoLink: prospect.video_link || undefined,
+    dateOfBirth: prospect.date_of_birth || undefined,
     club: prospect.club || undefined,
     teamLevel: prospect.team_level || undefined,
     interestedProgram: prospect.interested_program || undefined,

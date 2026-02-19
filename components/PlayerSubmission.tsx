@@ -155,7 +155,7 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                 dominantFoot: editingPlayer.dominantFoot || 'Right',
                 nationality: editingPlayer.nationality || '',
                 hasEuPassport: editingPlayer.hasEuPassport || false,
-                dob: '',
+                dob: editingPlayer.dateOfBirth || '',
                 club: editingPlayer.club || '',
                 teamLevel: editingPlayer.teamLevel || 'ECNL',
                 height: editingPlayer.height || '',
@@ -182,6 +182,7 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
         id: editingPlayer?.id || 'draft',
         name: `${formData.firstName} ${formData.lastName}`.trim() || 'Unnamed Prospect',
         age: formData.dob ? new Date().getFullYear() - new Date(formData.dob).getFullYear() : (editingPlayer?.age || 17),
+        dateOfBirth: formData.dob || editingPlayer?.dateOfBirth,
         position: formData.position,
         secondaryPosition: formData.secondaryPosition,
         dominantFoot: formData.dominantFoot,
@@ -349,19 +350,19 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
     );
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#05080f]/95 backdrop-blur-xl p-4 animate-fade-in">
-            <div className="bg-scout-900 w-full max-w-6xl rounded-[3.5rem] border border-scout-700 shadow-2xl flex flex-col overflow-hidden max-h-[95vh] relative">
-                <div className="p-8 flex justify-between items-center border-b border-white/5 bg-scout-900/50">
+        <div className="fixed inset-0 z-[120] flex items-end md:items-center justify-center bg-[#05080f]/95 backdrop-blur-xl p-0 md:p-4 animate-fade-in">
+            <div className="bg-scout-900 w-full max-w-6xl rounded-t-2xl md:rounded-[2.5rem] border-t md:border border-scout-700 shadow-2xl flex flex-col overflow-hidden max-h-[95vh] md:max-h-[90vh] relative">
+                <div className="px-4 py-3 md:p-8 flex justify-between items-center border-b border-white/5 bg-scout-900/50 shrink-0">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-scout-accent rounded-full flex items-center justify-center text-scout-900 shadow-lg"><Plus size={24} /></div>
-                        <div><h2 className="text-xl font-black text-white uppercase tracking-tighter">{editingPlayer ? 'Edit Profile' : 'Add Prospect'}</h2></div>
+                        <div className="w-8 h-8 md:w-10 md:h-10 bg-scout-accent rounded-full flex items-center justify-center text-scout-900 shadow-lg"><Plus size={20} /></div>
+                        <div><h2 className="text-base md:text-xl font-black text-white uppercase tracking-tighter">{editingPlayer ? 'Edit Profile' : 'Add Prospect'}</h2></div>
                     </div>
-                    <button onClick={onClose} className="p-3 text-gray-600 hover:text-white transition-colors bg-white/5 rounded-full"><X size={24} /></button>
+                    <button onClick={onClose} className="p-2 md:p-3 text-gray-600 hover:text-white transition-colors bg-white/5 rounded-full"><X size={20} /></button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar pb-32 md:pb-0">
+                <div className="flex-1 overflow-y-auto custom-scrollbar pb-24 md:pb-0">
                     {mode === 'HUB' && (
-                        <div className="p-8 md:p-16 animate-fade-in max-w-4xl mx-auto flex flex-col items-center">
+                        <div className="p-4 md:p-16 animate-fade-in max-w-4xl mx-auto flex flex-col items-center">
                             {/* QUICK ADD - P1: Minimum friction entry */}
                             <div className="w-full mb-10 bg-gradient-to-r from-scout-accent/10 to-emerald-500/5 border-2 border-scout-accent/30 rounded-3xl p-6 md:p-8">
                                 <div className="flex items-center gap-3 mb-4">
@@ -455,7 +456,7 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                     )}
 
                     {mode === 'BULK' && (
-                        <div className="p-8 md:p-16 animate-fade-in max-w-3xl mx-auto">
+                        <div className="p-4 md:p-16 animate-fade-in max-w-3xl mx-auto">
                             <div className="text-center mb-8">
                                 <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Bulk Import</h3>
                                 <p className="text-gray-500 text-sm mt-2">Add multiple players from a roster file or URL</p>
@@ -627,6 +628,7 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                                                 <FormField label="First Name" icon={User}><ScoutInput value={formData.firstName} onChange={(e: any) => handleInputChange('firstName', e.target.value)} placeholder="Christopher" /></FormField>
                                                 <FormField label="Last Name" icon={User}><ScoutInput value={formData.lastName} onChange={(e: any) => handleInputChange('lastName', e.target.value)} placeholder="Griebsch" /></FormField>
                                             </div>
+                                            <FormField label="Date of Birth" icon={Calendar}><ScoutInput value={formData.dob} onChange={(e: any) => handleInputChange('dob', e.target.value)} type="date" /></FormField>
                                             <div className="pt-2 border-t border-scout-700/50 space-y-6">
                                                 <h4 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest ml-1 flex items-center gap-2"><SmartphoneIcon size={12} /> PLAYER CONTACT</h4>
                                                 <div className="grid grid-cols-2 gap-4">
