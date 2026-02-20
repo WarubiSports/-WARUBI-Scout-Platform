@@ -101,7 +101,7 @@ export function ScoutProvider({ children, userId }: ScoutProviderProps) {
       if (supabaseUrl && supabaseKey && accessToken) {
         try {
           const controller = new AbortController()
-          const timeoutId = setTimeout(() => controller.abort(), 4000)
+          const timeoutId = setTimeout(() => controller.abort(), 15000)
 
           const response = await fetch(
             `${supabaseUrl}/rest/v1/scouts?user_id=eq.${userId}&limit=1`,
