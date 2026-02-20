@@ -13,7 +13,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import GlobalSearch from './GlobalSearch';
 import PathwaySelectionModal from './PathwaySelectionModal';
 import { haptic, useSwipeGesture } from '../hooks/useMobileFeatures';
-import { Users, CalendarDays, MessageSquare, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, LogOut, BookOpen, Mail, UserPlus, Filter, Lightbulb } from 'lucide-react';
+import { Users, CalendarDays, MessageSquare, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, LogOut, BookOpen, Mail, UserPlus, Filter, Lightbulb, FileUp } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
 import PathwaysTab from './PathwaysTab';
 
@@ -59,6 +59,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     const [activeTab, setActiveTab] = useState<DashboardTab>(DashboardTab.PLAYERS);
     const [viewMode, setViewMode] = useState<'board' | 'list' | 'stack'>('board');
     const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
+    const [submissionInitialMode, setSubmissionInitialMode] = useState<'HUB' | 'BULK' | undefined>(undefined);
     const [isBeamOpen, setIsBeamOpen] = useState(false);
     const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
     const [showCelebration, setShowCelebration] = useState(false);
@@ -697,7 +698,8 @@ const Dashboard: React.FC<DashboardProps> = ({
                                     <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-all flex items-center gap-2 text-[10px] font-black uppercase ${viewMode === 'list' ? 'bg-scout-accent text-scout-900' : 'text-gray-500'}`}><List size={16} /> List</button>
                                     {isMobile && <button onClick={() => setViewMode('stack')} className={`p-2 rounded-lg transition-all flex items-center gap-2 text-[10px] font-black uppercase ${viewMode === 'stack' ? 'bg-scout-accent text-scout-900' : 'text-gray-500'}`}><LayoutGrid size={16} /> Stack</button>}
                                 </div>
-                                <button onClick={() => setIsSubmissionOpen(true)} className="bg-scout-accent hover:bg-emerald-600 text-scout-900 p-4 md:px-8 md:py-4 rounded-2xl font-black shadow-glow flex items-center gap-3 active:scale-95 transition-all"><PlusCircle size={24} /> <span className="hidden md:inline">Add Player</span></button>
+                                <button onClick={() => { setSubmissionInitialMode(undefined); setIsSubmissionOpen(true); }} className="bg-scout-accent hover:bg-emerald-600 text-scout-900 p-4 md:px-8 md:py-4 rounded-2xl font-black shadow-glow flex items-center gap-3 active:scale-95 transition-all"><PlusCircle size={24} /> <span className="hidden md:inline">Add Player</span></button>
+                                <button onClick={() => { setSubmissionInitialMode('BULK'); setIsSubmissionOpen(true); }} className="bg-scout-800 hover:bg-scout-700 text-white p-4 md:px-6 md:py-4 rounded-2xl font-black border border-scout-700 flex items-center gap-2 active:scale-95 transition-all"><FileUp size={20} /> <span className="hidden md:inline">Bulk Add</span></button>
                             </div>
                         </div>
 
@@ -768,7 +770,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     </ErrorBoundary>
                 )}
 
-                {isSubmissionOpen && <PlayerSubmission onClose={handleCloseSubmission} onAddPlayer={onAddPlayer} onUpdatePlayer={onUpdatePlayer} existingPlayers={players} editingPlayer={editingPlayer} />}
+                {isSubmissionOpen && <PlayerSubmission onClose={handleCloseSubmission} onAddPlayer={onAddPlayer} onUpdatePlayer={onUpdatePlayer} existingPlayers={players} editingPlayer={editingPlayer} initialMode={submissionInitialMode} />}
                 {isBeamOpen && <SidelineBeam user={user} onClose={() => setIsBeamOpen(false)} />}
                 {isBugReportOpen && <ReportBugModal onClose={() => setIsBugReportOpen(false)} />}
                 {pendingOfferedPlayer && <PathwaySelectionModal player={pendingOfferedPlayer} onSelect={handlePathwaySelected} onCancel={handlePathwayCancelled} />}

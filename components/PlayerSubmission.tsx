@@ -17,6 +17,7 @@ interface PlayerSubmissionProps {
     onUpdatePlayer?: (player: Player) => void;
     existingPlayers: Player[];
     editingPlayer?: Player | null;
+    initialMode?: SubmissionMode;
 }
 
 type SubmissionMode = 'HUB' | 'SCANNING' | 'BUILD' | 'FIELD' | 'BULK';
@@ -97,8 +98,8 @@ const AuditSlider = ({ label, value, onChange, icon: Icon }: { label: string; va
     </div>
 );
 
-const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlayer, onUpdatePlayer, existingPlayers, editingPlayer }) => {
-    const [mode, setMode] = useState<SubmissionMode>(editingPlayer ? 'BUILD' : 'HUB');
+const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlayer, onUpdatePlayer, existingPlayers, editingPlayer, initialMode }) => {
+    const [mode, setMode] = useState<SubmissionMode>(editingPlayer ? 'BUILD' : (initialMode || 'HUB'));
     const [buildStep, setBuildStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [fieldInput, setFieldInput] = useState('');
