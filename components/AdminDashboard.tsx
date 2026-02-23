@@ -878,7 +878,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="flex min-h-screen bg-gray-50 font-sans text-gray-900 relative">
             {/* Scout Management Modal - inlined to prevent re-render issues */}
             {selectedScout && scoutFormData && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+                <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
                     <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
                         {/* Header */}
                         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
@@ -1535,7 +1535,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                         {/* Edit Event Modal */}
                         {editingEvent && (
-                            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[120]">
                                 <div className="bg-white p-6 rounded-xl shadow-xl max-w-2xl w-full mx-4 space-y-4">
                                     <div className="flex justify-between items-center">
                                         <h3 className="font-bold text-gray-900 flex items-center gap-2">
@@ -1858,7 +1858,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                         {/* Bug Report Detail Modal */}
                         {selectedBugReport && (
-                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+                            <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
                                 <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
                                     <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                                         <div className="flex items-center gap-3">

@@ -61,7 +61,7 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ onClose }) => {
 
   if (success) {
     return (
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[120] p-4">
         <div className="bg-scout-800 border border-scout-700 rounded-2xl p-8 max-w-md w-full text-center animate-fade-in">
           <div className="w-20 h-20 bg-scout-accent/20 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-scout-accent/30">
             <CheckCircle size={40} className="text-scout-accent" />
@@ -74,7 +74,7 @@ const PasswordSetupModal: React.FC<PasswordSetupModalProps> = ({ onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[120] p-4">
       <div className="bg-scout-800 border border-scout-700 rounded-2xl p-6 max-w-md w-full animate-fade-in">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">

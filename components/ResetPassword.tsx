@@ -89,7 +89,7 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ onComplete }) => {
 
   if (success) {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-[#05080f]">
+      <div className="fixed inset-0 z-[120] flex flex-col items-center justify-center p-4 bg-[#05080f]">
         <div className="max-w-md w-full bg-scout-800 border border-scout-700 rounded-[2.5rem] shadow-2xl p-10 text-center space-y-6 animate-fade-in">
           <div className="w-20 h-20 bg-scout-accent/20 rounded-full flex items-center justify-center mx-auto border-2 border-scout-accent/30">
             <CheckCircle size={40} className="text-scout-accent" />
@@ -104,7 +104,7 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ onComplete }) => {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-[#05080f]">
+    <div className="fixed inset-0 z-[120] flex flex-col items-center justify-center p-4 bg-[#05080f]">
       <div className="max-w-md w-full bg-scout-800 border border-scout-700 rounded-[2.5rem] shadow-2xl p-10 relative overflow-hidden">
 
         {/* Header */}

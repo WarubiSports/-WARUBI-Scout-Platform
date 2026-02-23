@@ -251,7 +251,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ user, players, events, scoutSco
 
             {/* BIO EDITOR MODAL */}
             {isEditingBio && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[120] p-4">
                     <div className="bg-scout-900 border border-scout-700 rounded-[2rem] w-full max-w-lg overflow-hidden">
                         {/* Header */}
                         <div className="p-6 border-b border-scout-700 flex items-center justify-between">
