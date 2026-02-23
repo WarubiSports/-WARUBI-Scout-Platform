@@ -699,7 +699,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                     {isMobile && <button onClick={() => setViewMode('stack')} className={`p-2 rounded-lg transition-all flex items-center gap-2 text-[10px] font-black uppercase ${viewMode === 'stack' ? 'bg-scout-accent text-scout-900' : 'text-gray-500'}`}><LayoutGrid size={16} /> Stack</button>}
                                 </div>
                                 <button onClick={() => { setSubmissionInitialMode(undefined); setIsSubmissionOpen(true); }} className="bg-scout-accent hover:bg-emerald-600 text-scout-900 p-4 md:px-8 md:py-4 rounded-2xl font-black shadow-glow flex items-center gap-3 active:scale-95 transition-all"><PlusCircle size={24} /> <span className="hidden md:inline">Add Player</span></button>
-                                <button onClick={() => { setSubmissionInitialMode('BULK'); setIsSubmissionOpen(true); }} className="bg-scout-800 hover:bg-scout-700 text-white p-4 md:px-6 md:py-4 rounded-2xl font-black border border-scout-700 flex items-center gap-2 active:scale-95 transition-all"><FileUp size={20} /> <span className="hidden md:inline">Bulk Add</span></button>
+                                <button onClick={() => { setSubmissionInitialMode('BULK'); setIsSubmissionOpen(true); }} className="bg-emerald-900 hover:bg-emerald-800 text-scout-accent p-4 md:px-6 md:py-4 rounded-2xl font-black border border-scout-accent/30 flex items-center gap-2 active:scale-95 transition-all"><FileUp size={20} /> <span className="hidden md:inline">Bulk Add</span></button>
                             </div>
                         </div>
 
