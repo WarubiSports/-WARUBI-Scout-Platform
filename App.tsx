@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Toaster } from 'sonner';
+import { Toaster, toast } from 'sonner';
 import { AppView, UserProfile, Player, ScoutingEvent, AppNotification, PlayerStatus } from './types';
 import { SCOUT_POINTS } from './constants';
 import Login from './components/Login';
@@ -300,7 +300,7 @@ const App: React.FC = () => {
       }
 
       // Check for trial offer - send to ITP trial system
-      if (oldPlayer.status !== PlayerStatus.OFFERED && updatedPlayer.status === PlayerStatus.OFFERED) {
+      if (oldPlayer.status !== PlayerStatus.OFFERED && updatedPlayer.status === PlayerStatus.OFFERED && updatedPlayer.interestedProgram?.toLowerCase().includes('itp')) {
           const scoutName = scout?.name || userProfile?.name || 'Unknown Scout';
           const scoutId = scout?.id || '';
 
@@ -316,6 +316,18 @@ const App: React.FC = () => {
                   type: 'SUCCESS',
                   title: 'Trial Invitation Sent',
                   message: `${updatedPlayer.name} has been added to ITP trial system.`
+              });
+              // Show toast with onboarding link
+              const onboardingUrl = `https://itp-trial-onboarding.vercel.app/${trialProspectId}/onboarding`;
+              toast.success('Player added to ITP trial system', {
+                  duration: 10000,
+                  action: {
+                      label: 'Copy Onboarding Link',
+                      onClick: () => {
+                          navigator.clipboard.writeText(onboardingUrl);
+                          toast.success('Onboarding link copied!', { duration: 2000 });
+                      },
+                  },
               });
           } else {
               handleAddNotification({
