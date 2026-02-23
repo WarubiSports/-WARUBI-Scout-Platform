@@ -331,12 +331,19 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
 
     const handleFinalSubmit = async () => {
         if (!formData.firstName && !formData.lastName) return;
-        if (editingPlayer && onUpdatePlayer) {
-            onUpdatePlayer({ ...draftPlayer });
-        } else {
-            onAddPlayer({ ...draftPlayer, id: Date.now().toString() });
+        setLoading(true);
+        try {
+            if (editingPlayer && onUpdatePlayer) {
+                onUpdatePlayer({ ...draftPlayer });
+            } else {
+                await onAddPlayer({ ...draftPlayer, id: Date.now().toString() });
+            }
+            onClose();
+        } catch (err) {
+            console.error('[handleFinalSubmit] Error:', err);
+        } finally {
+            setLoading(false);
         }
-        onClose();
     };
 
     const StepIndicator = () => (
@@ -620,7 +627,7 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
 
                     {mode === 'BUILD' && (
                         <div className="flex flex-col md:flex-row h-full overflow-hidden">
-                            <div className="flex-1 p-12 overflow-y-auto custom-scrollbar border-r border-white/5">
+                            <div className="flex-1 p-4 md:p-12 overflow-y-auto custom-scrollbar border-r border-white/5">
                                 <div className="max-w-xl mx-auto space-y-8 pb-32">
                                     <StepIndicator />
                                     {buildStep === 1 && (
@@ -706,6 +713,12 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                                             </div>
                                         </div>
                                     )}
+                                    {/* Mobile navigation buttons */}
+                                    <div className="flex md:hidden gap-3 pt-4 border-t border-scout-700/50">
+                                        {buildStep > 1 && <button onClick={() => setBuildStep(prev => prev - 1)} className="px-5 py-4 bg-scout-800 border border-scout-700 rounded-2xl text-gray-400 hover:text-white transition-all"><ChevronLeft size={24} /></button>}
+                                        <button onClick={handleFinalSubmit} disabled={loading} className="flex-1 py-4 bg-scout-700 hover:bg-scout-600 text-white font-black rounded-2xl shadow-xl transition-all">{loading ? <Loader2 className="animate-spin mx-auto" size={20} /> : 'Quick Save'}</button>
+                                        {buildStep < 4 ? <button onClick={() => setBuildStep(prev => prev + 1)} className="flex-[1.5] py-4 bg-scout-accent text-scout-900 font-black rounded-2xl transition-all shadow-glow">Next Step</button> : <button onClick={handleFinalSubmit} disabled={loading} className="flex-[1.5] py-4 bg-scout-accent text-scout-900 font-black rounded-2xl transition-all shadow-glow">{loading ? <Loader2 className="animate-spin mx-auto" size={20} /> : editingPlayer ? 'Confirm Update' : 'Confirm & Add'}</button>}
+                                    </div>
                                 </div>
                             </div>
 
@@ -713,8 +726,8 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                                 <PlayerCard player={draftPlayer} isReference={true} />
                                 <div className="mt-auto flex gap-3">
                                     {buildStep > 1 && <button onClick={() => setBuildStep(prev => prev - 1)} className="px-5 py-4 bg-scout-800 border border-scout-700 rounded-2xl text-gray-400 hover:text-white transition-all"><ChevronLeft size={24} /></button>}
-                                    <button onClick={handleFinalSubmit} className="flex-1 py-4 bg-scout-700 hover:bg-scout-600 text-white font-black rounded-2xl shadow-xl transition-all">Quick Save</button>
-                                    {buildStep < 4 ? <button onClick={() => setBuildStep(prev => prev + 1)} className="flex-[1.5] py-4 bg-scout-accent text-scout-900 font-black rounded-2xl transition-all shadow-glow">Next Step</button> : <button onClick={handleFinalSubmit} className="flex-[1.5] py-4 bg-scout-accent text-scout-900 font-black rounded-2xl transition-all shadow-glow">{editingPlayer ? 'Confirm Update' : 'Confirm & Add'}</button>}
+                                    <button onClick={handleFinalSubmit} disabled={loading} className="flex-1 py-4 bg-scout-700 hover:bg-scout-600 text-white font-black rounded-2xl shadow-xl transition-all">{loading ? <Loader2 className="animate-spin mx-auto" size={20} /> : 'Quick Save'}</button>
+                                    {buildStep < 4 ? <button onClick={() => setBuildStep(prev => prev + 1)} className="flex-[1.5] py-4 bg-scout-accent text-scout-900 font-black rounded-2xl transition-all shadow-glow">Next Step</button> : <button onClick={handleFinalSubmit} disabled={loading} className="flex-[1.5] py-4 bg-scout-accent text-scout-900 font-black rounded-2xl transition-all shadow-glow">{loading ? <Loader2 className="animate-spin mx-auto" size={20} /> : editingPlayer ? 'Confirm Update' : 'Confirm & Add'}</button>}
                                 </div>
                             </div>
                         </div>
