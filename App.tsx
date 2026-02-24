@@ -300,7 +300,8 @@ const App: React.FC = () => {
       }
 
       // Check for trial offer - send to ITP trial system
-      if (oldPlayer.status !== PlayerStatus.OFFERED && updatedPlayer.status === PlayerStatus.OFFERED && updatedPlayer.interestedProgram?.toLowerCase().includes('itp')) {
+      const pathway = updatedPlayer.offeredPathway || updatedPlayer.interestedProgram || '';
+      if (oldPlayer.status !== PlayerStatus.OFFERED && updatedPlayer.status === PlayerStatus.OFFERED && pathway.toLowerCase().includes('itp')) {
           const scoutName = scout?.name || userProfile?.name || 'Unknown Scout';
           const scoutId = scout?.id || '';
 
