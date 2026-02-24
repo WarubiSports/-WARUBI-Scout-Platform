@@ -568,6 +568,31 @@ const App: React.FC = () => {
                   }
                 }
                 await updateProspect(id, updateData);
+
+                // ITP trial sync when offered Development in Europe
+                if (oldStatus !== PlayerStatus.OFFERED && newStatus === PlayerStatus.OFFERED && pathway === 'europe') {
+                    const updatedPlayer = { ...oldPlayer, ...updateData };
+                    const scoutName = scout?.name || userProfile?.name || 'Unknown Scout';
+                    const scoutId = scout?.id || '';
+                    const { success, trialProspectId } = await sendProspectToTrial(
+                        updatedPlayer,
+                        scoutId,
+                        scoutName
+                    );
+                    if (success && trialProspectId) {
+                        const onboardingUrl = `https://itp-trial-onboarding.vercel.app/${trialProspectId}/onboarding`;
+                        toast.success('Player added to ITP trial system', {
+                            duration: 10000,
+                            action: {
+                                label: 'Copy Onboarding Link',
+                                onClick: () => {
+                                    navigator.clipboard.writeText(onboardingUrl);
+                                    toast.success('Onboarding link copied!', { duration: 2000 });
+                                },
+                            },
+                        });
+                    }
+                }
             }}
             onLogout={handleLogout}
             onReturnToAdmin={userProfile?.isAdmin ? () => setView(AppView.ADMIN) : undefined}
