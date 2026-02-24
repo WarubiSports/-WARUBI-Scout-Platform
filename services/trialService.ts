@@ -64,7 +64,7 @@ export async function createTrialFromProspect(
       video_url: prospect.videoLink || null,
       scouting_notes: buildScoutingNotes(prospect),
       recommended_by: scoutName,
-      status: 'inquiry', // Initial trial status (matches table default)
+      status: 'scheduled', // Synced from Scout Platform OFFERED = ready for trial
       created_by: scoutId || null,
       // Ratings from scout evaluation
       technical_rating: prospect.technical || null,
