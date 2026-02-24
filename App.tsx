@@ -301,7 +301,7 @@ const App: React.FC = () => {
 
       // Check for trial offer - send to ITP trial system
       const pathway = updatedPlayer.offeredPathway || updatedPlayer.interestedProgram || '';
-      if (oldPlayer.status !== PlayerStatus.OFFERED && updatedPlayer.status === PlayerStatus.OFFERED && pathway.toLowerCase().includes('itp')) {
+      if (oldPlayer.status !== PlayerStatus.OFFERED && updatedPlayer.status === PlayerStatus.OFFERED && pathway.toLowerCase() === 'europe') {
           const scoutName = scout?.name || userProfile?.name || 'Unknown Scout';
           const scoutId = scout?.id || '';
 
