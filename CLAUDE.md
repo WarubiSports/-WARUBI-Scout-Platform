@@ -34,7 +34,7 @@ Scouting CRM for Warubi Sports. Scouts manage player pipelines, send outreach, t
 Lead → Contacted → Interested → Offered → Placed
 
 ## Important Logic
-- **ITP Trial Sync:** Only syncs to ITP when player is OFFERED AND `interestedProgram` contains "ITP" (see `App.tsx:handleUpdatePlayer`)
+- **ITP Trial Sync:** Syncs to ITP when player moves to OFFERED AND pathway is `'europe'` (Development in Europe). Logic exists in TWO code paths in `App.tsx`: `handleUpdatePlayer` (detail form) AND the `onStatusChange` callback (board dropdown). Both must be kept in sync.
 - **XP System:** Points awarded for player adds, placements, events (see `constants.ts:SCOUT_POINTS`)
 - **AI Features:** Gemini-powered evaluation, outreach generation, bulk import
 
