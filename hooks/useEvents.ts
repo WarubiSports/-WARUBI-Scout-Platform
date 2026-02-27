@@ -34,7 +34,7 @@ function statusFromDb(status: DbEvent['status']): EventStatus {
 // Map frontend event to database format
 function eventToDb(event: ScoutingEvent, scoutId: string): ScoutingEventInsert {
   return {
-    host_scout_id: event.isMine && scoutId ? scoutId : null,
+    host_scout_id: scoutId || null, // Always set — RLS requires host_scout_id = get_my_scout_id()
     host_name: event.hostName || null,
     title: event.title,
     event_type: event.type,
