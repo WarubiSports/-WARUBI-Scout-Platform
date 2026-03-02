@@ -8,6 +8,8 @@ import {
     List, LayoutGrid, Newspaper, Flame, Trash2, Link, Bell, KeyRound, Bug, Copy, ExternalLink, Loader2
 } from 'lucide-react';
 import ApprovedScoutsManager from './ApprovedScoutsManager';
+import AdminPlayerDetail from './AdminPlayerDetail';
+import PlayerSubmission from './PlayerSubmission';
 import { getAllBugReports, updateBugReportStatus, generateClaudePrompt } from '../services/bugReportService';
 import { useAllScouts } from '../hooks/useAllScouts';
 import { useAllProspects, PlayerWithScout } from '../hooks/useAllProspects';
@@ -96,6 +98,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const [bugReportsLoading, setBugReportsLoading] = useState(false);
     const [selectedBugReport, setSelectedBugReport] = useState<BugReport | null>(null);
     const [updatingBugId, setUpdatingBugId] = useState<string | null>(null);
+
+    // Talent Detail Panel State
+    const [selectedTalentPlayer, setSelectedTalentPlayer] = useState<PlayerWithScout | null>(null);
+    const [editingTalentPlayer, setEditingTalentPlayer] = useState<PlayerWithScout | null>(null);
+    const [isTalentSubmissionOpen, setIsTalentSubmissionOpen] = useState(false);
 
     // Historical Achievements State
     const [historicalPlacements, setHistoricalPlacements] = useState(0);
@@ -543,6 +550,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             <tr>
                                 <th className="p-4">Player</th>
                                 <th className="p-4">Position</th>
+                                <th className="p-4">Score</th>
                                 <th className="p-4">Scout</th>
                                 <th className="p-4">Tier</th>
                                 <th className="p-4">Status</th>
@@ -554,9 +562,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                                            p.scoutName.toLowerCase().includes(searchQuery.toLowerCase()))
                                 .map(p => (
-                                <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                                <tr
+                                    key={p.id}
+                                    onClick={() => setSelectedTalentPlayer(p)}
+                                    className={`hover:bg-gray-50 transition-colors cursor-pointer ${selectedTalentPlayer?.id === p.id ? 'bg-blue-50 border-l-2 border-l-blue-500' : ''}`}
+                                >
                                     <td className="p-4 font-bold text-gray-900">{p.name}</td>
                                     <td className="p-4 text-gray-600">{p.position || '-'}</td>
+                                    <td className="p-4 font-black text-blue-600">{p.evaluation?.score || '—'}</td>
                                     <td className="p-4">
                                         <span className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
                                             {p.scoutName}
@@ -579,7 +592,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                     <td className="p-4 text-right">
                                         {p.status !== PlayerStatus.PLACED && (
                                             <button
-                                                onClick={() => placePlayer(p)}
+                                                onClick={(e) => { e.stopPropagation(); placePlayer(p); }}
                                                 className="text-xs bg-gray-900 hover:bg-gray-700 text-white px-3 py-1.5 rounded font-bold transition-colors"
                                             >
                                                 Mark Placed
@@ -1955,6 +1968,36 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                 )}
             </main>
+
+            {/* Player Detail Slide-over */}
+            {selectedTalentPlayer && !isTalentSubmissionOpen && (
+                <AdminPlayerDetail
+                    player={selectedTalentPlayer}
+                    onClose={() => setSelectedTalentPlayer(null)}
+                    onEdit={(p) => {
+                        setEditingTalentPlayer(p);
+                        setIsTalentSubmissionOpen(true);
+                    }}
+                    onPlace={(p) => {
+                        placePlayer(p);
+                        setSelectedTalentPlayer(null);
+                    }}
+                />
+            )}
+
+            {/* Player Edit Modal (reuses existing PlayerSubmission) */}
+            {isTalentSubmissionOpen && (
+                <PlayerSubmission
+                    onClose={() => {
+                        setIsTalentSubmissionOpen(false);
+                        setEditingTalentPlayer(null);
+                    }}
+                    onAddPlayer={onUpdatePlayer}
+                    onUpdatePlayer={onUpdatePlayer}
+                    existingPlayers={players}
+                    editingPlayer={editingTalentPlayer}
+                />
+            )}
         </div>
     );
 };
