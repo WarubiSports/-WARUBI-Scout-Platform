@@ -570,7 +570,7 @@ const App: React.FC = () => {
                 await updateProspect(id, updateData);
 
                 // ITP trial sync when offered Development in Europe
-                if (oldStatus !== PlayerStatus.OFFERED && newStatus === PlayerStatus.OFFERED && pathway === 'europe') {
+                if (oldStatus !== PlayerStatus.OFFERED && newStatus === PlayerStatus.OFFERED && pathway.toLowerCase() === 'europe') {
                     const updatedPlayer = { ...oldPlayer, ...updateData };
                     const scoutName = scout?.name || userProfile?.name || 'Unknown Scout';
                     const scoutId = scout?.id || '';
