@@ -92,6 +92,7 @@ export function prospectToPlayer(prospect: ScoutProspect, outreachLogs: Outreach
     activityStatus: prospect.activity_status || 'undiscovered',
     isRecalibrating: false,
     previousScore: undefined,
+    trialProspectId: prospect.trial_prospect_id || undefined,
   }
 }
 
@@ -183,9 +184,31 @@ async function fetchProspects(
     }
   }
 
-  const players = paginatedProspects.map((p) =>
-    prospectToPlayer(p, logsByProspect[p.id] || [])
-  )
+  // Load trial statuses for prospects linked to trial_prospects
+  const trialProspectIds = paginatedProspects
+    .filter((p) => p.trial_prospect_id)
+    .map((p) => p.trial_prospect_id!)
+
+  let trialStatuses: Record<string, string> = {}
+  if (trialProspectIds.length > 0) {
+    const { data: trialData } = await supabaseRest.select<{ id: string; status: string }>(
+      'trial_prospects',
+      `id=in.(${trialProspectIds.join(',')})&select=id,status`
+    )
+    if (trialData) {
+      trialData.forEach((t) => {
+        trialStatuses[t.id] = t.status
+      })
+    }
+  }
+
+  const players = paginatedProspects.map((p) => {
+    const player = prospectToPlayer(p, logsByProspect[p.id] || [])
+    if (p.trial_prospect_id && trialStatuses[p.trial_prospect_id]) {
+      player.trialStatus = trialStatuses[p.trial_prospect_id]
+    }
+    return player
+  })
 
   return {
     players,

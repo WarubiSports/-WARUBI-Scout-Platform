@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Player, PlayerStatus } from '../types';
-import { TrendingUp, AlertTriangle, CheckCircle, MessageCircle, MessageSquare, ChevronDown, ChevronUp, MapPin, School, Compass, Send, GripVertical, Flame, Eye, StickyNote, Save, X, History, Clock, Edit2, Loader2, Trophy, Zap, Target, ArrowRight, Timer, Trash2 } from 'lucide-react';
+import { TrendingUp, AlertTriangle, CheckCircle, MessageCircle, MessageSquare, ChevronDown, ChevronUp, MapPin, School, Compass, Send, GripVertical, Flame, Eye, StickyNote, Save, X, History, Clock, Edit2, Loader2, Trophy, Zap, Target, ArrowRight, Timer, Trash2, ClipboardCheck } from 'lucide-react';
 
 interface PlayerCardProps {
     player: Player;
@@ -275,6 +275,59 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                                  (player.placedLocation || "Not set")}
                             </p>
                         )}
+                    </div>
+                )}
+
+                {/* TRIAL/SIGN PROGRESS - Shows ITP status for Europe pathway players */}
+                {player.trialProspectId && player.trialStatus && (player.status === PlayerStatus.OFFERED || player.status === PlayerStatus.PLACED) && (
+                    <div className="mt-2 bg-scout-900/50 p-2 rounded-lg border border-scout-700/50 text-[10px]">
+                        <div className="flex items-center gap-1 text-gray-400 mb-1.5">
+                            <ClipboardCheck size={10} />
+                            <span>ITP Progress</span>
+                        </div>
+                        {(() => {
+                            const stages = ['scheduled', 'in_progress', 'evaluation', 'decision_pending', 'accepted', 'placed'];
+                            const labels: Record<string, string> = {
+                                inquiry: 'Inquiry',
+                                scheduled: 'Trial Scheduled',
+                                in_progress: 'In Trial',
+                                evaluation: 'Under Evaluation',
+                                decision_pending: 'Decision Pending',
+                                accepted: 'Accepted',
+                                placed: 'On Active Roster',
+                                rejected: 'Not Accepted',
+                                withdrawn: 'Withdrawn',
+                            };
+                            const status = player.trialStatus;
+                            const currentIdx = stages.indexOf(status);
+                            const isNegative = status === 'rejected' || status === 'withdrawn';
+
+                            if (isNegative) {
+                                return (
+                                    <span className="text-red-400 font-bold">{labels[status] || status}</span>
+                                );
+                            }
+
+                            return (
+                                <div className="space-y-1">
+                                    <div className="flex gap-0.5">
+                                        {stages.map((s, i) => (
+                                            <div
+                                                key={s}
+                                                className={`h-1 flex-1 rounded-full ${
+                                                    i <= currentIdx
+                                                        ? status === 'placed' ? 'bg-scout-accent' : 'bg-scout-highlight'
+                                                        : 'bg-scout-700/50'
+                                                }`}
+                                            />
+                                        ))}
+                                    </div>
+                                    <span className={`font-bold ${status === 'placed' ? 'text-scout-accent' : 'text-scout-highlight'}`}>
+                                        {labels[status] || status}
+                                    </span>
+                                </div>
+                            );
+                        })()}
                     </div>
                 )}
             </div>

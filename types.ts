@@ -100,7 +100,7 @@ export interface Player {
   club?: string;
   teamLevel?: string;
   interestedProgram?: string;
-  offeredPathway?: 'europe' | 'college' | 'events' | 'coaching';
+  offeredPathway?: string;
   placedLocation?: string;
   evaluation: PlayerEvaluation | null;
   outreachLogs: OutreachLog[];
@@ -113,6 +113,7 @@ export interface Player {
   previousScore?: number;
   dateOfBirth?: string;
   trialProspectId?: string;
+  trialStatus?: string;
 }
 
 export type EventStatus = 'Draft' | 'Pending Approval' | 'Approved' | 'Published' | 'Completed' | 'Rejected';
