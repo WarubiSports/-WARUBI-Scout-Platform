@@ -301,26 +301,31 @@ const App: React.FC = () => {
 
       // Check for trial offer - send to ITP trial system
       const pathway = updatedPlayer.offeredPathway || updatedPlayer.interestedProgram || '';
-      if (oldPlayer.status !== PlayerStatus.OFFERED && updatedPlayer.status === PlayerStatus.OFFERED && pathway.toLowerCase() === 'europe') {
+      if (oldPlayer.status !== PlayerStatus.OFFERED && updatedPlayer.status === PlayerStatus.OFFERED && pathway.toLowerCase().startsWith('europe')) {
+          const isDirectSign = pathway.toLowerCase() === 'europe:direct';
           const scoutName = scout?.name || userProfile?.name || 'Unknown Scout';
           const scoutId = scout?.id || '';
 
           const { success, trialProspectId, error } = await sendProspectToTrial(
               updatedPlayer,
               scoutId,
-              scoutName
+              scoutName,
+              isDirectSign
           );
 
           if (success && trialProspectId) {
               updatedPlayer.trialProspectId = trialProspectId;
+              const label = isDirectSign ? 'Direct Sign' : 'Trial Invitation';
               handleAddNotification({
                   type: 'SUCCESS',
-                  title: 'Trial Invitation Sent',
-                  message: `${updatedPlayer.name} has been added to ITP trial system.`
+                  title: `${label} Sent`,
+                  message: `${updatedPlayer.name} has been added to ITP system.`
               });
-              // Show toast with onboarding link
-              const onboardingUrl = `https://itp-trial-onboarding.vercel.app/${trialProspectId}/onboarding`;
-              toast.success('Player added to ITP trial system', {
+              // Show toast with appropriate link
+              const onboardingUrl = isDirectSign
+                  ? `https://itp-trial-onboarding.vercel.app/${trialProspectId}/onboarding`
+                  : `https://itp-trial-onboarding.vercel.app/${trialProspectId}`;
+              toast.success(`Player added to ITP system (${isDirectSign ? 'Direct Sign' : 'Trial'})`, {
                   duration: 10000,
                   action: {
                       label: 'Copy Onboarding Link',
@@ -569,19 +574,23 @@ const App: React.FC = () => {
                 }
                 await updateProspect(id, updateData);
 
-                // ITP trial sync when offered Development in Europe
-                if (oldStatus !== PlayerStatus.OFFERED && newStatus === PlayerStatus.OFFERED && pathway.toLowerCase() === 'europe') {
+                // ITP sync when offered Development in Europe
+                if (oldStatus !== PlayerStatus.OFFERED && newStatus === PlayerStatus.OFFERED && pathway.toLowerCase().startsWith('europe')) {
+                    const isDirectSign = pathway.toLowerCase() === 'europe:direct';
                     const updatedPlayer = { ...oldPlayer, ...updateData };
                     const scoutName = scout?.name || userProfile?.name || 'Unknown Scout';
                     const scoutId = scout?.id || '';
                     const { success, trialProspectId } = await sendProspectToTrial(
                         updatedPlayer,
                         scoutId,
-                        scoutName
+                        scoutName,
+                        isDirectSign
                     );
                     if (success && trialProspectId) {
-                        const onboardingUrl = `https://itp-trial-onboarding.vercel.app/${trialProspectId}/onboarding`;
-                        toast.success('Player added to ITP trial system', {
+                        const onboardingUrl = isDirectSign
+                            ? `https://itp-trial-onboarding.vercel.app/${trialProspectId}/onboarding`
+                            : `https://itp-trial-onboarding.vercel.app/${trialProspectId}`;
+                        toast.success(`Player added to ITP system (${isDirectSign ? 'Direct Sign' : 'Trial'})`, {
                             duration: 10000,
                             action: {
                                 label: 'Copy Onboarding Link',

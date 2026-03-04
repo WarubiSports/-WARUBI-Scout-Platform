@@ -27,7 +27,8 @@ interface TrialProspect {
 export async function createTrialFromProspect(
   prospect: Player,
   scoutId: string,
-  scoutName: string
+  scoutName: string,
+  directSign: boolean = false
 ): Promise<{ trialProspectId: string | null; error: string | null }> {
   if (!isSupabaseConfigured) {
     console.log('Demo mode: Would create trial prospect for', prospect.name);
@@ -64,7 +65,7 @@ export async function createTrialFromProspect(
       video_url: prospect.videoLink || null,
       scouting_notes: buildScoutingNotes(prospect),
       recommended_by: scoutName,
-      status: 'scheduled', // Synced from Scout Platform OFFERED = ready for trial
+      status: directSign ? 'accepted' : 'scheduled', // Direct signs skip trial, ready for conversion
       created_by: scoutId || null,
       // Ratings from scout evaluation
       technical_rating: prospect.technical || null,
@@ -135,13 +136,15 @@ export async function linkProspectToTrial(
 export async function sendProspectToTrial(
   prospect: Player,
   scoutId: string,
-  scoutName: string
+  scoutName: string,
+  directSign: boolean = false
 ): Promise<{ success: boolean; trialProspectId: string | null; error: string | null }> {
   // Step 1: Create trial prospect
   const { trialProspectId, error: createError } = await createTrialFromProspect(
     prospect,
     scoutId,
-    scoutName
+    scoutName,
+    directSign
   );
 
   if (createError || !trialProspectId) {

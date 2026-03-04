@@ -32,7 +32,7 @@ interface DashboardProps {
     onAddNotification: (notification: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) => void;
     onMarkAllRead: () => void;
     onMessageSent?: (id: string, log: any) => void;
-    onStatusChange?: (id: string, newStatus: PlayerStatus, pathway?: 'europe' | 'college' | 'events' | 'coaching') => void;
+    onStatusChange?: (id: string, newStatus: PlayerStatus, pathway?: string) => void;
     onLogout?: () => void;
     onReturnToAdmin?: () => void;
 }
@@ -167,7 +167,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         if (onStatusChange) onStatusChange(id, newStatus, extraData);
     };
 
-    const handlePathwaySelected = (pathway: 'europe' | 'college' | 'events' | 'coaching') => {
+    const handlePathwaySelected = (pathway: string) => {
         if (!pendingOfferedPlayer) return;
 
         haptic.success();
