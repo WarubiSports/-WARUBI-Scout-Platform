@@ -11,7 +11,8 @@ export enum DashboardTab {
   EVENTS = 'EVENTS',
   KNOWLEDGE = 'KNOWLEDGE',
   PROFILE = 'PROFILE',
-  OUTREACH = 'OUTREACH'
+  OUTREACH = 'OUTREACH',
+  INSIGHTS = 'INSIGHTS'
 }
 
 // Simplified 5-stage pipeline: Lead → Contacted → Interested → Offered → Placed

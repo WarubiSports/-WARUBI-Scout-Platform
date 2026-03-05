@@ -13,9 +13,10 @@ import { ErrorBoundary } from './ErrorBoundary';
 import GlobalSearch from './GlobalSearch';
 import PathwaySelectionModal, { TrialDates } from './PathwaySelectionModal';
 import { haptic, useSwipeGesture } from '../hooks/useMobileFeatures';
-import { Users, CalendarDays, MessageSquare, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, LogOut, BookOpen, Mail, UserPlus, Filter, Lightbulb, FileUp } from 'lucide-react';
+import { Users, CalendarDays, MessageSquare, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, LogOut, BookOpen, Mail, UserPlus, Filter, Lightbulb, FileUp, BarChart3 } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
 import PathwaysTab from './PathwaysTab';
+import InsightsTab from './InsightsTab';
 
 interface DashboardProps {
     user: UserProfile;
@@ -127,6 +128,11 @@ const Dashboard: React.FC<DashboardProps> = ({
             else if (e.key === 'o' || e.key === 'O') {
                 e.preventDefault();
                 setActiveTab(DashboardTab.OUTREACH);
+            }
+            // I = insights tab
+            else if (e.key === 'i' || e.key === 'I') {
+                e.preventDefault();
+                setActiveTab(DashboardTab.INSIGHTS);
             }
             // Escape = close modals
             else if (e.key === 'Escape') {
@@ -466,6 +472,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <button onClick={() => setActiveTab(DashboardTab.PLAYERS)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.PLAYERS ? 'bg-scout-700 text-white' : 'text-gray-500 hover:bg-scout-900/50'}`}><Users size={20} /> Players</button>
                     <button onClick={() => setActiveTab(DashboardTab.EVENTS)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.EVENTS ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><CalendarDays size={20} /> Events</button>
                     <button onClick={() => setActiveTab(DashboardTab.KNOWLEDGE)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.KNOWLEDGE ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><BookOpen size={20} /> Pathways</button>
+                    <button onClick={() => setActiveTab(DashboardTab.INSIGHTS)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.INSIGHTS ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><BarChart3 size={20} /> Insights</button>
                 </nav>
                 <div className="p-4">
                     <button
@@ -769,6 +776,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                         <PathwaysTab />
                     </ErrorBoundary>
                 )}
+                {activeTab === DashboardTab.INSIGHTS && (
+                    <ErrorBoundary name="Insights">
+                        <InsightsTab players={players} />
+                    </ErrorBoundary>
+                )}
 
                 {isSubmissionOpen && <PlayerSubmission onClose={handleCloseSubmission} onAddPlayer={onAddPlayer} onUpdatePlayer={onUpdatePlayer} existingPlayers={players} editingPlayer={editingPlayer} initialMode={submissionInitialMode} />}
                 {isBeamOpen && <SidelineBeam user={user} onClose={() => setIsBeamOpen(false)} />}
@@ -920,9 +932,9 @@ const Dashboard: React.FC<DashboardProps> = ({
                             <Plus size={28} />
                         </button>
                     </div>
-                    <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.KNOWLEDGE); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.KNOWLEDGE ? 'text-scout-accent' : 'text-gray-600'}`}>
-                        <BookOpen size={20} />
-                        <span className="text-[8px] font-black uppercase">Pathways</span>
+                    <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.INSIGHTS); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.INSIGHTS ? 'text-scout-accent' : 'text-gray-600'}`}>
+                        <BarChart3 size={20} />
+                        <span className="text-[8px] font-black uppercase">Insights</span>
                     </button>
                     {/* XP Level indicator - opens profile sheet */}
                     <button onClick={() => { haptic.light(); setShowMobileProfile(true); }} className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95">

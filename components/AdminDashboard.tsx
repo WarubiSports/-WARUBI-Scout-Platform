@@ -5,7 +5,7 @@ import {
     ShieldCheck, Activity, Search, Filter, Briefcase, Award,
     LogOut, Globe, TrendingUp, AlertCircle, FileText, Check,
     MoreHorizontal, Edit2, BadgeCheck, X, Save, Eye, Plus,
-    List, LayoutGrid, Newspaper, Flame, Trash2, Link, Bell, KeyRound, Bug, Copy, ExternalLink, Loader2
+    List, LayoutGrid, Newspaper, Flame, Trash2, Link, Bell, KeyRound, Bug, Copy, ExternalLink, Loader2, BarChart3
 } from 'lucide-react';
 import ApprovedScoutsManager from './ApprovedScoutsManager';
 import AdminPlayerDetail from './AdminPlayerDetail';
@@ -63,7 +63,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     onAddNotification,
     onMarkAllRead
 }) => {
-    const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'APPROVALS' | 'TALENT' | 'SCOUTS' | 'ACCESS' | 'NEWS' | 'EVENTS' | 'BUGS'>('OVERVIEW');
+    const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'APPROVALS' | 'TALENT' | 'SCOUTS' | 'ACCESS' | 'NEWS' | 'EVENTS' | 'BUGS' | 'INSIGHTS'>('OVERVIEW');
     const [searchQuery, setSearchQuery] = useState('');
 
     // Real scout data from Supabase
@@ -506,6 +506,122 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             )}
         </div>
     );
+
+    const AdminInsightsTab = () => {
+        // Build scout leaderboard from allProspects
+        const scoutStats = (() => {
+            const map: Record<string, { name: string; total: number; placed: number; xp: number }> = {};
+            allProspects.forEach(p => {
+                if (!map[p.scoutId]) map[p.scoutId] = { name: p.scoutName, total: 0, placed: 0, xp: 0 };
+                map[p.scoutId].total++;
+                if (p.status === PlayerStatus.PLACED) map[p.scoutId].placed++;
+            });
+            // Merge XP from scouts data
+            scouts.forEach(s => {
+                if (map[s.id]) map[s.id].xp = s.xp || 0;
+                else map[s.id] = { name: s.name, total: 0, placed: 0, xp: s.xp || 0 };
+            });
+            return Object.values(map).sort((a, b) => b.total - a.total);
+        })();
+
+        // Pipeline breakdown
+        const stageCounts: Record<string, number> = {};
+        ['Lead', 'Contacted', 'Interested', 'Offered', 'Placed'].forEach(s => stageCounts[s] = 0);
+        allProspects.forEach(p => { if (stageCounts[p.status] !== undefined) stageCounts[p.status]++; });
+
+        // Nationality summary
+        const natMap: Record<string, number> = {};
+        allProspects.forEach(p => { const n = p.nationality || 'Unknown'; natMap[n] = (natMap[n] || 0) + 1; });
+        const topNats = Object.entries(natMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+        return (
+            <div className="space-y-6 animate-fade-in">
+                <h2 className="text-2xl font-bold text-gray-900">Platform Insights</h2>
+
+                {/* Summary Row */}
+                <div className="grid grid-cols-4 gap-4">
+                    <div className="bg-white rounded-xl border border-gray-200 p-5">
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Total Players</p>
+                        <p className="text-3xl font-bold text-gray-900 mt-1">{allProspects.length}</p>
+                    </div>
+                    <div className="bg-white rounded-xl border border-gray-200 p-5">
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Placed</p>
+                        <p className="text-3xl font-bold text-emerald-600 mt-1">{stageCounts['Placed']}</p>
+                    </div>
+                    <div className="bg-white rounded-xl border border-gray-200 p-5">
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Active Scouts</p>
+                        <p className="text-3xl font-bold text-blue-600 mt-1">{scouts.filter(s => s.status === 'active').length}</p>
+                    </div>
+                    <div className="bg-white rounded-xl border border-gray-200 p-5">
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Conversion</p>
+                        <p className="text-3xl font-bold text-purple-600 mt-1">{allProspects.length ? Math.round((stageCounts['Placed'] / allProspects.length) * 100) : 0}%</p>
+                    </div>
+                </div>
+
+                {/* Pipeline & Nationalities */}
+                <div className="grid grid-cols-2 gap-6">
+                    <div className="bg-white rounded-xl border border-gray-200 p-5">
+                        <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">Pipeline Overview</h3>
+                        <div className="space-y-3">
+                            {Object.entries(stageCounts).map(([stage, count]) => {
+                                const max = Math.max(...Object.values(stageCounts), 1);
+                                const colors: Record<string, string> = { Lead: '#6b7280', Contacted: '#3b82f6', Interested: '#f59e0b', Offered: '#a855f7', Placed: '#10b981' };
+                                return (
+                                    <div key={stage}>
+                                        <div className="flex justify-between text-xs mb-1">
+                                            <span className="font-semibold text-gray-600">{stage}</span>
+                                            <span className="font-bold text-gray-900">{count}</span>
+                                        </div>
+                                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                            <div className="h-full rounded-full transition-all" style={{ width: `${(count / max) * 100}%`, backgroundColor: colors[stage] }} />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-xl border border-gray-200 p-5">
+                        <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">Top Nationalities</h3>
+                        <div className="space-y-2">
+                            {topNats.map(([nat, count]) => (
+                                <div key={nat} className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-700">{nat}</span>
+                                    <span className="text-sm font-bold text-gray-900">{count}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Scout Leaderboard */}
+                <div className="bg-white rounded-xl border border-gray-200 p-5">
+                    <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">Scout Leaderboard</h3>
+                    <table className="w-full">
+                        <thead>
+                            <tr className="text-xs text-gray-500 uppercase border-b border-gray-100">
+                                <th className="text-left py-2 font-semibold">#</th>
+                                <th className="text-left py-2 font-semibold">Scout</th>
+                                <th className="text-right py-2 font-semibold">Players</th>
+                                <th className="text-right py-2 font-semibold">Placed</th>
+                                <th className="text-right py-2 font-semibold">XP</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {scoutStats.map((s, i) => (
+                                <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
+                                    <td className="py-2 text-sm text-gray-400 font-bold">{i + 1}</td>
+                                    <td className="py-2 text-sm font-semibold text-gray-900">{s.name}</td>
+                                    <td className="py-2 text-sm text-right text-gray-700">{s.total}</td>
+                                    <td className="py-2 text-sm text-right font-bold text-emerald-600">{s.placed}</td>
+                                    <td className="py-2 text-sm text-right font-bold text-blue-600">{s.xp}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    };
 
     const TalentTab = () => (
         <div className="space-y-6 animate-fade-in">
@@ -1215,6 +1331,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <Calendar size={20} /> Global Events
                     </button>
                     <button
+                        onClick={() => setActiveTab('INSIGHTS')}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'INSIGHTS' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                    >
+                        <BarChart3 size={20} /> Insights
+                    </button>
+                    <button
                         onClick={() => setActiveTab('BUGS')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'BUGS' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
                     >
@@ -1244,6 +1366,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {activeTab === 'OVERVIEW' && <OverviewTab />}
                 {activeTab === 'APPROVALS' && <ApprovalsTab />}
                 {activeTab === 'TALENT' && <TalentTab />}
+                {activeTab === 'INSIGHTS' && <AdminInsightsTab />}
                 
                 {activeTab === 'SCOUTS' && (
                     <div className="space-y-6 animate-fade-in">
