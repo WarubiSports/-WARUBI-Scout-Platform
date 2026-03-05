@@ -51,6 +51,11 @@ export async function createTrialFromProspect(
       dateOfBirth = `${birthYear}-01-01`; // Default to Jan 1 of calculated year
     }
 
+    // Validate required fields before inserting
+    if (!prospect.nationality) {
+      return { trialProspectId: null, error: 'Nationality is required to create a trial request. Please add it to the player profile first.' };
+    }
+
     // Build trial prospect data from scout prospect
     // Required fields: first_name, last_name, date_of_birth, position, nationality
     const trialData = {
@@ -58,7 +63,7 @@ export async function createTrialFromProspect(
       last_name: lastName || 'Prospect',
       date_of_birth: dateOfBirth || '2000-01-01', // Fallback date
       position: prospect.position || 'Unknown',
-      nationality: prospect.nationality || 'Unknown',
+      nationality: prospect.nationality,
       current_club: prospect.club || null,
       email: prospect.email || null,
       phone: prospect.phone || null,

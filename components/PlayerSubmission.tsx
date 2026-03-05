@@ -661,6 +661,7 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                                                 <FormField label="Current Club" icon={ShieldCheck}><ScoutInput value={formData.club} onChange={(e: any) => handleInputChange('club', e.target.value)} placeholder="FC Dallas" /></FormField>
                                                 <FormField label="Level" icon={Award}><ScoutSelect options={TEAM_LEVELS} value={formData.teamLevel} onChange={(e: any) => handleInputChange('teamLevel', e.target.value)} /></FormField>
                                             </div>
+                                            <FormField label="Nationality" icon={Globe}><ScoutInput value={formData.nationality} onChange={(e: any) => handleInputChange('nationality', e.target.value)} placeholder="USA" /></FormField>
                                             <FormField label="Dominant Foot" icon={Footprints}><ScoutSelect options={FEET} value={formData.dominantFoot} onChange={(e: any) => handleInputChange('dominantFoot', e.target.value)} /></FormField>
                                         </div>
                                     )}
