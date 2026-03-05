@@ -11,7 +11,7 @@ import Confetti from './Confetti';
 import { ConnectionStatus } from './MobileEnhancements';
 import { ErrorBoundary } from './ErrorBoundary';
 import GlobalSearch from './GlobalSearch';
-import PathwaySelectionModal from './PathwaySelectionModal';
+import PathwaySelectionModal, { TrialDates } from './PathwaySelectionModal';
 import { haptic, useSwipeGesture } from '../hooks/useMobileFeatures';
 import { Users, CalendarDays, MessageSquare, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, LogOut, BookOpen, Mail, UserPlus, Filter, Lightbulb, FileUp } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
@@ -32,7 +32,7 @@ interface DashboardProps {
     onAddNotification: (notification: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) => void;
     onMarkAllRead: () => void;
     onMessageSent?: (id: string, log: any) => void;
-    onStatusChange?: (id: string, newStatus: PlayerStatus, pathway?: string) => void;
+    onStatusChange?: (id: string, newStatus: PlayerStatus, pathway?: string, trialDates?: TrialDates) => void;
     onLogout?: () => void;
     onReturnToAdmin?: () => void;
 }
@@ -167,11 +167,11 @@ const Dashboard: React.FC<DashboardProps> = ({
         if (onStatusChange) onStatusChange(id, newStatus, extraData);
     };
 
-    const handlePathwaySelected = (pathway: string) => {
+    const handlePathwaySelected = (pathway: string, trialDates?: TrialDates) => {
         if (!pendingOfferedPlayer) return;
 
         haptic.success();
-        if (onStatusChange) onStatusChange(pendingOfferedPlayer.id, PlayerStatus.OFFERED, pathway);
+        if (onStatusChange) onStatusChange(pendingOfferedPlayer.id, PlayerStatus.OFFERED, pathway, trialDates);
         setPendingOfferedPlayer(null);
     };
 

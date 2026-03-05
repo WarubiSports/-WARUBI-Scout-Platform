@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured, supabaseRest } from '../lib/supabase';
 import type { Player } from '../types';
+import type { TrialDates } from '../components/PathwaySelectionModal';
 
 interface TrialProspect {
   id: string;
@@ -28,7 +29,8 @@ export async function createTrialFromProspect(
   prospect: Player,
   scoutId: string,
   scoutName: string,
-  directSign: boolean = false
+  directSign: boolean = false,
+  trialDates?: TrialDates
 ): Promise<{ trialProspectId: string | null; error: string | null }> {
   if (!isSupabaseConfigured) {
     console.log('Demo mode: Would create trial prospect for', prospect.name);
@@ -65,8 +67,16 @@ export async function createTrialFromProspect(
       video_url: prospect.videoLink || null,
       scouting_notes: buildScoutingNotes(prospect),
       recommended_by: scoutName,
-      status: directSign ? 'accepted' : 'scheduled', // Direct signs skip trial, ready for conversion
+      status: directSign ? 'accepted' : (trialDates ? 'requested' : 'scheduled'),
       created_by: scoutId || null,
+      // Scout reference for trial requests
+      scout_id: scoutId || null,
+      // Requested dates (staff confirms actual trial_start_date/trial_end_date on approval)
+      ...(trialDates && {
+        requested_start_date: trialDates.start || null,
+        requested_end_date: trialDates.end || null,
+        dates_flexible: trialDates.flexible,
+      }),
       // Ratings from scout evaluation
       technical_rating: prospect.technical || null,
       tactical_rating: prospect.tactical || null,
@@ -137,14 +147,16 @@ export async function sendProspectToTrial(
   prospect: Player,
   scoutId: string,
   scoutName: string,
-  directSign: boolean = false
+  directSign: boolean = false,
+  trialDates?: TrialDates
 ): Promise<{ success: boolean; trialProspectId: string | null; error: string | null }> {
   // Step 1: Create trial prospect
   const { trialProspectId, error: createError } = await createTrialFromProspect(
     prospect,
     scoutId,
     scoutName,
-    directSign
+    directSign,
+    trialDates
   );
 
   if (createError || !trialProspectId) {

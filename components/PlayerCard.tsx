@@ -286,8 +286,9 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                             <span>ITP Progress</span>
                         </div>
                         {(() => {
-                            const stages = ['scheduled', 'in_progress', 'evaluation', 'decision_pending', 'accepted', 'placed'];
+                            const stages = ['requested', 'scheduled', 'in_progress', 'evaluation', 'decision_pending', 'accepted', 'placed'];
                             const labels: Record<string, string> = {
+                                requested: 'Pending Approval',
                                 inquiry: 'Inquiry',
                                 scheduled: 'Trial Scheduled',
                                 in_progress: 'In Trial',

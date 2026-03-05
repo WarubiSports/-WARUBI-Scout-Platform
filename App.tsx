@@ -10,6 +10,7 @@ import PasswordSetupModal from './components/PasswordSetupModal';
 import ResetPassword from './components/ResetPassword';
 import { evaluatePlayer } from './services/geminiService';
 import { sendProspectToTrial } from './services/trialService';
+import type { TrialDates } from './components/PathwaySelectionModal';
 import { isEmailApproved } from './services/accessControlService';
 import { setAdminMode } from './services/aiUsageService';
 import { useAuthContext } from './contexts/AuthContext';
@@ -315,26 +316,31 @@ const App: React.FC = () => {
 
           if (success && trialProspectId) {
               updatedPlayer.trialProspectId = trialProspectId;
-              const label = isDirectSign ? 'Direct Sign' : 'Trial Invitation';
-              handleAddNotification({
-                  type: 'SUCCESS',
-                  title: `${label} Sent`,
-                  message: `${updatedPlayer.name} has been added to ITP system.`
-              });
-              // Show toast with appropriate link
-              const onboardingUrl = isDirectSign
-                  ? `https://itp-trial-onboarding.vercel.app/${trialProspectId}/onboarding`
-                  : `https://itp-trial-onboarding.vercel.app/${trialProspectId}`;
-              toast.success(`Player added to ITP system (${isDirectSign ? 'Direct Sign' : 'Trial'})`, {
-                  duration: 10000,
-                  action: {
-                      label: 'Copy Onboarding Link',
-                      onClick: () => {
-                          navigator.clipboard.writeText(onboardingUrl);
-                          toast.success('Onboarding link copied!', { duration: 2000 });
+              if (isDirectSign) {
+                  handleAddNotification({
+                      type: 'SUCCESS',
+                      title: 'Direct Sign Sent',
+                      message: `${updatedPlayer.name} has been added to ITP system.`
+                  });
+                  const onboardingUrl = `https://itp-trial-onboarding.vercel.app/${trialProspectId}/onboarding`;
+                  toast.success('Player added to ITP system (Direct Sign)', {
+                      duration: 10000,
+                      action: {
+                          label: 'Copy Onboarding Link',
+                          onClick: () => {
+                              navigator.clipboard.writeText(onboardingUrl);
+                              toast.success('Onboarding link copied!', { duration: 2000 });
+                          },
                       },
-                  },
-              });
+                  });
+              } else {
+                  handleAddNotification({
+                      type: 'SUCCESS',
+                      title: 'Trial Request Submitted',
+                      message: `${updatedPlayer.name} — pending staff approval.`
+                  });
+                  toast.success('Trial request submitted — pending staff approval', { duration: 5000 });
+              }
           } else {
               handleAddNotification({
                   type: 'INFO',
@@ -512,7 +518,7 @@ const App: React.FC = () => {
             onAddNotification={handleAddNotification}
             onMarkAllRead={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
             onMessageSent={handleMessageSent}
-            onStatusChange={async (id, newStatus, pathway) => {
+            onStatusChange={async (id, newStatus, pathway, trialDates) => {
                 // Find old player to check status transition for XP
                 const oldPlayer = prospects.find(p => p.id === id);
                 if (!oldPlayer) return;
@@ -584,22 +590,25 @@ const App: React.FC = () => {
                         updatedPlayer,
                         scoutId,
                         scoutName,
-                        isDirectSign
+                        isDirectSign,
+                        trialDates
                     );
                     if (success && trialProspectId) {
-                        const onboardingUrl = isDirectSign
-                            ? `https://itp-trial-onboarding.vercel.app/${trialProspectId}/onboarding`
-                            : `https://itp-trial-onboarding.vercel.app/${trialProspectId}`;
-                        toast.success(`Player added to ITP system (${isDirectSign ? 'Direct Sign' : 'Trial'})`, {
-                            duration: 10000,
-                            action: {
-                                label: 'Copy Onboarding Link',
-                                onClick: () => {
-                                    navigator.clipboard.writeText(onboardingUrl);
-                                    toast.success('Onboarding link copied!', { duration: 2000 });
+                        if (isDirectSign) {
+                            const onboardingUrl = `https://itp-trial-onboarding.vercel.app/${trialProspectId}/onboarding`;
+                            toast.success('Player added to ITP system (Direct Sign)', {
+                                duration: 10000,
+                                action: {
+                                    label: 'Copy Onboarding Link',
+                                    onClick: () => {
+                                        navigator.clipboard.writeText(onboardingUrl);
+                                        toast.success('Onboarding link copied!', { duration: 2000 });
+                                    },
                                 },
-                            },
-                        });
+                            });
+                        } else {
+                            toast.success('Trial request submitted — pending staff approval', { duration: 5000 });
+                        }
                     }
                 }
             }}
