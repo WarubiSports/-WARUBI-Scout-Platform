@@ -70,12 +70,11 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({ players }) => {
         });
     }, [activePlayers]);
 
-    // Nationality breakdown
+    // Nationality breakdown — only players with actual nationality set
     const nationalities = useMemo(() => {
         const map: Record<string, number> = {};
         activePlayers.forEach(p => {
-            const nat = p.nationality || 'Unknown';
-            map[nat] = (map[nat] || 0) + 1;
+            if (p.nationality) map[p.nationality] = (map[p.nationality] || 0) + 1;
         });
         return Object.entries(map)
             .sort((a, b) => b[1] - a[1])
@@ -83,19 +82,18 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({ players }) => {
             .map(([name, count]) => ({ name, count }));
     }, [activePlayers]);
 
-    // Position spread
+    // Position spread — only players with actual position set
     const positions = useMemo(() => {
         const map: Record<string, number> = {};
         activePlayers.forEach(p => {
-            const pos = p.position || 'Unknown';
-            map[pos] = (map[pos] || 0) + 1;
+            if (p.position) map[p.position] = (map[p.position] || 0) + 1;
         });
         return Object.entries(map)
             .sort((a, b) => b[1] - a[1])
             .map(([name, count]) => ({ name, count }));
     }, [activePlayers]);
 
-    // Age distribution
+    // Age distribution — only players with age
     const ages = useMemo(() => {
         const map: Record<number, number> = {};
         activePlayers.forEach(p => {
@@ -106,12 +104,11 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({ players }) => {
             .map(([age, count]) => ({ name: age.toString(), count }));
     }, [activePlayers]);
 
-    // Grad year
+    // Grad year — only players with actual grad year
     const gradYears = useMemo(() => {
         const map: Record<string, number> = {};
         activePlayers.forEach(p => {
-            const yr = p.gradYear || 'N/A';
-            map[yr] = (map[yr] || 0) + 1;
+            if (p.gradYear) map[p.gradYear] = (map[p.gradYear] || 0) + 1;
         });
         return Object.entries(map)
             .sort((a, b) => a[0].localeCompare(b[0]))
@@ -204,9 +201,10 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({ players }) => {
                 </div>
             </div>
 
-            {/* Charts Grid */}
+            {/* Charts Grid — only show sections with real data */}
+            {(nationalities.length > 0 || positions.length > 0 || ages.length > 1 || gradYears.length > 0) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Top Nationalities */}
+                {nationalities.length > 0 && (
                 <div className="bg-scout-800 border border-scout-700 rounded-2xl p-4 md:p-5">
                     <h3 className="text-sm font-black text-white uppercase tracking-wider mb-4">Top Nationalities</h3>
                     <ResponsiveContainer width="100%" height={nationalities.length * 32 + 16}>
@@ -218,8 +216,9 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({ players }) => {
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
+                )}
 
-                {/* Position Spread */}
+                {positions.length > 0 && (
                 <div className="bg-scout-800 border border-scout-700 rounded-2xl p-4 md:p-5">
                     <h3 className="text-sm font-black text-white uppercase tracking-wider mb-4">Position Spread</h3>
                     <ResponsiveContainer width="100%" height={positions.length * 32 + 16}>
@@ -231,8 +230,9 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({ players }) => {
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
+                )}
 
-                {/* Age Distribution */}
+                {ages.length > 1 && (
                 <div className="bg-scout-800 border border-scout-700 rounded-2xl p-4 md:p-5">
                     <h3 className="text-sm font-black text-white uppercase tracking-wider mb-4">Age Distribution</h3>
                     <ResponsiveContainer width="100%" height={200}>
@@ -244,8 +244,9 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({ players }) => {
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
+                )}
 
-                {/* Grad Year */}
+                {gradYears.length > 0 && (
                 <div className="bg-scout-800 border border-scout-700 rounded-2xl p-4 md:p-5">
                     <h3 className="text-sm font-black text-white uppercase tracking-wider mb-4">Grad Year</h3>
                     <ResponsiveContainer width="100%" height={200}>
@@ -257,7 +258,9 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({ players }) => {
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
+                )}
             </div>
+            )}
 
             {/* Pipeline Activity */}
             {activity.length > 1 && (
