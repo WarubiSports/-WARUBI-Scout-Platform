@@ -11,8 +11,8 @@ export const SCOUT_POINTS = {
   PLAYER_HAS_PARENT_CONTACT: 5,
 
   // Pipeline progression rewards
-  PLAYER_CONTACTED: 5,
-  PLAYER_INTERESTED: 10,
+  PLAYER_REQUEST_TRIAL: 5,
+  PLAYER_SEND_CONTRACT: 10,
   PLAYER_OFFERED: 25,
 
   // First outreach reward
@@ -303,7 +303,7 @@ export const ITP_REFERENCE_PLAYERS: Player[] = [
     name: 'Tier 3: The Developer',
     age: 17,
     position: 'Standard',
-    status: PlayerStatus.INTERESTED,
+    status: PlayerStatus.SEND_CONTRACT,
     submittedAt: new Date().toISOString(),
     outreachLogs: [],
     evaluation: {
@@ -452,7 +452,7 @@ export const INITIAL_KNOWLEDGE_BASE: KnowledgeItem[] = [
   {
     id: 'kb-1',
     title: 'The Recruiting Pipeline Explained',
-    content: '1. Lead (Identify) -> 2. Interested (Engage) -> 3. Offered (Commit) -> 4. Placed (Sign). Keep communication clear at every step.',
+    content: '1. Lead (Discover) -> 2. Request Trial (Submit) -> 3. Send Contract (Sign) -> 4. Offered (Commit) -> 5. Placed (Done). Keep communication clear at every step.',
     category: 'Process'
   }
 ];

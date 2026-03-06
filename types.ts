@@ -15,11 +15,11 @@ export enum DashboardTab {
   INSIGHTS = 'INSIGHTS'
 }
 
-// Simplified 5-stage pipeline: Lead → Contacted → Interested → Offered → Placed
+// Pipeline: Lead → Request Trial → Send Contract → Offered → Placed
 export enum PlayerStatus {
   LEAD = 'Lead',
-  CONTACTED = 'Contacted',
-  INTERESTED = 'Interested',
+  REQUEST_TRIAL = 'Request Trial',
+  SEND_CONTRACT = 'Send Contract',
   OFFERED = 'Offered',
   PLACED = 'Placed',
   ARCHIVED = 'Archived'

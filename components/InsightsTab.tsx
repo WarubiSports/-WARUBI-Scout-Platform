@@ -12,14 +12,14 @@ interface InsightsTabProps {
 
 const STAGE_COLORS: Record<string, string> = {
     Lead: '#6b7280',
-    Contacted: '#3b82f6',
-    Interested: '#f59e0b',
+    'Request Trial': '#3b82f6',
+    'Send Contract': '#f59e0b',
     Offered: '#a855f7',
     Placed: '#10b981',
     Archived: '#374151',
 };
 
-const STAGE_ORDER = ['Lead', 'Contacted', 'Interested', 'Offered', 'Placed'];
+const STAGE_ORDER = ['Lead', 'Request Trial', 'Send Contract', 'Offered', 'Placed'];
 
 const ChartTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;

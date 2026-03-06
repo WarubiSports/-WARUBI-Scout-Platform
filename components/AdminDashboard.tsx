@@ -526,7 +526,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         // Pipeline breakdown
         const stageCounts: Record<string, number> = {};
-        ['Lead', 'Contacted', 'Interested', 'Offered', 'Placed'].forEach(s => stageCounts[s] = 0);
+        ['Lead', 'Request Trial', 'Send Contract', 'Offered', 'Placed'].forEach(s => stageCounts[s] = 0);
         allProspects.forEach(p => { if (stageCounts[p.status] !== undefined) stageCounts[p.status]++; });
 
         // Nationality summary
@@ -565,7 +565,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <div className="space-y-3">
                             {Object.entries(stageCounts).map(([stage, count]) => {
                                 const max = Math.max(...Object.values(stageCounts), 1);
-                                const colors: Record<string, string> = { Lead: '#6b7280', Contacted: '#3b82f6', Interested: '#f59e0b', Offered: '#a855f7', Placed: '#10b981' };
+                                const colors: Record<string, string> = { Lead: '#6b7280', 'Request Trial': '#3b82f6', 'Send Contract': '#f59e0b', Offered: '#a855f7', Placed: '#10b981' };
                                 return (
                                     <div key={stage}>
                                         <div className="flex justify-between text-xs mb-1">

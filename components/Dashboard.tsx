@@ -11,7 +11,7 @@ import Confetti from './Confetti';
 import { ConnectionStatus } from './MobileEnhancements';
 import { ErrorBoundary } from './ErrorBoundary';
 import GlobalSearch from './GlobalSearch';
-import PathwaySelectionModal, { TrialDates } from './PathwaySelectionModal';
+import TrialRequestModal, { TrialDates } from './TrialRequestModal';
 import { haptic, useSwipeGesture } from '../hooks/useMobileFeatures';
 import { Users, CalendarDays, MessageSquare, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, LogOut, BookOpen, Mail, UserPlus, Filter, Lightbulb, FileUp, BarChart3 } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
@@ -155,13 +155,15 @@ const Dashboard: React.FC<DashboardProps> = ({
 
 
     const handleStatusChange = (id: string, newStatus: PlayerStatus, extraData?: string) => {
-        // Intercept OFFERED status to show pathway selection modal (only for new transitions, not edits)
         const player = players.find(p => p.id === id);
-        if (newStatus === PlayerStatus.OFFERED && player && player.status !== PlayerStatus.OFFERED) {
+
+        // Intercept REQUEST_TRIAL to show trial date picker
+        if (newStatus === PlayerStatus.REQUEST_TRIAL && player && player.status !== PlayerStatus.REQUEST_TRIAL) {
             setPendingOfferedPlayer(player);
-            return; // Don't proceed until pathway is selected
+            return; // Don't proceed until trial dates are submitted
         }
 
+        // Moving to SEND_CONTRACT from Lead (no trial) → direct sign, handled in App.tsx
         if (newStatus === PlayerStatus.PLACED) {
             setShowCelebration(true);
             haptic.success();
@@ -173,20 +175,20 @@ const Dashboard: React.FC<DashboardProps> = ({
         if (onStatusChange) onStatusChange(id, newStatus, extraData);
     };
 
-    const handlePathwaySelected = (pathway: string, trialDates?: TrialDates) => {
+    const handleTrialSubmitted = (trialDates: TrialDates) => {
         if (!pendingOfferedPlayer) return;
 
         haptic.success();
-        if (onStatusChange) onStatusChange(pendingOfferedPlayer.id, PlayerStatus.OFFERED, pathway, trialDates);
+        if (onStatusChange) onStatusChange(pendingOfferedPlayer.id, PlayerStatus.REQUEST_TRIAL, undefined, trialDates);
         setPendingOfferedPlayer(null);
     };
 
-    const handlePathwayCancelled = () => {
+    const handleTrialCancelled = () => {
         setPendingOfferedPlayer(null);
     };
 
     const promoteLead = (id: string) => {
-        handleStatusChange(id, PlayerStatus.CONTACTED);
+        handleStatusChange(id, PlayerStatus.REQUEST_TRIAL);
         if (reviewIdx >= spotlights.length - 1) setReviewIdx(0);
     };
 
@@ -308,8 +310,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     const PipelineStack = () => {
         const allowedStatuses = pipelineFilter === 'all'
-            ? [PlayerStatus.LEAD, PlayerStatus.CONTACTED, PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED]
-            : [PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED];
+            ? [PlayerStatus.LEAD, PlayerStatus.REQUEST_TRIAL, PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED]
+            : [PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED];
 
         const activePlayers = players.filter(p => allowedStatuses.includes(p.status));
         const [stackIdx, setStackIdx] = useState(0);
@@ -348,8 +350,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
         const handlePromote = () => {
             if (currentPlayer) {
-                // Move to next stage: Lead → Contacted → Interested → Offered → Placed
-                const stages = [PlayerStatus.LEAD, PlayerStatus.CONTACTED, PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED];
+                // Move to next stage: Lead → Request Trial → Send Contract → Offered → Placed
+                const stages = [PlayerStatus.LEAD, PlayerStatus.REQUEST_TRIAL, PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED];
                 const currentIndex = stages.indexOf(currentPlayer.status);
                 if (currentIndex < stages.length - 1) {
                     handleStatusChange(currentPlayer.id, stages[currentIndex + 1]);
@@ -398,8 +400,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     const ListView = () => {
         const allowedStatuses = pipelineFilter === 'all'
-            ? [PlayerStatus.LEAD, PlayerStatus.CONTACTED, PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED]
-            : [PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED];
+            ? [PlayerStatus.LEAD, PlayerStatus.REQUEST_TRIAL, PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED]
+            : [PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED];
 
         const filteredPlayers = players.filter(p =>
             allowedStatuses.includes(p.status) &&
@@ -428,7 +430,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                     </td>
                                     <td className="px-6 py-4">
                                         <select value={p.status} onChange={(e) => handleStatusChange(p.id, e.target.value as PlayerStatus)} className="bg-scout-900/50 border border-scout-700/50 rounded-lg px-2 py-1 text-[10px] font-black uppercase text-gray-300 outline-none">
-                                            {[PlayerStatus.LEAD, PlayerStatus.CONTACTED, PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED, PlayerStatus.ARCHIVED].map(status => <option key={status} value={status}>{status}</option>)}
+                                            {[PlayerStatus.LEAD, PlayerStatus.REQUEST_TRIAL, PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED, PlayerStatus.ARCHIVED].map(status => <option key={status} value={status}>{status}</option>)}
                                         </select>
                                     </td>
                                     <td className="px-6 py-4 font-black text-scout-accent">{p.evaluation?.score || '?'}</td>
@@ -530,7 +532,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                 <div className="flex justify-between"><span className="text-gray-400">Add player</span><span className="text-scout-accent font-bold">+5</span></div>
                                 <div className="flex justify-between"><span className="text-gray-400">Complete profile</span><span className="text-scout-accent font-bold">+5</span></div>
                                 <div className="flex justify-between"><span className="text-gray-400">First outreach</span><span className="text-scout-accent font-bold">+5</span></div>
-                                <div className="flex justify-between"><span className="text-gray-400">→ Interested</span><span className="text-scout-accent font-bold">+10</span></div>
+                                <div className="flex justify-between"><span className="text-gray-400">→ Send Contract</span><span className="text-scout-accent font-bold">+10</span></div>
                                 <div className="flex justify-between"><span className="text-gray-400">→ Offered</span><span className="text-scout-accent font-bold">+25</span></div>
                                 <div className="flex justify-between"><span className="text-gray-400">Attend event</span><span className="text-scout-accent font-bold">+15</span></div>
                                 <div className="flex justify-between"><span className="text-gray-400">Host event</span><span className="text-scout-accent font-bold">+50</span></div>
@@ -598,7 +600,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                             // Determine the top priority action
                             const hotSignal = spotlights.find(p => p.activityStatus === 'signal' || p.activityStatus === 'spotlight');
                             const topLead = players
-                                .filter(p => p.status === PlayerStatus.LEAD || p.status === PlayerStatus.CONTACTED || p.status === PlayerStatus.INTERESTED)
+                                .filter(p => p.status === PlayerStatus.LEAD || p.status === PlayerStatus.REQUEST_TRIAL || p.status === PlayerStatus.SEND_CONTRACT)
                                 .sort((a, b) => (b.evaluation?.score || 0) - (a.evaluation?.score || 0))[0];
                             const offeredPlayer = players.find(p => p.status === PlayerStatus.OFFERED);
 
@@ -713,16 +715,16 @@ const Dashboard: React.FC<DashboardProps> = ({
                         {viewMode === 'board' ? (
                             <div className="flex gap-4 overflow-x-auto pb-8 custom-scrollbar min-h-[500px]">
                                 {(pipelineFilter === 'all'
-                                    ? [PlayerStatus.LEAD, PlayerStatus.CONTACTED, PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED]
-                                    : [PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED]
+                                    ? [PlayerStatus.LEAD, PlayerStatus.REQUEST_TRIAL, PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED]
+                                    : [PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED]
                                 ).map(status => (
                                     <div key={status} onDragOver={(e) => onDragOver(e, status)} onDrop={(e) => onDrop(e, status)} className={`flex-1 min-w-[280px] flex flex-col bg-scout-800/20 rounded-[2rem] border ${draggedOverStatus === status ? 'border-scout-accent bg-scout-accent/5 shadow-glow' : 'border-scout-700/50'}`}>
                                         <div className="p-6 border-b border-scout-700/50 bg-scout-900/20 backdrop-blur-md flex justify-between items-center rounded-t-[2rem]">
                                             <h3 className={`font-black uppercase text-[10px] tracking-[0.2em] ${
                                                 status === PlayerStatus.PLACED ? 'text-scout-accent' :
                                                 status === PlayerStatus.OFFERED ? 'text-scout-highlight' :
-                                                status === PlayerStatus.INTERESTED ? 'text-blue-400' :
-                                                status === PlayerStatus.CONTACTED ? 'text-purple-400' :
+                                                status === PlayerStatus.SEND_CONTRACT ? 'text-orange-400' :
+                                                status === PlayerStatus.REQUEST_TRIAL ? 'text-blue-400' :
                                                 'text-gray-400'
                                             }`}>{status}</h3>
                                             <span className="text-[10px] bg-scout-900 border border-scout-700 px-2 py-1 rounded-full text-gray-500 font-black">{players.filter(p => p.status === status).length}</span>
@@ -732,15 +734,15 @@ const Dashboard: React.FC<DashboardProps> = ({
                                                 <div className="border-2 border-dashed border-scout-700/50 rounded-2xl p-5 text-center">
                                                     <div className="w-10 h-10 bg-scout-800 rounded-xl mx-auto mb-3 flex items-center justify-center">
                                                         {status === PlayerStatus.LEAD && <UserPlus size={18} className="text-gray-400/50" />}
-                                                        {status === PlayerStatus.CONTACTED && <Mail size={18} className="text-purple-400/50" />}
-                                                        {status === PlayerStatus.INTERESTED && <Users size={18} className="text-blue-400/50" />}
+                                                        {status === PlayerStatus.REQUEST_TRIAL && <CalendarDays size={18} className="text-blue-400/50" />}
+                                                        {status === PlayerStatus.SEND_CONTRACT && <Send size={18} className="text-orange-400/50" />}
                                                         {status === PlayerStatus.OFFERED && <Target size={18} className="text-scout-highlight/50" />}
                                                         {status === PlayerStatus.PLACED && <Trophy size={18} className="text-scout-accent/50" />}
                                                     </div>
                                                     <p className="text-[9px] font-bold text-gray-600 uppercase">
                                                         {status === PlayerStatus.LEAD && 'New players you discover'}
-                                                        {status === PlayerStatus.CONTACTED && 'Players you\'ve reached out to'}
-                                                        {status === PlayerStatus.INTERESTED && 'Players who responded'}
+                                                        {status === PlayerStatus.REQUEST_TRIAL && 'Players requesting a trial'}
+                                                        {status === PlayerStatus.SEND_CONTRACT && 'Players ready for contracts'}
                                                         {status === PlayerStatus.OFFERED && 'Players with active offers'}
                                                         {status === PlayerStatus.PLACED && 'Successfully placed'}
                                                     </p>
@@ -785,7 +787,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                 {isSubmissionOpen && <PlayerSubmission onClose={handleCloseSubmission} onAddPlayer={onAddPlayer} onUpdatePlayer={onUpdatePlayer} existingPlayers={players} editingPlayer={editingPlayer} initialMode={submissionInitialMode} />}
                 {isBeamOpen && <SidelineBeam user={user} onClose={() => setIsBeamOpen(false)} />}
                 {isBugReportOpen && <ReportBugModal onClose={() => setIsBugReportOpen(false)} />}
-                {pendingOfferedPlayer && <PathwaySelectionModal player={pendingOfferedPlayer} onSelect={handlePathwaySelected} onCancel={handlePathwayCancelled} />}
+                {pendingOfferedPlayer && <TrialRequestModal player={pendingOfferedPlayer} onSubmit={handleTrialSubmitted} onCancel={handleTrialCancelled} />}
             </main>
 
             {/* Mobile Feedback Button */}
@@ -872,7 +874,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                     <span className="text-scout-accent font-bold">+5</span>
                                 </div>
                                 <div className="bg-scout-900/50 rounded-lg p-2 flex justify-between">
-                                    <span className="text-gray-400">→ Interested</span>
+                                    <span className="text-gray-400">→ Send Contract</span>
                                     <span className="text-scout-accent font-bold">+10</span>
                                 </div>
                                 <div className="bg-scout-900/50 rounded-lg p-2 flex justify-between">

@@ -120,16 +120,16 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
     };
   }, []);
 
-  // Scouting Pool shows early-stage prospects: Lead and Contacted statuses
+  // Scouting Pool shows early-stage prospects: Lead and Request Trial statuses
   const scoutingPool = players.filter(p =>
-    p.status === PlayerStatus.LEAD || p.status === PlayerStatus.CONTACTED
+    p.status === PlayerStatus.LEAD || p.status === PlayerStatus.REQUEST_TRIAL
   );
 
   // Group by activity status for the sidebar
   const spotlights = scoutingPool.filter(p => p.activityStatus === 'spotlight');
   const signals = scoutingPool.filter(p => p.activityStatus === 'signal');
   const sparks = scoutingPool.filter(p => p.activityStatus === 'spark');
-  const contacted = scoutingPool.filter(p => p.status === PlayerStatus.CONTACTED && (!p.activityStatus || p.activityStatus === 'undiscovered'));
+  const contacted = scoutingPool.filter(p => p.status === PlayerStatus.REQUEST_TRIAL && (!p.activityStatus || p.activityStatus === 'undiscovered'));
   const undiscovered = scoutingPool.filter(p => p.status === PlayerStatus.LEAD && (!p.activityStatus || p.activityStatus === 'undiscovered'));
 
   const filteredUndiscovered = undiscovered.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -285,7 +285,7 @@ ${user.name}`);
     });
   };
 
-  // Move player to "My Players" section (Interested status) with rewarding feedback
+  // Move player to "Send Contract" stage with rewarding feedback
   const promoteToMyPlayers = (playerId?: string, playerName?: string) => {
       const targetId = playerId || selectedPlayer?.id;
       const targetName = playerName || selectedPlayer?.name || 'Player';
@@ -295,12 +295,12 @@ ${user.name}`);
           haptic.success();
 
           // Show rewarding toast notification
-          toast.success(`${targetName} moved to My Players! 🎯`, {
-              description: 'Player is now in your active pipeline',
+          toast.success(`${targetName} moved to Send Contract! 🎯`, {
+              description: 'Player is ready for contract',
               duration: 3000,
           });
 
-          onStatusChange(targetId, PlayerStatus.INTERESTED);
+          onStatusChange(targetId, PlayerStatus.SEND_CONTRACT);
 
           // Clear selection if it was the selected player
           if (targetId === selectedPlayer?.id) {
@@ -314,7 +314,7 @@ ${user.name}`);
   // Mark as contacted (first outreach sent)
   const markAsContacted = () => {
       if (selectedPlayer && onStatusChange) {
-          onStatusChange(selectedPlayer.id, PlayerStatus.CONTACTED);
+          onStatusChange(selectedPlayer.id, PlayerStatus.REQUEST_TRIAL);
       }
   };
 
@@ -359,15 +359,15 @@ ${user.name}`);
               </div>
               <div>
                   <h3 className="text-sm font-black text-white uppercase tracking-tighter italic">Scouting Funnel</h3>
-                  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">From Discovery to My Players</p>
+                  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">From Discovery to Send Contract</p>
               </div>
           </div>
           <div className="flex gap-4 md:gap-12">
               {[
                   { i: <Ghost size={16}/>, l: '1. Lead', s: 'New Lead', c: 'text-gray-500' },
-                  { i: <Send size={16}/>, l: '2. Contacted', s: 'Outreach Sent', c: 'text-blue-500' },
+                  { i: <Send size={16}/>, l: '2. Request Trial', s: 'Outreach Sent', c: 'text-blue-500' },
                   { i: <Flame size={16} className="animate-pulse"/>, l: '3. Signal', s: 'Engaged', c: 'text-orange-500' },
-                  { i: <Trophy size={16} className="text-scout-accent"/>, l: '4. My Players', s: 'Interested', c: 'text-scout-accent' }
+                  { i: <Trophy size={16} className="text-scout-accent"/>, l: '4. Send Contract', s: 'Ready', c: 'text-scout-accent' }
               ].map((step, idx) => (
                   <div key={idx} className="flex flex-col items-center text-center">
                       <div className={`flex items-center gap-1.5 font-black uppercase text-[10px] mb-1 ${step.c}`}>
@@ -434,9 +434,9 @@ ${user.name}`);
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
                                                 className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
-                                                title="Move to My Players"
+                                                title="Move to Send Contract"
                                             >
-                                                <span>→ My Players</span>
+                                                <span>→ Send Contract</span>
                                             </button>
                                         </div>
                                     </div>
@@ -470,9 +470,9 @@ ${user.name}`);
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
                                                 className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
-                                                title="Move to My Players"
+                                                title="Move to Send Contract"
                                             >
-                                                <span>→ My Players</span>
+                                                <span>→ Send Contract</span>
                                             </button>
                                         </div>
                                     </div>
@@ -506,9 +506,9 @@ ${user.name}`);
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
                                                 className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
-                                                title="Move to My Players"
+                                                title="Move to Send Contract"
                                             >
-                                                <span>→ My Players</span>
+                                                <span>→ Send Contract</span>
                                             </button>
                                         </div>
                                     </div>
@@ -541,21 +541,21 @@ ${user.name}`);
                                         <button
                                             onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
                                             className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
-                                            title="Move to My Players"
+                                            title="Move to Send Contract"
                                         >
-                                            <span>→ My Players</span>
+                                            <span>→ Send Contract</span>
                                         </button>
                                     </div>
                                 </div>
                             ))}
                         </div>
 
-                        {/* 5. CONTACTED (Awaiting Response) */}
+                        {/* 5. REQUEST TRIAL (Awaiting Response) */}
                         {filteredContacted.length > 0 && (
                             <>
                                 <div className="px-6 py-4 border-t border-scout-700/30 flex items-center gap-2 mt-4">
                                     <Send size={14} className="text-blue-500" />
-                                    <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Contacted</h4>
+                                    <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Request Trial</h4>
                                 </div>
                                 <div className="divide-y divide-scout-700/30">
                                     {filteredContacted.map(p => (
@@ -577,9 +577,9 @@ ${user.name}`);
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
                                                     className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
-                                                    title="Move to My Players"
+                                                    title="Move to Send Contract"
                                                 >
-                                                    <span>→ My Players</span>
+                                                    <span>→ Send Contract</span>
                                                 </button>
                                             </div>
                                         </div>
@@ -755,7 +755,7 @@ ${user.name}`);
                                 onClick={() => promoteToMyPlayers()}
                                 className="px-6 py-2 bg-scout-accent hover:bg-emerald-600 text-scout-900 font-black rounded-xl shadow-glow relative z-10 transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest hover:scale-105"
                              >
-                                <Trophy size={14}/> → My Players
+                                <Trophy size={14}/> → Send Contract
                              </button>
                         </div>
                     )}

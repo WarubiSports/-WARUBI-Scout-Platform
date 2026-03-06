@@ -100,8 +100,8 @@ export function prospectToPlayer(prospect: ScoutProspect, outreachLogs: Outreach
 export function statusToDb(status: PlayerStatus): ScoutProspect['status'] {
   const mapping: Record<PlayerStatus, ScoutProspect['status']> = {
     [PlayerStatus.LEAD]: 'lead',
-    [PlayerStatus.CONTACTED]: 'contacted',
-    [PlayerStatus.INTERESTED]: 'interested',
+    [PlayerStatus.REQUEST_TRIAL]: 'request_trial',
+    [PlayerStatus.SEND_CONTRACT]: 'send_contract',
     [PlayerStatus.OFFERED]: 'offered',
     [PlayerStatus.PLACED]: 'placed',
     [PlayerStatus.ARCHIVED]: 'archived',
@@ -113,12 +113,14 @@ export function statusToDb(status: PlayerStatus): ScoutProspect['status'] {
 export function statusFromDb(status: ScoutProspect['status']): PlayerStatus {
   const mapping: Record<string, PlayerStatus> = {
     'lead': PlayerStatus.LEAD,
-    'contacted': PlayerStatus.CONTACTED,
-    'interested': PlayerStatus.INTERESTED,
+    'request_trial': PlayerStatus.REQUEST_TRIAL,
+    'send_contract': PlayerStatus.SEND_CONTRACT,
     'offered': PlayerStatus.OFFERED,
     'placed': PlayerStatus.PLACED,
     'archived': PlayerStatus.ARCHIVED,
     // Legacy mappings for old data
+    'contacted': PlayerStatus.REQUEST_TRIAL,
+    'interested': PlayerStatus.SEND_CONTRACT,
     'prospect': PlayerStatus.LEAD,
     'final_review': PlayerStatus.OFFERED,
   }

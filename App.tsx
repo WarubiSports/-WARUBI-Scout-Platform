@@ -10,7 +10,7 @@ import PasswordSetupModal from './components/PasswordSetupModal';
 import ResetPassword from './components/ResetPassword';
 import { evaluatePlayer } from './services/geminiService';
 import { sendProspectToTrial } from './services/trialService';
-import type { TrialDates } from './components/PathwaySelectionModal';
+import type { TrialDates } from './components/TrialRequestModal';
 import { isEmailApproved } from './services/accessControlService';
 import { setAdminMode } from './services/aiUsageService';
 import { useAuthContext } from './contexts/AuthContext';
@@ -237,14 +237,14 @@ const App: React.FC = () => {
           });
         }
 
-        // Auto-advance from Lead to Contacted on first message
+        // Auto-advance from Lead to Request Trial on first message
         if (player.status === PlayerStatus.LEAD) {
-          await addXP(SCOUT_POINTS.PLAYER_CONTACTED);
-          await updateProspect(playerId, { status: PlayerStatus.CONTACTED });
+          await addXP(SCOUT_POINTS.PLAYER_REQUEST_TRIAL);
+          await updateProspect(playerId, { status: PlayerStatus.REQUEST_TRIAL });
           handleAddNotification({
               type: 'SUCCESS',
-              title: `+${SCOUT_POINTS.PLAYER_CONTACTED} XP | Pipeline Progress`,
-              message: `${player.name} moved to Contacted stage.`
+              title: `+${SCOUT_POINTS.PLAYER_REQUEST_TRIAL} XP | Pipeline Progress`,
+              message: `${player.name} moved to Request Trial stage.`
           });
         }
       }
@@ -258,28 +258,28 @@ const App: React.FC = () => {
       const statusChanged = oldPlayer.status !== updatedPlayer.status;
 
       if (statusChanged) {
-        // LEAD → CONTACTED (usually handled in handleMessageSent, but support manual change)
-        if (oldPlayer.status === PlayerStatus.LEAD && updatedPlayer.status === PlayerStatus.CONTACTED) {
-          await addXP(SCOUT_POINTS.PLAYER_CONTACTED);
+        // LEAD → REQUEST_TRIAL
+        if (oldPlayer.status === PlayerStatus.LEAD && updatedPlayer.status === PlayerStatus.REQUEST_TRIAL) {
+          await addXP(SCOUT_POINTS.PLAYER_REQUEST_TRIAL);
           handleAddNotification({
               type: 'SUCCESS',
-              title: `+${SCOUT_POINTS.PLAYER_CONTACTED} XP | Pipeline Progress`,
-              message: `${updatedPlayer.name} moved to Contacted.`
+              title: `+${SCOUT_POINTS.PLAYER_REQUEST_TRIAL} XP | Pipeline Progress`,
+              message: `${updatedPlayer.name} moved to Request Trial.`
           });
         }
 
-        // CONTACTED → INTERESTED
-        if (oldPlayer.status === PlayerStatus.CONTACTED && updatedPlayer.status === PlayerStatus.INTERESTED) {
-          await addXP(SCOUT_POINTS.PLAYER_INTERESTED);
+        // REQUEST_TRIAL → SEND_CONTRACT
+        if (oldPlayer.status === PlayerStatus.REQUEST_TRIAL && updatedPlayer.status === PlayerStatus.SEND_CONTRACT) {
+          await addXP(SCOUT_POINTS.PLAYER_SEND_CONTRACT);
           handleAddNotification({
               type: 'SUCCESS',
-              title: `+${SCOUT_POINTS.PLAYER_INTERESTED} XP | Pipeline Progress`,
-              message: `${updatedPlayer.name} is now Interested!`
+              title: `+${SCOUT_POINTS.PLAYER_SEND_CONTRACT} XP | Pipeline Progress`,
+              message: `${updatedPlayer.name} ready for contract!`
           });
         }
 
-        // INTERESTED → OFFERED
-        if (oldPlayer.status === PlayerStatus.INTERESTED && updatedPlayer.status === PlayerStatus.OFFERED) {
+        // → OFFERED
+        if (oldPlayer.status !== PlayerStatus.OFFERED && updatedPlayer.status === PlayerStatus.OFFERED) {
           await addXP(SCOUT_POINTS.PLAYER_OFFERED);
           handleAddNotification({
               type: 'SUCCESS',
@@ -300,10 +300,8 @@ const App: React.FC = () => {
           });
       }
 
-      // Check for trial offer - send to ITP trial system
-      const pathway = updatedPlayer.offeredPathway || updatedPlayer.interestedProgram || '';
-      if (oldPlayer.status !== PlayerStatus.OFFERED && updatedPlayer.status === PlayerStatus.OFFERED && pathway.toLowerCase().startsWith('europe')) {
-          const isDirectSign = pathway.toLowerCase() === 'europe:direct';
+      // Trial sync: REQUEST_TRIAL triggers trial creation
+      if (oldPlayer.status !== PlayerStatus.REQUEST_TRIAL && updatedPlayer.status === PlayerStatus.REQUEST_TRIAL) {
           const scoutName = scout?.name || userProfile?.name || 'Unknown Scout';
           const scoutId = scout?.id || '';
 
@@ -311,41 +309,55 @@ const App: React.FC = () => {
               updatedPlayer,
               scoutId,
               scoutName,
-              isDirectSign
+              false // not a direct sign
           );
 
           if (success && trialProspectId) {
               updatedPlayer.trialProspectId = trialProspectId;
-              if (isDirectSign) {
-                  handleAddNotification({
-                      type: 'SUCCESS',
-                      title: 'Direct Sign Sent',
-                      message: `${updatedPlayer.name} has been added to ITP system.`
-                  });
-                  const onboardingUrl = `https://itp-trial-onboarding.vercel.app/${trialProspectId}/onboarding`;
-                  toast.success('Player added to ITP system (Direct Sign)', {
-                      duration: 10000,
-                      action: {
-                          label: 'Copy Onboarding Link',
-                          onClick: () => {
-                              navigator.clipboard.writeText(onboardingUrl);
-                              toast.success('Onboarding link copied!', { duration: 2000 });
-                          },
-                      },
-                  });
-              } else {
-                  handleAddNotification({
-                      type: 'SUCCESS',
-                      title: 'Trial Request Submitted',
-                      message: `${updatedPlayer.name} — pending staff approval.`
-                  });
-                  toast.success('Trial request submitted — pending staff approval', { duration: 5000 });
-              }
+              handleAddNotification({
+                  type: 'SUCCESS',
+                  title: 'Trial Request Submitted',
+                  message: `${updatedPlayer.name} — pending staff approval.`
+              });
+              toast.success('Trial request submitted — pending staff approval', { duration: 5000 });
           } else {
               handleAddNotification({
                   type: 'INFO',
                   title: 'Trial Record',
-                  message: error || `${updatedPlayer.name} marked as offered.`
+                  message: error || `${updatedPlayer.name} moved to Request Trial.`
+              });
+          }
+      }
+
+      // Direct sign: Lead → SEND_CONTRACT with no existing trial
+      if (oldPlayer.status === PlayerStatus.LEAD && updatedPlayer.status === PlayerStatus.SEND_CONTRACT && !updatedPlayer.trialProspectId) {
+          const scoutName = scout?.name || userProfile?.name || 'Unknown Scout';
+          const scoutId = scout?.id || '';
+
+          const { success, trialProspectId } = await sendProspectToTrial(
+              updatedPlayer,
+              scoutId,
+              scoutName,
+              true // direct sign
+          );
+
+          if (success && trialProspectId) {
+              updatedPlayer.trialProspectId = trialProspectId;
+              handleAddNotification({
+                  type: 'SUCCESS',
+                  title: 'Direct Sign Sent',
+                  message: `${updatedPlayer.name} has been added to ITP system.`
+              });
+              const onboardingUrl = `https://itp-trial-onboarding.vercel.app/${trialProspectId}/onboarding`;
+              toast.success('Player added to ITP system (Direct Sign)', {
+                  duration: 10000,
+                  action: {
+                      label: 'Copy Onboarding Link',
+                      onClick: () => {
+                          navigator.clipboard.writeText(onboardingUrl);
+                          toast.success('Onboarding link copied!', { duration: 2000 });
+                      },
+                  },
               });
           }
       }
@@ -526,35 +538,28 @@ const App: React.FC = () => {
                 const oldStatus = oldPlayer.status;
 
                 // Award pipeline progression XP
-                if (oldStatus === PlayerStatus.LEAD && newStatus === PlayerStatus.CONTACTED) {
-                  await addXP(SCOUT_POINTS.PLAYER_CONTACTED);
+                if (oldStatus === PlayerStatus.LEAD && newStatus === PlayerStatus.REQUEST_TRIAL) {
+                  await addXP(SCOUT_POINTS.PLAYER_REQUEST_TRIAL);
                   handleAddNotification({
                     type: 'SUCCESS',
-                    title: `+${SCOUT_POINTS.PLAYER_CONTACTED} XP | Pipeline Progress`,
-                    message: `${oldPlayer.name} moved to Contacted.`
+                    title: `+${SCOUT_POINTS.PLAYER_REQUEST_TRIAL} XP | Pipeline Progress`,
+                    message: `${oldPlayer.name} moved to Request Trial.`
                   });
                 }
-                if (oldStatus === PlayerStatus.CONTACTED && newStatus === PlayerStatus.INTERESTED) {
-                  await addXP(SCOUT_POINTS.PLAYER_INTERESTED);
+                if (oldStatus === PlayerStatus.REQUEST_TRIAL && newStatus === PlayerStatus.SEND_CONTRACT) {
+                  await addXP(SCOUT_POINTS.PLAYER_SEND_CONTRACT);
                   handleAddNotification({
                     type: 'SUCCESS',
-                    title: `+${SCOUT_POINTS.PLAYER_INTERESTED} XP | Pipeline Progress`,
-                    message: `${oldPlayer.name} is now Interested!`
+                    title: `+${SCOUT_POINTS.PLAYER_SEND_CONTRACT} XP | Pipeline Progress`,
+                    message: `${oldPlayer.name} ready for contract!`
                   });
                 }
                 if (oldStatus !== PlayerStatus.OFFERED && newStatus === PlayerStatus.OFFERED) {
                   await addXP(SCOUT_POINTS.PLAYER_OFFERED);
-                  const pathwayNames: Record<string, string> = {
-                    europe: 'Development in Europe',
-                    college: 'College Pathway',
-                    events: 'Exposure Events',
-                    coaching: 'Coaching Education'
-                  };
-                  const pathwayName = pathway ? pathwayNames[pathway] : 'a pathway';
                   handleAddNotification({
                     type: 'SUCCESS',
                     title: `+${SCOUT_POINTS.PLAYER_OFFERED} XP | Pipeline Progress`,
-                    message: `${oldPlayer.name} offered ${pathwayName}!`
+                    message: `${oldPlayer.name} has been Offered!`
                   });
                 }
                 if (oldStatus !== PlayerStatus.PLACED && newStatus === PlayerStatus.PLACED) {
@@ -567,22 +572,19 @@ const App: React.FC = () => {
                   });
                 }
 
-                // Update with status and pathway/program data (if provided)
-                const updateData: { status: PlayerStatus; offeredPathway?: string; interestedProgram?: string; placedLocation?: string } = { status: newStatus };
+                // Update status
+                const updateData: Partial<Player> = { status: newStatus };
                 if (pathway) {
                   if (newStatus === PlayerStatus.OFFERED) {
                     updateData.offeredPathway = pathway;
-                  } else if (newStatus === PlayerStatus.INTERESTED) {
-                    updateData.interestedProgram = pathway;
                   } else if (newStatus === PlayerStatus.PLACED) {
                     updateData.placedLocation = pathway;
                   }
                 }
                 await updateProspect(id, updateData);
 
-                // ITP sync when offered Development in Europe
-                if (oldStatus !== PlayerStatus.OFFERED && newStatus === PlayerStatus.OFFERED && pathway.toLowerCase().startsWith('europe')) {
-                    const isDirectSign = pathway.toLowerCase() === 'europe:direct';
+                // Trial sync: REQUEST_TRIAL triggers trial creation
+                if (oldStatus !== PlayerStatus.REQUEST_TRIAL && newStatus === PlayerStatus.REQUEST_TRIAL) {
                     const updatedPlayer = { ...oldPlayer, ...updateData };
                     const scoutName = scout?.name || userProfile?.name || 'Unknown Scout';
                     const scoutId = scout?.id || '';
@@ -590,25 +592,39 @@ const App: React.FC = () => {
                         updatedPlayer,
                         scoutId,
                         scoutName,
-                        isDirectSign,
+                        false, // not direct sign
                         trialDates
                     );
                     if (success && trialProspectId) {
-                        if (isDirectSign) {
-                            const onboardingUrl = `https://itp-trial-onboarding.vercel.app/${trialProspectId}/onboarding`;
-                            toast.success('Player added to ITP system (Direct Sign)', {
-                                duration: 10000,
-                                action: {
-                                    label: 'Copy Onboarding Link',
-                                    onClick: () => {
-                                        navigator.clipboard.writeText(onboardingUrl);
-                                        toast.success('Onboarding link copied!', { duration: 2000 });
-                                    },
+                        await updateProspect(id, { trialProspectId });
+                        toast.success('Trial request submitted — pending staff approval', { duration: 5000 });
+                    }
+                }
+
+                // Direct sign: Lead → SEND_CONTRACT with no existing trial
+                if (oldStatus === PlayerStatus.LEAD && newStatus === PlayerStatus.SEND_CONTRACT && !oldPlayer.trialProspectId) {
+                    const updatedPlayer = { ...oldPlayer, ...updateData };
+                    const scoutName = scout?.name || userProfile?.name || 'Unknown Scout';
+                    const scoutId = scout?.id || '';
+                    const { success, trialProspectId } = await sendProspectToTrial(
+                        updatedPlayer,
+                        scoutId,
+                        scoutName,
+                        true // direct sign
+                    );
+                    if (success && trialProspectId) {
+                        await updateProspect(id, { trialProspectId });
+                        const onboardingUrl = `https://itp-trial-onboarding.vercel.app/${trialProspectId}/onboarding`;
+                        toast.success('Player added to ITP system (Direct Sign)', {
+                            duration: 10000,
+                            action: {
+                                label: 'Copy Onboarding Link',
+                                onClick: () => {
+                                    navigator.clipboard.writeText(onboardingUrl);
+                                    toast.success('Onboarding link copied!', { duration: 2000 });
                                 },
-                            });
-                        } else {
-                            toast.success('Trial request submitted — pending staff approval', { duration: 5000 });
-                        }
+                            },
+                        });
                     }
                 }
             }}

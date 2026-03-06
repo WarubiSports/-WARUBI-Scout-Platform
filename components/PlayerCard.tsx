@@ -94,8 +94,8 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
         if (player.status === PlayerStatus.OFFERED) {
             return `Score ${score}. ${tier || 'Untiered'}. Offer extended - follow up!`;
         }
-        if (player.status === PlayerStatus.INTERESTED && player.interestedProgram) {
-            return `Matched to ${player.interestedProgram}. Awaiting response.`;
+        if (player.status === PlayerStatus.SEND_CONTRACT && player.interestedProgram) {
+            return `Matched to ${player.interestedProgram}. Ready for contract.`;
         }
         if (player.status === PlayerStatus.PLACED) {
             return `Successfully placed at ${player.placedLocation || 'program'}.`;
@@ -124,7 +124,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
         if (player.status === PlayerStatus.OFFERED) {
             return { label: 'Follow Up', onClick: () => onOutreach?.(player), primary: true };
         }
-        if (player.status === PlayerStatus.INTERESTED) {
+        if (player.status === PlayerStatus.SEND_CONTRACT) {
             return { label: 'View Details', onClick: () => onEdit?.(player), primary: false };
         }
         if (player.activityStatus === 'signal' || player.activityStatus === 'spotlight') {
@@ -245,14 +245,14 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                 )}
 
                 {/* INTERESTED/OFFERED/PLACED DATA */}
-                {!isReference && (player.status === PlayerStatus.INTERESTED || player.status === PlayerStatus.OFFERED || player.status === PlayerStatus.PLACED) && (
+                {!isReference && (player.status === PlayerStatus.SEND_CONTRACT || player.status === PlayerStatus.OFFERED || player.status === PlayerStatus.PLACED) && (
                     <div className="mt-2 bg-scout-900/50 p-2 rounded-lg border border-scout-700/50 text-[10px]">
                         <div className="flex justify-between items-center mb-1 text-gray-400">
                             <span className="flex items-center gap-1">
-                                {player.status === PlayerStatus.INTERESTED && <School size={10} />}
+                                {player.status === PlayerStatus.SEND_CONTRACT && <School size={10} />}
                                 {player.status === PlayerStatus.OFFERED && <Target size={10} />}
                                 {player.status === PlayerStatus.PLACED && <MapPin size={10} />}
-                                {player.status === PlayerStatus.INTERESTED ? "Program" : player.status === PlayerStatus.OFFERED ? "Offered Pathway" : "Placed at"}
+                                {player.status === PlayerStatus.SEND_CONTRACT ? "Program" : player.status === PlayerStatus.OFFERED ? "Offered Pathway" : "Placed at"}
                             </span>
                             <button onClick={() => setIsEditingData(!isEditingData)} className="text-scout-accent hover:underline text-[9px]">
                                 {isEditingData ? 'Done' : 'Edit'}
@@ -264,13 +264,13 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                                     value={extraInput}
                                     onChange={(e) => setExtraInput(e.target.value)}
                                     className="bg-scout-800 border border-scout-600 rounded px-2 py-1 w-full text-white text-xs focus:outline-none"
-                                    placeholder={player.status === PlayerStatus.INTERESTED ? "e.g. UCLA" : player.status === PlayerStatus.OFFERED ? "e.g. ITP, College" : "e.g. FC Dallas"}
+                                    placeholder={player.status === PlayerStatus.SEND_CONTRACT ? "e.g. UCLA" : player.status === PlayerStatus.OFFERED ? "e.g. ITP, College" : "e.g. FC Dallas"}
                                 />
                                 <button onClick={saveExtraData} className="bg-scout-accent text-scout-900 px-2 rounded font-bold text-xs">OK</button>
                             </div>
                         ) : (
                             <p className="text-white font-medium truncate">
-                                {player.status === PlayerStatus.INTERESTED ? (player.interestedProgram || "Not set") :
+                                {player.status === PlayerStatus.SEND_CONTRACT ? (player.interestedProgram || "Not set") :
                                  player.status === PlayerStatus.OFFERED ? (player.offeredPathway || "Not set") :
                                  (player.placedLocation || "Not set")}
                             </p>
@@ -383,8 +383,8 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                         className="appearance-none bg-scout-900/50 text-[9px] font-bold uppercase pl-2 pr-5 py-1.5 rounded-lg border border-scout-700/50 text-gray-400 focus:border-scout-accent focus:outline-none cursor-pointer hover:bg-scout-700/50"
                     >
                         <option value={PlayerStatus.LEAD}>Lead</option>
-                        <option value={PlayerStatus.CONTACTED}>Contacted</option>
-                        <option value={PlayerStatus.INTERESTED}>Interested</option>
+                        <option value={PlayerStatus.REQUEST_TRIAL}>Request Trial</option>
+                        <option value={PlayerStatus.SEND_CONTRACT}>Send Contract</option>
                         <option value={PlayerStatus.OFFERED}>Offered</option>
                         <option value={PlayerStatus.PLACED}>Placed</option>
                         <option value={PlayerStatus.ARCHIVED}>Archived</option>

@@ -19,11 +19,14 @@ export interface PlayerWithScout extends Player {
 function statusFromDb(status: ScoutProspect['status']): PlayerStatus {
   const mapping: Record<string, PlayerStatus> = {
     'lead': PlayerStatus.LEAD,
-    'contacted': PlayerStatus.CONTACTED,
-    'interested': PlayerStatus.INTERESTED,
+    'request_trial': PlayerStatus.REQUEST_TRIAL,
+    'send_contract': PlayerStatus.SEND_CONTRACT,
     'offered': PlayerStatus.OFFERED,
     'placed': PlayerStatus.PLACED,
     'archived': PlayerStatus.ARCHIVED,
+    // Legacy mappings
+    'contacted': PlayerStatus.REQUEST_TRIAL,
+    'interested': PlayerStatus.SEND_CONTRACT,
     'prospect': PlayerStatus.LEAD,
     'final_review': PlayerStatus.OFFERED,
   }
