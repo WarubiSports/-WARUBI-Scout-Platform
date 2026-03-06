@@ -1,6 +1,6 @@
 import { supabase, isSupabaseConfigured, supabaseRest } from '../lib/supabase';
 import type { Player } from '../types';
-import type { TrialDates } from '../components/PathwaySelectionModal';
+import type { TrialDates } from '../components/TrialRequestModal';
 
 interface TrialProspect {
   id: string;
@@ -179,6 +179,24 @@ export async function sendProspectToTrial(
   }
 
   return { success: true, trialProspectId, error: null };
+}
+
+/**
+ * Stamp a trial prospect with contract_requested_at/by when scout moves to Send Contract
+ */
+export async function markContractRequested(
+  trialProspectId: string,
+  scoutName: string
+): Promise<void> {
+  if (!isSupabaseConfigured || !trialProspectId) return;
+  try {
+    await supabaseRest.update('trial_prospects', `id=eq.${trialProspectId}`, {
+      contract_requested_at: new Date().toISOString(),
+      contract_requested_by: scoutName,
+    });
+  } catch (err) {
+    console.error('Error marking contract requested:', err);
+  }
 }
 
 /**

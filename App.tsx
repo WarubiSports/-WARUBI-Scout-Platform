@@ -9,7 +9,7 @@ import AdminDashboard from './components/AdminDashboard';
 import PasswordSetupModal from './components/PasswordSetupModal';
 import ResetPassword from './components/ResetPassword';
 import { evaluatePlayer } from './services/geminiService';
-import { sendProspectToTrial } from './services/trialService';
+import { sendProspectToTrial, markContractRequested } from './services/trialService';
 import type { TrialDates } from './components/TrialRequestModal';
 import { isEmailApproved } from './services/accessControlService';
 import { setAdminMode } from './services/aiUsageService';
@@ -276,6 +276,10 @@ const App: React.FC = () => {
               title: `+${SCOUT_POINTS.PLAYER_SEND_CONTRACT} XP | Pipeline Progress`,
               message: `${updatedPlayer.name} ready for contract!`
           });
+          // Stamp trial record so staff sees contract was requested
+          if (updatedPlayer.trialProspectId) {
+            await markContractRequested(updatedPlayer.trialProspectId, scout?.name || userProfile?.name || 'Unknown Scout');
+          }
         }
 
         // → OFFERED
@@ -553,6 +557,10 @@ const App: React.FC = () => {
                     title: `+${SCOUT_POINTS.PLAYER_SEND_CONTRACT} XP | Pipeline Progress`,
                     message: `${oldPlayer.name} ready for contract!`
                   });
+                  // Stamp trial record so staff sees contract was requested
+                  if (oldPlayer.trialProspectId) {
+                    await markContractRequested(oldPlayer.trialProspectId, scout?.name || userProfile?.name || 'Unknown Scout');
+                  }
                 }
                 if (oldStatus !== PlayerStatus.OFFERED && newStatus === PlayerStatus.OFFERED) {
                   await addXP(SCOUT_POINTS.PLAYER_OFFERED);
