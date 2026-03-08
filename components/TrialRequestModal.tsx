@@ -53,6 +53,12 @@ export const TrialRequestModal: React.FC<TrialRequestModalProps> = ({
 
                 {/* Date Picker */}
                 <div className="p-6 space-y-4">
+                    {/* Recommendation */}
+                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3">
+                        <p className="text-xs text-blue-300">
+                            <span className="font-bold text-blue-200">Recommended:</span> 5–7 days, ideally Mon–Fri. Most training sessions, language classes, and recovery activities run during the workweek.
+                        </p>
+                    </div>
                     <div className="space-y-3">
                         <div>
                             <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-1.5">Start Date</label>

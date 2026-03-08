@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Toaster, toast } from 'sonner';
 import { AppView, UserProfile, Player, ScoutingEvent, AppNotification, PlayerStatus } from './types';
-import { SCOUT_POINTS } from './constants';
 import Login from './components/Login';
 import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
@@ -39,7 +38,7 @@ const App: React.FC = () => {
   }, []);
 
   // Supabase integration
-  const { scout, loading: scoutLoading, initializeScout, addXP, incrementPlacements } = useScoutContext();
+  const { scout, loading: scoutLoading, initializeScout, incrementPlacements } = useScoutContext();
   const { prospects, addProspect, updateProspect, deleteProspect } = useProspects(scout?.id);
   const { events, addEvent, updateEvent, deleteEvent } = useEvents(scout?.id);
   const { logOutreach } = useOutreach(scout?.id);
@@ -123,16 +122,6 @@ const App: React.FC = () => {
       setNotifications(prev => [newNotif, ...prev]);
   }, []);
 
-  const scoutScore = useMemo(() => {
-      if (scout?.xp_score) return scout.xp_score;
-      let score = 0;
-      score += prospects.length * SCOUT_POINTS.PLAYER_LOG;
-      score += prospects.filter(p => p.status === PlayerStatus.PLACED).length * SCOUT_POINTS.PLACEMENT;
-      score += events.filter(e => e.role === 'HOST' || e.isMine).length * SCOUT_POINTS.EVENT_HOST;
-      score += events.filter(e => e.role === 'ATTENDEE' && !e.isMine).length * SCOUT_POINTS.EVENT_ATTEND;
-      return score;
-  }, [scout?.xp_score, prospects, events]);
-
   const handleOnboardingComplete = async (profile: UserProfile, initialPlayers: Player[], initialEvents: ScoutingEvent[]) => {
     const newScout = await initializeScout(profile);
     if (!newScout) {
@@ -156,36 +145,10 @@ const App: React.FC = () => {
     try {
       const newPlayer = await addProspect(player);
       if (newPlayer) {
-        // Calculate XP with quality bonuses
-        let totalXP = SCOUT_POINTS.PLAYER_LOG;
-        const bonuses: string[] = [];
-
-        // Video bonus
-        if (player.videoLink) {
-          totalXP += SCOUT_POINTS.PLAYER_HAS_VIDEO;
-          bonuses.push('video');
-        }
-
-        // Complete profile bonus (position, club, GPA, graduation year)
-        const hasCompleteProfile = player.position && player.club && player.gpa && player.graduationYear;
-        if (hasCompleteProfile) {
-          totalXP += SCOUT_POINTS.PLAYER_COMPLETE_PROFILE;
-          bonuses.push('complete profile');
-        }
-
-        // Parent contact bonus
-        if (player.parentEmail || player.parentPhone) {
-          totalXP += SCOUT_POINTS.PLAYER_HAS_PARENT_CONTACT;
-          bonuses.push('parent contact');
-        }
-
-        await addXP(totalXP);
-
-        const bonusText = bonuses.length > 0 ? ` (${bonuses.join(', ')})` : '';
         handleAddNotification({
             type: 'SUCCESS',
-            title: `+${totalXP} XP | Player Added`,
-            message: `${player.name} added to your pipeline${bonusText}.`
+            title: 'Player Added',
+            message: `${player.name} added to your pipeline.`
         });
         return newPlayer;
       } else {
@@ -218,35 +181,11 @@ const App: React.FC = () => {
 
       const player = prospects.find(p => p.id === playerId);
       if (player) {
-        // Check if this is the first outreach (for XP bonus)
-        const isFirstOutreach = player.outreachLogs.length === 0;
-
         await updateProspect(playerId, {
           outreachLogs: [...player.outreachLogs, outreachLog || log],
           lastContactedAt: new Date().toISOString(),
           activityStatus: 'spark'
         });
-
-        // Award XP for first outreach
-        if (isFirstOutreach) {
-          await addXP(SCOUT_POINTS.FIRST_OUTREACH);
-          handleAddNotification({
-              type: 'SUCCESS',
-              title: `+${SCOUT_POINTS.FIRST_OUTREACH} XP | First Outreach`,
-              message: `First message sent to ${player.name}.`
-          });
-        }
-
-        // Auto-advance from Lead to Request Trial on first message
-        if (player.status === PlayerStatus.LEAD) {
-          await addXP(SCOUT_POINTS.PLAYER_REQUEST_TRIAL);
-          await updateProspect(playerId, { status: PlayerStatus.REQUEST_TRIAL });
-          handleAddNotification({
-              type: 'SUCCESS',
-              title: `+${SCOUT_POINTS.PLAYER_REQUEST_TRIAL} XP | Pipeline Progress`,
-              message: `${player.name} moved to Request Trial stage.`
-          });
-        }
       }
   };
 
@@ -254,52 +193,24 @@ const App: React.FC = () => {
       const oldPlayer = prospects.find(p => p.id === updatedPlayer.id);
       if (!oldPlayer) return;
 
-      // Pipeline progression XP rewards
+      // Pipeline progression notifications
       const statusChanged = oldPlayer.status !== updatedPlayer.status;
 
       if (statusChanged) {
-        // LEAD → REQUEST_TRIAL
-        if (oldPlayer.status === PlayerStatus.LEAD && updatedPlayer.status === PlayerStatus.REQUEST_TRIAL) {
-          await addXP(SCOUT_POINTS.PLAYER_REQUEST_TRIAL);
-          handleAddNotification({
-              type: 'SUCCESS',
-              title: `+${SCOUT_POINTS.PLAYER_REQUEST_TRIAL} XP | Pipeline Progress`,
-              message: `${updatedPlayer.name} moved to Request Trial.`
-          });
-        }
-
-        // REQUEST_TRIAL → SEND_CONTRACT
         if (oldPlayer.status === PlayerStatus.REQUEST_TRIAL && updatedPlayer.status === PlayerStatus.SEND_CONTRACT) {
-          await addXP(SCOUT_POINTS.PLAYER_SEND_CONTRACT);
-          handleAddNotification({
-              type: 'SUCCESS',
-              title: `+${SCOUT_POINTS.PLAYER_SEND_CONTRACT} XP | Pipeline Progress`,
-              message: `${updatedPlayer.name} ready for contract!`
-          });
           // Stamp trial record so staff sees contract was requested
           if (updatedPlayer.trialProspectId) {
             await markContractRequested(updatedPlayer.trialProspectId, scout?.name || userProfile?.name || 'Unknown Scout');
           }
         }
-
-        // → OFFERED
-        if (oldPlayer.status !== PlayerStatus.OFFERED && updatedPlayer.status === PlayerStatus.OFFERED) {
-          await addXP(SCOUT_POINTS.PLAYER_OFFERED);
-          handleAddNotification({
-              type: 'SUCCESS',
-              title: `+${SCOUT_POINTS.PLAYER_OFFERED} XP | Pipeline Progress`,
-              message: `${updatedPlayer.name} has been Offered!`
-          });
-        }
       }
 
       // Check for placement (final stage)
       if (oldPlayer.status !== PlayerStatus.PLACED && updatedPlayer.status === PlayerStatus.PLACED) {
-          await addXP(SCOUT_POINTS.PLACEMENT);
           await incrementPlacements();
           handleAddNotification({
               type: 'SUCCESS',
-              title: `+${SCOUT_POINTS.PLACEMENT} XP | PLACEMENT CONFIRMED!`,
+              title: 'PLACEMENT CONFIRMED!',
               message: `Incredible work placing ${updatedPlayer.name}.`
           });
       }
@@ -435,11 +346,9 @@ const App: React.FC = () => {
         const newEvent = await addEvent(event);
         if (newEvent) {
           const isHost = event.role === 'HOST' || event.isMine;
-          const points = isHost ? SCOUT_POINTS.EVENT_HOST : SCOUT_POINTS.EVENT_ATTEND;
-          await addXP(points);
           handleAddNotification({
               type: 'SUCCESS',
-              title: `+${points} XP | ${isHost ? 'Event Created' : 'Attendance Confirmed'}`,
+              title: isHost ? 'Event Created' : 'Attendance Confirmed',
               message: `${event.title} added to schedule.`
           });
         } else {
@@ -524,7 +433,6 @@ const App: React.FC = () => {
             players={prospects}
             events={events}
             notifications={notifications}
-            scoutScore={scoutScore}
             onAddPlayer={handleAddPlayer}
             onUpdateProfile={handleUpdateProfile}
             onAddEvent={handleAddEvent}
@@ -535,47 +443,23 @@ const App: React.FC = () => {
             onMarkAllRead={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
             onMessageSent={handleMessageSent}
             onStatusChange={async (id, newStatus, pathway, trialDates) => {
-                // Find old player to check status transition for XP
                 const oldPlayer = prospects.find(p => p.id === id);
                 if (!oldPlayer) return;
 
                 const oldStatus = oldPlayer.status;
 
-                // Award pipeline progression XP
-                if (oldStatus === PlayerStatus.LEAD && newStatus === PlayerStatus.REQUEST_TRIAL) {
-                  await addXP(SCOUT_POINTS.PLAYER_REQUEST_TRIAL);
-                  handleAddNotification({
-                    type: 'SUCCESS',
-                    title: `+${SCOUT_POINTS.PLAYER_REQUEST_TRIAL} XP | Pipeline Progress`,
-                    message: `${oldPlayer.name} moved to Request Trial.`
-                  });
-                }
+                // Pipeline progression
                 if (oldStatus === PlayerStatus.REQUEST_TRIAL && newStatus === PlayerStatus.SEND_CONTRACT) {
-                  await addXP(SCOUT_POINTS.PLAYER_SEND_CONTRACT);
-                  handleAddNotification({
-                    type: 'SUCCESS',
-                    title: `+${SCOUT_POINTS.PLAYER_SEND_CONTRACT} XP | Pipeline Progress`,
-                    message: `${oldPlayer.name} ready for contract!`
-                  });
                   // Stamp trial record so staff sees contract was requested
                   if (oldPlayer.trialProspectId) {
                     await markContractRequested(oldPlayer.trialProspectId, scout?.name || userProfile?.name || 'Unknown Scout');
                   }
                 }
-                if (oldStatus !== PlayerStatus.OFFERED && newStatus === PlayerStatus.OFFERED) {
-                  await addXP(SCOUT_POINTS.PLAYER_OFFERED);
-                  handleAddNotification({
-                    type: 'SUCCESS',
-                    title: `+${SCOUT_POINTS.PLAYER_OFFERED} XP | Pipeline Progress`,
-                    message: `${oldPlayer.name} has been Offered!`
-                  });
-                }
                 if (oldStatus !== PlayerStatus.PLACED && newStatus === PlayerStatus.PLACED) {
-                  await addXP(SCOUT_POINTS.PLACEMENT);
                   await incrementPlacements();
                   handleAddNotification({
                     type: 'SUCCESS',
-                    title: `+${SCOUT_POINTS.PLACEMENT} XP | PLACEMENT CONFIRMED!`,
+                    title: 'PLACEMENT CONFIRMED!',
                     message: `Incredible work placing ${oldPlayer.name}.`
                   });
                 }

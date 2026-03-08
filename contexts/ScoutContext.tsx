@@ -7,11 +7,9 @@ interface ScoutContextType {
   scout: Scout | null
   loading: boolean
   error: string | null
-  xpScore: number
   placementsCount: number
   initializeScout: (profile: UserProfile, userId?: string) => Promise<Scout | null>
   updateScout: (updates: Partial<ScoutUpdate>) => Promise<void>
-  addXP: (points: number) => Promise<void>
   incrementPlacements: () => Promise<void>
   refreshScout: () => Promise<void>
   clearScout: () => void
@@ -239,15 +237,6 @@ export function ScoutProvider({ children, userId }: ScoutProviderProps) {
     }
   }
 
-  const addXP = async (points: number) => {
-    if (!scout) return
-
-    const newXP = (scout.xp_score || 0) + points
-    const newLevel = Math.floor(newXP / 100) + 1
-
-    await updateScout({ xp_score: newXP, level: newLevel })
-  }
-
   const incrementPlacements = async () => {
     if (!scout) return
 
@@ -261,11 +250,9 @@ export function ScoutProvider({ children, userId }: ScoutProviderProps) {
         scout,
         loading,
         error,
-        xpScore: scout?.xp_score || 0,
         placementsCount: scout?.placements_count || 0,
         initializeScout,
         updateScout,
-        addXP,
         incrementPlacements,
         refreshScout,
         clearScout,
