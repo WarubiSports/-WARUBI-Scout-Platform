@@ -61,10 +61,7 @@ export default defineConfig(({ mode }) => {
         }
       }
     ],
-    define: {
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
-    },
+    // Gemini API key removed — all AI calls go through VITE_GEMINI_PROXY_URL (Edge Function)
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
