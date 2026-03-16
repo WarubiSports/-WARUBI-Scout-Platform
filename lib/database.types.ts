@@ -450,11 +450,20 @@ export interface Database {
         Row: {
           id: string
           scout_id: string
+          agreement_type: 'regional_licensee' | 'talent_scout' | 'hybrid'
           currency: 'EUR' | 'USD'
           rate_full_season: number
           rate_6_months: number
           rate_3_months: number
           rate_1_month: number | null
+          rate_1_month_female: number | null
+          rate_3_months_female: number | null
+          college_rate_tier_1: number | null
+          college_rate_tier_2: number | null
+          college_rate_tier_3: number | null
+          college_rate_currency: 'EUR' | 'USD' | null
+          scholarship_adjusts_tdrf: boolean
+          has_event_rights: boolean
           min_placements_per_year: number
           agreement_start: string
           agreement_end: string | null
@@ -466,11 +475,20 @@ export interface Database {
         Insert: {
           id?: string
           scout_id: string
+          agreement_type?: 'regional_licensee' | 'talent_scout' | 'hybrid'
           currency?: 'EUR' | 'USD'
           rate_full_season?: number
           rate_6_months?: number
           rate_3_months?: number
           rate_1_month?: number | null
+          rate_1_month_female?: number | null
+          rate_3_months_female?: number | null
+          college_rate_tier_1?: number | null
+          college_rate_tier_2?: number | null
+          college_rate_tier_3?: number | null
+          college_rate_currency?: 'EUR' | 'USD' | null
+          scholarship_adjusts_tdrf?: boolean
+          has_event_rights?: boolean
           min_placements_per_year?: number
           agreement_start: string
           agreement_end?: string | null
@@ -482,11 +500,20 @@ export interface Database {
         Update: {
           id?: string
           scout_id?: string
+          agreement_type?: 'regional_licensee' | 'talent_scout' | 'hybrid'
           currency?: 'EUR' | 'USD'
           rate_full_season?: number
           rate_6_months?: number
           rate_3_months?: number
           rate_1_month?: number | null
+          rate_1_month_female?: number | null
+          rate_3_months_female?: number | null
+          college_rate_tier_1?: number | null
+          college_rate_tier_2?: number | null
+          college_rate_tier_3?: number | null
+          college_rate_currency?: 'EUR' | 'USD' | null
+          scholarship_adjusts_tdrf?: boolean
+          has_event_rights?: boolean
           min_placements_per_year?: number
           agreement_start?: string
           agreement_end?: string | null

@@ -25,6 +25,19 @@ export interface EventEarning {
   revenue: number
 }
 
+export interface AgreementRates {
+  fullSeason: number
+  sixMonths: number
+  threeMonths: number
+  oneMonth: number | null
+  oneMonthFemale: number | null
+  threeMonthsFemale: number | null
+  collegeTier1: number | null
+  collegeTier2: number | null
+  collegeTier3: number | null
+  collegeRateCurrency: 'EUR' | 'USD' | null
+}
+
 export interface EarningsData {
   totalConfirmed: number
   totalPending: number
@@ -33,7 +46,10 @@ export interface EarningsData {
   placements: PlacementEarning[]
   eventRevenue: number
   events: EventEarning[]
-  rates: { fullSeason: number; sixMonths: number; threeMonths: number; oneMonth: number | null } | null
+  rates: AgreementRates | null
+  agreementType: 'regional_licensee' | 'talent_scout' | 'hybrid' | null
+  hasEventRights: boolean
+  scholarshipAdjustsTdrf: boolean
   currency: 'EUR' | 'USD'
   loading: boolean
   hasAgreement: boolean
@@ -46,6 +62,8 @@ function getRateForDuration(agreement: ScoutAgreement, duration: string | undefi
     case '6_months': return agreement.rate_6_months
     case '3_months': return agreement.rate_3_months
     case '1_month': return agreement.rate_1_month
+    case '1_month_female': return agreement.rate_1_month_female
+    case '3_months_female': return agreement.rate_3_months_female
     default: return null
   }
 }
@@ -72,11 +90,17 @@ export function useEarnings(scoutId: string | undefined, players: Player[]): Ear
   const loading = agreementLoading || eventsLoading
 
   const result = useMemo(() => {
-    const emptyRates = agreement ? {
+    const rates: AgreementRates | null = agreement ? {
       fullSeason: agreement.rate_full_season,
       sixMonths: agreement.rate_6_months,
       threeMonths: agreement.rate_3_months,
       oneMonth: agreement.rate_1_month,
+      oneMonthFemale: agreement.rate_1_month_female,
+      threeMonthsFemale: agreement.rate_3_months_female,
+      collegeTier1: agreement.college_rate_tier_1,
+      collegeTier2: agreement.college_rate_tier_2,
+      collegeTier3: agreement.college_rate_tier_3,
+      collegeRateCurrency: agreement.college_rate_currency,
     } : null
 
     if (!agreement) {
@@ -88,7 +112,10 @@ export function useEarnings(scoutId: string | undefined, players: Player[]): Ear
         placements: [],
         eventRevenue: 0,
         events: [],
-        rates: emptyRates,
+        rates,
+        agreementType: null,
+        hasEventRights: false,
+        scholarshipAdjustsTdrf: false,
         currency: 'USD' as const,
         loading,
         hasAgreement,
@@ -153,7 +180,10 @@ export function useEarnings(scoutId: string | undefined, players: Player[]): Ear
       placements,
       eventRevenue,
       events,
-      rates: emptyRates,
+      rates,
+      agreementType: agreement.agreement_type,
+      hasEventRights: agreement.has_event_rights,
+      scholarshipAdjustsTdrf: agreement.scholarship_adjusts_tdrf,
       currency: agreement.currency,
       loading,
       hasAgreement,

@@ -267,27 +267,86 @@ const MyBusinessTab: React.FC<MyBusinessTabProps> = ({ players, scoutId }) => {
                                     <div className="px-6 py-4 border-b border-scout-700">
                                         <h2 className="text-sm font-black text-white uppercase tracking-wide">Your Compensation Structure</h2>
                                     </div>
-                                    <div className="p-6">
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                                            <div className="bg-scout-900/50 rounded-xl p-4 text-center">
-                                                <div className="text-lg font-black text-white">{formatCurrency(earnings.rates.fullSeason, earnings.currency)}</div>
-                                                <div className="text-xs text-gray-500 mt-1">Full Season</div>
-                                                <div className="text-[10px] text-gray-600">10 months</div>
-                                            </div>
-                                            <div className="bg-scout-900/50 rounded-xl p-4 text-center">
-                                                <div className="text-lg font-black text-white">{formatCurrency(earnings.rates.sixMonths, earnings.currency)}</div>
-                                                <div className="text-xs text-gray-500 mt-1">6 Months</div>
-                                            </div>
-                                            <div className="bg-scout-900/50 rounded-xl p-4 text-center">
-                                                <div className="text-lg font-black text-white">{formatCurrency(earnings.rates.threeMonths, earnings.currency)}</div>
-                                                <div className="text-xs text-gray-500 mt-1">3 Months</div>
-                                            </div>
-                                            <div className="bg-scout-900/50 rounded-xl p-4 text-center">
-                                                <div className="text-lg font-black text-white">100%</div>
-                                                <div className="text-xs text-gray-500 mt-1">Event Revenue</div>
-                                                <div className="text-[10px] text-gray-600">You keep all fees</div>
+                                    <div className="p-6 space-y-6">
+                                        {/* ITP Boys Rates */}
+                                        <div>
+                                            <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3">FC Köln ITP (Boys)</p>
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                <div className="bg-scout-900/50 rounded-xl p-4 text-center">
+                                                    <div className="text-lg font-black text-white">{formatCurrency(earnings.rates.fullSeason, earnings.currency)}</div>
+                                                    <div className="text-xs text-gray-500 mt-1">Full Season</div>
+                                                </div>
+                                                <div className="bg-scout-900/50 rounded-xl p-4 text-center">
+                                                    <div className="text-lg font-black text-white">{formatCurrency(earnings.rates.sixMonths, earnings.currency)}</div>
+                                                    <div className="text-xs text-gray-500 mt-1">6 Months</div>
+                                                </div>
+                                                <div className="bg-scout-900/50 rounded-xl p-4 text-center">
+                                                    <div className="text-lg font-black text-white">{formatCurrency(earnings.rates.threeMonths, earnings.currency)}</div>
+                                                    <div className="text-xs text-gray-500 mt-1">3 Months</div>
+                                                </div>
+                                                {earnings.hasEventRights && (
+                                                    <div className="bg-scout-900/50 rounded-xl p-4 text-center">
+                                                        <div className="text-lg font-black text-white">100%</div>
+                                                        <div className="text-xs text-gray-500 mt-1">Event Revenue</div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
+
+                                        {/* ITP Girls Rates - only if set */}
+                                        {(earnings.rates.oneMonthFemale || earnings.rates.threeMonthsFemale) && (
+                                            <div>
+                                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3">FC Köln ITP (Girls)</p>
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                    {earnings.rates.threeMonthsFemale && (
+                                                        <div className="bg-scout-900/50 rounded-xl p-4 text-center">
+                                                            <div className="text-lg font-black text-white">{formatCurrency(earnings.rates.threeMonthsFemale, earnings.currency)}</div>
+                                                            <div className="text-xs text-gray-500 mt-1">3 Months</div>
+                                                        </div>
+                                                    )}
+                                                    {earnings.rates.oneMonthFemale && (
+                                                        <div className="bg-scout-900/50 rounded-xl p-4 text-center">
+                                                            <div className="text-lg font-black text-white">{formatCurrency(earnings.rates.oneMonthFemale, earnings.currency)}</div>
+                                                            <div className="text-xs text-gray-500 mt-1">1 Month</div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* College Placement Rates - only for hybrid scouts */}
+                                        {earnings.rates.collegeTier1 && (
+                                            <div>
+                                                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3">College Soccer USA</p>
+                                                <div className="grid grid-cols-3 gap-3">
+                                                    <div className="bg-scout-900/50 rounded-xl p-4 text-center">
+                                                        <div className="text-lg font-black text-white">{formatCurrency(earnings.rates.collegeTier1, earnings.rates.collegeRateCurrency || 'USD')}</div>
+                                                        <div className="text-xs text-gray-500 mt-1">Clients #1–4</div>
+                                                    </div>
+                                                    {earnings.rates.collegeTier2 && (
+                                                        <div className="bg-scout-900/50 rounded-xl p-4 text-center">
+                                                            <div className="text-lg font-black text-white">{formatCurrency(earnings.rates.collegeTier2, earnings.rates.collegeRateCurrency || 'USD')}</div>
+                                                            <div className="text-xs text-gray-500 mt-1">Clients #5–9</div>
+                                                        </div>
+                                                    )}
+                                                    {earnings.rates.collegeTier3 && (
+                                                        <div className="bg-scout-900/50 rounded-xl p-4 text-center">
+                                                            <div className="text-lg font-black text-white">{formatCurrency(earnings.rates.collegeTier3, earnings.rates.collegeRateCurrency || 'USD')}</div>
+                                                            <div className="text-xs text-gray-500 mt-1">Clients #10+</div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {earnings.scholarshipAdjustsTdrf && (
+                                            <div className="bg-orange-500/5 rounded-lg p-3 border border-orange-500/20">
+                                                <p className="text-xs text-orange-400/80">
+                                                    <span className="font-bold">Note:</span> If a player receives a scholarship, your TDRF is based on the net tuition paid after reductions.
+                                                </p>
+                                            </div>
+                                        )}
+
                                         <div className="bg-scout-900/30 rounded-lg p-4 border border-scout-700/50">
                                             <div className="flex items-start gap-3">
                                                 <TrendingUp size={18} className="text-blue-400 mt-0.5 shrink-0" />
@@ -295,8 +354,8 @@ const MyBusinessTab: React.FC<MyBusinessTabProps> = ({ players, scoutId }) => {
                                                     <p className="text-sm text-gray-300 font-medium">How to start earning</p>
                                                     <p className="text-xs text-gray-500 mt-1">
                                                         Move players to <span className="text-white font-bold">PLACED</span> status to track placement compensation.
-                                                        Host showcases and events to earn participation fees.
-                                                        Place {earnings.minPlacementsPerYear} players per year to renew your license.
+                                                        {earnings.hasEventRights && ' Host showcases and events to earn participation fees.'}
+                                                        {' '}Place {earnings.minPlacementsPerYear}+ players per year to maintain your license.
                                                     </p>
                                                 </div>
                                             </div>
@@ -367,8 +426,8 @@ const MyBusinessTab: React.FC<MyBusinessTabProps> = ({ players, scoutId }) => {
                                 )}
                             </div>
 
-                            {/* Event Revenue */}
-                            <div className="bg-scout-800 border border-scout-700 rounded-2xl overflow-hidden">
+                            {/* Event Revenue - only for scouts with event rights */}
+                            {earnings.hasEventRights && <div className="bg-scout-800 border border-scout-700 rounded-2xl overflow-hidden">
                                 <div className="px-6 py-4 border-b border-scout-700 flex items-center justify-between">
                                     <h2 className="text-sm font-black text-white uppercase tracking-wide">Event Revenue</h2>
                                     {earnings.eventRevenue > 0 && (
@@ -408,7 +467,7 @@ const MyBusinessTab: React.FC<MyBusinessTabProps> = ({ players, scoutId }) => {
                                         </tbody>
                                     </table>
                                 )}
-                            </div>
+                            </div>}
                         </>
                     )}
                 </div>
