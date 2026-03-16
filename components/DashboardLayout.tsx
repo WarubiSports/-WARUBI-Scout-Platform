@@ -9,8 +9,7 @@ import GlobalSearch from './GlobalSearch';
 import TrialRequestModal, { TrialDates } from './TrialRequestModal';
 import PlacementModal, { PlacementData } from './PlacementModal';
 import { haptic } from '../hooks/useMobileFeatures';
-import { Users, CalendarDays, Plus, BookOpen, LogOut, Lightbulb, BarChart3, DollarSign } from 'lucide-react';
-import { useScoutAgreement } from '../hooks/useScoutAgreement';
+import { Users, CalendarDays, Plus, BookOpen, LogOut, Lightbulb, BarChart3 } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
 
 // Context type for child routes
@@ -92,8 +91,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     const [pendingPlacedPlayer, setPendingPlacedPlayer] = useState<Player | null>(null);
     const [showMobileProfile, setShowMobileProfile] = useState(false);
 
-    const { hasAgreement } = useScoutAgreement(user.scoutId);
-
     // Determine active tab from URL
     const activeTab = location.pathname.split('/').pop() || 'players';
 
@@ -129,7 +126,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 navigate('/dashboard/outreach');
             } else if (e.key === 'i' || e.key === 'I') {
                 e.preventDefault();
-                navigate('/dashboard/insights');
+                navigate('/dashboard/my-business');
             } else if (e.key === 'Escape') {
                 if (isSearchOpen) setIsSearchOpen(false);
                 if (isSubmissionOpen) {
@@ -257,10 +254,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                     <button onClick={() => navigate('/dashboard/players')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'players' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:bg-scout-900/50'}`}><Users size={20} /> Players</button>
                     <button onClick={() => navigate('/dashboard/events')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'events' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><CalendarDays size={20} /> Events</button>
                     <button onClick={() => navigate('/dashboard/knowledge')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'knowledge' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><BookOpen size={20} /> Pathways</button>
-                    <button onClick={() => navigate('/dashboard/insights')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'insights' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><BarChart3 size={20} /> Insights</button>
-                    {hasAgreement && (
-                        <button onClick={() => navigate('/dashboard/earnings')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'earnings' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><DollarSign size={20} /> Earnings</button>
-                    )}
+                    <button onClick={() => navigate('/dashboard/my-business')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'my-business' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><BarChart3 size={20} /> My Business</button>
                 </nav>
                 <div className="p-4">
                     <button
@@ -365,9 +359,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                             <Plus size={28} />
                         </button>
                     </div>
-                    <button onClick={() => { haptic.light(); navigate('/dashboard/insights'); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === 'insights' ? 'text-scout-accent' : 'text-gray-600'}`}>
+                    <button onClick={() => { haptic.light(); navigate('/dashboard/my-business'); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === 'my-business' ? 'text-scout-accent' : 'text-gray-600'}`}>
                         <BarChart3 size={20} />
-                        <span className="text-[8px] font-black uppercase">Insights</span>
+                        <span className="text-[8px] font-black uppercase">Business</span>
                     </button>
                     <button onClick={() => { haptic.light(); setShowMobileProfile(true); }} className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95">
                         <div className="w-7 h-7 rounded-full bg-gradient-to-br from-scout-accent/30 to-scout-highlight/20 border-2 border-scout-accent flex items-center justify-center">

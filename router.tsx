@@ -7,6 +7,7 @@ export const LazyOutreachTab = lazy(() => import('./components/OutreachTab'));
 export const LazyKnowledgeTab = lazy(() => import('./components/KnowledgeTab'));
 export const LazyInsightsTab = lazy(() => import('./components/InsightsTab'));
 export const LazyEarningsTab = lazy(() => import('./components/EarningsTab'));
+export const LazyMyBusinessTab = lazy(() => import('./components/MyBusinessTab'));
 
 export const LazyFallback = () => (
     <div className="flex items-center justify-center h-64">

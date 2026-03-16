@@ -13,6 +13,7 @@ import OutreachRoute from './components/routes/OutreachRoute';
 import KnowledgeRoute from './components/routes/KnowledgeRoute';
 import InsightsRoute from './components/routes/InsightsRoute';
 import EarningsRoute from './components/routes/EarningsRoute';
+import MyBusinessRoute from './components/routes/MyBusinessRoute';
 import { evaluatePlayer } from './services/geminiService';
 import { isEmailApproved } from './services/accessControlService';
 import { setAdminMode } from './services/aiUsageService';
@@ -428,8 +429,9 @@ const App: React.FC = () => {
             <Route path="events" element={<EventsRoute />} />
             <Route path="outreach" element={<OutreachRoute />} />
             <Route path="knowledge" element={<KnowledgeRoute />} />
-            <Route path="insights" element={<InsightsRoute />} />
-            <Route path="earnings" element={<EarningsRoute />} />
+            <Route path="my-business" element={<MyBusinessRoute />} />
+            <Route path="insights" element={<Navigate to="/dashboard/my-business" replace />} />
+            <Route path="earnings" element={<Navigate to="/dashboard/my-business" replace />} />
           </Route>
         )}
 
