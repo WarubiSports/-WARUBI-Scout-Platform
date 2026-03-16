@@ -115,6 +115,9 @@ export interface Player {
   dateOfBirth?: string;
   trialProspectId?: string;
   trialStatus?: string;
+  programDuration?: 'full_season' | '6_months' | '3_months' | '1_month';
+  enrollmentConfirmed?: boolean;
+  enrollmentConfirmedAt?: string;
 }
 
 export type EventStatus = 'Draft' | 'Pending Approval' | 'Approved' | 'Published' | 'Completed' | 'Rejected';

@@ -1,47 +1,46 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Toaster, toast } from 'sonner';
+import React, { useState, useCallback, useEffect, Suspense } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { Toaster } from 'sonner';
 import { AppView, UserProfile, Player, ScoutingEvent, AppNotification, PlayerStatus } from './types';
 import Login from './components/Login';
 import Onboarding from './components/Onboarding';
-import Dashboard from './components/Dashboard';
-import AdminDashboard from './components/AdminDashboard';
+import DashboardLayout from './components/DashboardLayout';
 import PasswordSetupModal from './components/PasswordSetupModal';
 import ResetPassword from './components/ResetPassword';
+import PlayersContent from './components/PlayersContent';
+import EventsRoute from './components/routes/EventsRoute';
+import OutreachRoute from './components/routes/OutreachRoute';
+import KnowledgeRoute from './components/routes/KnowledgeRoute';
+import InsightsRoute from './components/routes/InsightsRoute';
+import EarningsRoute from './components/routes/EarningsRoute';
 import { evaluatePlayer } from './services/geminiService';
-import { sendProspectToTrial, markContractRequested } from './services/trialService';
-import type { TrialDates } from './components/TrialRequestModal';
 import { isEmailApproved } from './services/accessControlService';
 import { setAdminMode } from './services/aiUsageService';
+import { useItpSync } from './hooks/useItpSync';
 import { useAuthContext } from './contexts/AuthContext';
 import { useScoutContext } from './contexts/ScoutContext';
 import { useProspects } from './hooks/useProspects';
 import { useEvents } from './hooks/useEvents';
 import { useOutreach } from './hooks/useOutreach';
+import { LazyAdminDashboard, LazyFallback } from './router';
 
 const App: React.FC = () => {
-  const [view, setView] = useState<AppView>(AppView.LOGIN);
+  const navigate = useNavigate();
+  const location = useLocation();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [approvedScoutInfo, setApprovedScoutInfo] = useState<{ isAdmin: boolean; name?: string; region?: string } | null>(null);
-  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   // Auth context
   const { isAuthenticated, loading: authLoading, signOut, needsPasswordSetup, dismissPasswordSetup, user } = useAuthContext();
-
-  // Check for password reset token in URL
-  useEffect(() => {
-    const hash = window.location.hash;
-    if (hash && hash.includes('type=recovery')) {
-      setIsResettingPassword(true);
-      // Don't clear the hash yet - Supabase needs it to establish the session
-      // It will be cleared after password is successfully reset
-    }
-  }, []);
 
   // Supabase integration
   const { scout, loading: scoutLoading, initializeScout, incrementPlacements } = useScoutContext();
   const { prospects, addProspect, updateProspect, deleteProspect } = useProspects(scout?.id);
   const { events, addEvent, updateEvent, deleteEvent } = useEvents(scout?.id);
   const { logOutreach } = useOutreach(scout?.id);
+
+  const scoutName = scout?.name || userProfile?.name || 'Unknown Scout';
+  const scoutId = scout?.id || '';
 
   const [notifications, setNotifications] = useState<AppNotification[]>([
       {
@@ -71,21 +70,30 @@ const App: React.FC = () => {
     fetchApprovedScoutInfo();
   }, [isAuthenticated, user?.email, scout]);
 
-  // Track if initial view has been set
-  const [initialViewSet, setInitialViewSet] = useState(false);
+  // Track if initial routing has been done
+  const [initialRouteSet, setInitialRouteSet] = useState(false);
 
-  // Handle auth state and view routing
+  // Handle auth state → route navigation
   useEffect(() => {
     if (authLoading || scoutLoading) return;
 
+    // Check for password reset token in URL
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      navigate('/reset-password', { replace: true });
+      return;
+    }
+
     if (!isAuthenticated) {
-      setView(AppView.LOGIN);
-      setInitialViewSet(false); // Reset when logged out
+      // Only redirect to login if not already on a public route
+      if (!['/login', '/reset-password'].includes(location.pathname)) {
+        navigate('/login', { replace: true });
+      }
+      setInitialRouteSet(false);
       return;
     }
 
     if (scout) {
-      // Set admin mode for AI usage limits
       setAdminMode(scout.is_admin || false);
 
       const profile: UserProfile = {
@@ -101,16 +109,21 @@ const App: React.FC = () => {
         leadMagnetActive: scout.lead_magnet_active,
       };
       setUserProfile(profile);
-      // Only set initial view once, don't override on subsequent scout updates
-      if (!initialViewSet) {
-        setView(scout.is_admin ? AppView.ADMIN : AppView.DASHBOARD);
-        setInitialViewSet(true);
+
+      if (!initialRouteSet) {
+        // Only auto-navigate if on login/onboarding/root
+        if (['/', '/login', '/onboarding'].includes(location.pathname)) {
+          navigate(scout.is_admin ? '/admin' : '/dashboard/players', { replace: true });
+        }
+        setInitialRouteSet(true);
       }
     } else {
-      setView(AppView.ONBOARDING);
-      setInitialViewSet(false);
+      if (location.pathname !== '/onboarding') {
+        navigate('/onboarding', { replace: true });
+      }
+      setInitialRouteSet(false);
     }
-  }, [authLoading, scoutLoading, isAuthenticated, scout, initialViewSet]);
+  }, [authLoading, scoutLoading, isAuthenticated, scout, initialRouteSet]);
 
   const handleAddNotification = useCallback((notification: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) => {
       const newNotif: AppNotification = {
@@ -122,6 +135,14 @@ const App: React.FC = () => {
       setNotifications(prev => [newNotif, ...prev]);
   }, []);
 
+  const { handleStatusTransition } = useItpSync({
+    scoutId,
+    scoutName,
+    updateProspect,
+    incrementPlacements,
+    addNotification: handleAddNotification,
+  });
+
   const handleOnboardingComplete = async (profile: UserProfile, initialPlayers: Player[], initialEvents: ScoutingEvent[]) => {
     const newScout = await initializeScout(profile);
     if (!newScout) {
@@ -129,7 +150,7 @@ const App: React.FC = () => {
     }
     setUserProfile(profile);
     if (profile.isAdmin) {
-        setView(AppView.ADMIN);
+        navigate('/admin');
         return;
     }
     for (const player of initialPlayers) {
@@ -138,7 +159,7 @@ const App: React.FC = () => {
     for (const event of initialEvents) {
       await addEvent(event);
     }
-    setView(AppView.DASHBOARD);
+    navigate('/dashboard/players');
   };
 
   const handleAddPlayer = async (player: Player) => {
@@ -193,88 +214,16 @@ const App: React.FC = () => {
       const oldPlayer = prospects.find(p => p.id === updatedPlayer.id);
       if (!oldPlayer) return;
 
-      // Pipeline progression notifications
-      const statusChanged = oldPlayer.status !== updatedPlayer.status;
-
-      if (statusChanged) {
-        if (oldPlayer.status === PlayerStatus.REQUEST_TRIAL && updatedPlayer.status === PlayerStatus.SEND_CONTRACT) {
-          // Stamp trial record so staff sees contract was requested
-          if (updatedPlayer.trialProspectId) {
-            await markContractRequested(updatedPlayer.trialProspectId, scout?.name || userProfile?.name || 'Unknown Scout');
-          }
+      // ITP sync: handles contract stamp, placement, trial request, direct sign
+      if (oldPlayer.status !== updatedPlayer.status) {
+        const newTrialId = await handleStatusTransition(
+          oldPlayer.status,
+          updatedPlayer.status,
+          updatedPlayer,
+        );
+        if (newTrialId) {
+          updatedPlayer.trialProspectId = newTrialId;
         }
-      }
-
-      // Check for placement (final stage)
-      if (oldPlayer.status !== PlayerStatus.PLACED && updatedPlayer.status === PlayerStatus.PLACED) {
-          await incrementPlacements();
-          handleAddNotification({
-              type: 'SUCCESS',
-              title: 'PLACEMENT CONFIRMED!',
-              message: `Incredible work placing ${updatedPlayer.name}.`
-          });
-      }
-
-      // Trial sync: REQUEST_TRIAL triggers trial creation
-      if (oldPlayer.status !== PlayerStatus.REQUEST_TRIAL && updatedPlayer.status === PlayerStatus.REQUEST_TRIAL) {
-          const scoutName = scout?.name || userProfile?.name || 'Unknown Scout';
-          const scoutId = scout?.id || '';
-
-          const { success, trialProspectId, error } = await sendProspectToTrial(
-              updatedPlayer,
-              scoutId,
-              scoutName,
-              false // not a direct sign
-          );
-
-          if (success && trialProspectId) {
-              updatedPlayer.trialProspectId = trialProspectId;
-              handleAddNotification({
-                  type: 'SUCCESS',
-                  title: 'Trial Request Submitted',
-                  message: `${updatedPlayer.name} — pending staff approval.`
-              });
-              toast.success('Trial request submitted — pending staff approval', { duration: 5000 });
-          } else {
-              handleAddNotification({
-                  type: 'INFO',
-                  title: 'Trial Record',
-                  message: error || `${updatedPlayer.name} moved to Request Trial.`
-              });
-          }
-      }
-
-      // Direct sign: Lead → SEND_CONTRACT with no existing trial
-      if (oldPlayer.status === PlayerStatus.LEAD && updatedPlayer.status === PlayerStatus.SEND_CONTRACT && !updatedPlayer.trialProspectId) {
-          const scoutName = scout?.name || userProfile?.name || 'Unknown Scout';
-          const scoutId = scout?.id || '';
-
-          const { success, trialProspectId } = await sendProspectToTrial(
-              updatedPlayer,
-              scoutId,
-              scoutName,
-              true // direct sign
-          );
-
-          if (success && trialProspectId) {
-              updatedPlayer.trialProspectId = trialProspectId;
-              handleAddNotification({
-                  type: 'SUCCESS',
-                  title: 'Direct Sign Sent',
-                  message: `${updatedPlayer.name} has been added to ITP system.`
-              });
-              const onboardingUrl = `https://itp-trial-onboarding.vercel.app/${trialProspectId}/onboarding`;
-              toast.success('Player added to ITP system (Direct Sign)', {
-                  duration: 10000,
-                  action: {
-                      label: 'Copy Onboarding Link',
-                      onClick: () => {
-                          navigator.clipboard.writeText(onboardingUrl);
-                          toast.success('Onboarding link copied!', { duration: 2000 });
-                      },
-                  },
-              });
-          }
       }
 
       // AI Recalibration on high-impact field changes
@@ -384,7 +333,7 @@ const App: React.FC = () => {
   const handleLogout = async () => {
     await signOut();
     setUserProfile(null);
-    setView(AppView.LOGIN);
+    navigate('/login');
   };
 
   if (authLoading || scoutLoading) {
@@ -406,141 +355,111 @@ const App: React.FC = () => {
     );
   }
 
+  const dashboardProps = {
+    user: userProfile!,
+    players: prospects,
+    events,
+    notifications,
+    onAddPlayer: handleAddPlayer,
+    onUpdateProfile: handleUpdateProfile,
+    onAddEvent: handleAddEvent,
+    onUpdateEvent: handleUpdateEvent,
+    onUpdatePlayer: handleUpdatePlayer,
+    onDeletePlayer: handleDeletePlayer,
+    onAddNotification: handleAddNotification,
+    onMarkAllRead: () => setNotifications(prev => prev.map(n => ({ ...n, read: true }))),
+    onMessageSent: handleMessageSent,
+    onStatusChange: async (id: string, newStatus: PlayerStatus, pathway?: string, trialDates?: any) => {
+        const oldPlayer = prospects.find(p => p.id === id);
+        if (!oldPlayer) return;
+
+        // Update status + pathway fields
+        const updateData: Partial<Player> = { status: newStatus };
+        if (pathway) {
+          if (newStatus === PlayerStatus.OFFERED) {
+            updateData.offeredPathway = pathway;
+          } else if (newStatus === PlayerStatus.PLACED) {
+            updateData.placedLocation = pathway;
+          }
+        }
+        await updateProspect(id, updateData);
+
+        // ITP sync
+        const mergedPlayer = { ...oldPlayer, ...updateData };
+        const newTrialId = await handleStatusTransition(
+          oldPlayer.status,
+          newStatus,
+          mergedPlayer,
+          trialDates,
+        );
+        if (newTrialId) {
+          await updateProspect(id, { trialProspectId: newTrialId });
+        }
+    },
+    onLogout: handleLogout,
+    onReturnToAdmin: userProfile?.isAdmin ? () => navigate('/admin') : undefined,
+  };
+
   return (
     <>
       <Toaster position="top-right" richColors closeButton />
 
-      {isResettingPassword && (
-        <ResetPassword onComplete={() => {
-          setIsResettingPassword(false);
-          // Force a page reload to ensure proper session handling
-          window.location.href = '/';
-        }} />
-      )}
-
-      {!isResettingPassword && view === AppView.LOGIN && <Login />}
-
-      {view === AppView.ONBOARDING && (
-        <Onboarding
-          onComplete={handleOnboardingComplete}
-          approvedScoutInfo={approvedScoutInfo}
-        />
-      )}
-
-      {view === AppView.DASHBOARD && userProfile && (
-        <Dashboard
-            user={userProfile}
-            players={prospects}
-            events={events}
-            notifications={notifications}
-            onAddPlayer={handleAddPlayer}
-            onUpdateProfile={handleUpdateProfile}
-            onAddEvent={handleAddEvent}
-            onUpdateEvent={handleUpdateEvent}
-            onUpdatePlayer={handleUpdatePlayer}
-            onDeletePlayer={handleDeletePlayer}
-            onAddNotification={handleAddNotification}
-            onMarkAllRead={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
-            onMessageSent={handleMessageSent}
-            onStatusChange={async (id, newStatus, pathway, trialDates) => {
-                const oldPlayer = prospects.find(p => p.id === id);
-                if (!oldPlayer) return;
-
-                const oldStatus = oldPlayer.status;
-
-                // Pipeline progression
-                if (oldStatus === PlayerStatus.REQUEST_TRIAL && newStatus === PlayerStatus.SEND_CONTRACT) {
-                  // Stamp trial record so staff sees contract was requested
-                  if (oldPlayer.trialProspectId) {
-                    await markContractRequested(oldPlayer.trialProspectId, scout?.name || userProfile?.name || 'Unknown Scout');
-                  }
-                }
-                if (oldStatus !== PlayerStatus.PLACED && newStatus === PlayerStatus.PLACED) {
-                  await incrementPlacements();
-                  handleAddNotification({
-                    type: 'SUCCESS',
-                    title: 'PLACEMENT CONFIRMED!',
-                    message: `Incredible work placing ${oldPlayer.name}.`
-                  });
-                }
-
-                // Update status
-                const updateData: Partial<Player> = { status: newStatus };
-                if (pathway) {
-                  if (newStatus === PlayerStatus.OFFERED) {
-                    updateData.offeredPathway = pathway;
-                  } else if (newStatus === PlayerStatus.PLACED) {
-                    updateData.placedLocation = pathway;
-                  }
-                }
-                await updateProspect(id, updateData);
-
-                // Trial sync: REQUEST_TRIAL triggers trial creation
-                if (oldStatus !== PlayerStatus.REQUEST_TRIAL && newStatus === PlayerStatus.REQUEST_TRIAL) {
-                    const updatedPlayer = { ...oldPlayer, ...updateData };
-                    const scoutName = scout?.name || userProfile?.name || 'Unknown Scout';
-                    const scoutId = scout?.id || '';
-                    const { success, trialProspectId } = await sendProspectToTrial(
-                        updatedPlayer,
-                        scoutId,
-                        scoutName,
-                        false, // not direct sign
-                        trialDates
-                    );
-                    if (success && trialProspectId) {
-                        await updateProspect(id, { trialProspectId });
-                        toast.success('Trial request submitted — pending staff approval', { duration: 5000 });
-                    }
-                }
-
-                // Direct sign: Lead → SEND_CONTRACT with no existing trial
-                if (oldStatus === PlayerStatus.LEAD && newStatus === PlayerStatus.SEND_CONTRACT && !oldPlayer.trialProspectId) {
-                    const updatedPlayer = { ...oldPlayer, ...updateData };
-                    const scoutName = scout?.name || userProfile?.name || 'Unknown Scout';
-                    const scoutId = scout?.id || '';
-                    const { success, trialProspectId } = await sendProspectToTrial(
-                        updatedPlayer,
-                        scoutId,
-                        scoutName,
-                        true // direct sign
-                    );
-                    if (success && trialProspectId) {
-                        await updateProspect(id, { trialProspectId });
-                        const onboardingUrl = `https://itp-trial-onboarding.vercel.app/${trialProspectId}/onboarding`;
-                        toast.success('Player added to ITP system (Direct Sign)', {
-                            duration: 10000,
-                            action: {
-                                label: 'Copy Onboarding Link',
-                                onClick: () => {
-                                    navigator.clipboard.writeText(onboardingUrl);
-                                    toast.success('Onboarding link copied!', { duration: 2000 });
-                                },
-                            },
-                        });
-                    }
-                }
-            }}
-            onLogout={handleLogout}
-            onReturnToAdmin={userProfile?.isAdmin ? () => setView(AppView.ADMIN) : undefined}
-        />
-      )}
-
-      {view === AppView.ADMIN && (
-          <AdminDashboard
-            players={prospects}
-            events={events}
-            notifications={notifications}
-            onUpdateEvent={handleUpdateEvent}
-            onUpdatePlayer={handleUpdatePlayer}
-            onAddEvent={handleAddEvent}
-            onDeleteEvent={handleDeleteEvent}
-            onAddNotification={handleAddNotification}
-            onMarkAllRead={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
-            onLogout={handleLogout}
-            onImpersonate={(p) => { setUserProfile(p); setView(AppView.DASHBOARD); }}
-            onSwitchToScoutView={() => setView(AppView.DASHBOARD)}
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/reset-password" element={
+          <ResetPassword onComplete={() => {
+            window.location.href = '/';
+          }} />
+        } />
+        <Route path="/onboarding" element={
+          <Onboarding
+            onComplete={handleOnboardingComplete}
+            approvedScoutInfo={approvedScoutInfo}
           />
-      )}
+        } />
+
+        {/* Dashboard with layout */}
+        {userProfile && (
+          <Route path="/dashboard" element={<DashboardLayout {...dashboardProps} />}>
+            <Route index element={<Navigate to="players" replace />} />
+            <Route path="players" element={<PlayersContent />} />
+            <Route path="events" element={<EventsRoute />} />
+            <Route path="outreach" element={<OutreachRoute />} />
+            <Route path="knowledge" element={<KnowledgeRoute />} />
+            <Route path="insights" element={<InsightsRoute />} />
+            <Route path="earnings" element={<EarningsRoute />} />
+          </Route>
+        )}
+
+        {/* Admin */}
+        {userProfile && (
+          <Route path="/admin" element={
+            <Suspense fallback={<LazyFallback />}>
+              <LazyAdminDashboard
+                players={prospects}
+                events={events}
+                notifications={notifications}
+                onUpdateEvent={handleUpdateEvent}
+                onUpdatePlayer={handleUpdatePlayer}
+                onAddEvent={handleAddEvent}
+                onDeleteEvent={handleDeleteEvent}
+                onAddNotification={handleAddNotification}
+                onMarkAllRead={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
+                onLogout={handleLogout}
+                onImpersonate={(p) => { setUserProfile(p); navigate('/dashboard/players'); }}
+                onSwitchToScoutView={() => navigate('/dashboard/players')}
+              />
+            </Suspense>
+          } />
+        )}
+
+        {/* Catch-all: redirect to dashboard or login */}
+        <Route path="*" element={
+          isAuthenticated && scout
+            ? <Navigate to="/dashboard/players" replace />
+            : <Navigate to="/login" replace />
+        } />
+      </Routes>
 
       {needsPasswordSetup && isAuthenticated && (
         <PasswordSetupModal onClose={dismissPasswordSetup} />

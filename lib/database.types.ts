@@ -148,6 +148,9 @@ export interface Database {
           interested_program: string | null
           placed_location: string | null
           trial_prospect_id: string | null
+          program_duration: 'full_season' | '6_months' | '3_months' | '1_month' | null
+          enrollment_confirmed: boolean
+          enrollment_confirmed_at: string | null
           notes: string | null
           submitted_at: string
           last_active: string | null
@@ -189,6 +192,9 @@ export interface Database {
           interested_program?: string | null
           placed_location?: string | null
           trial_prospect_id?: string | null
+          program_duration?: 'full_season' | '6_months' | '3_months' | '1_month' | null
+          enrollment_confirmed?: boolean
+          enrollment_confirmed_at?: string | null
           notes?: string | null
           submitted_at?: string
           last_active?: string | null
@@ -230,6 +236,9 @@ export interface Database {
           interested_program?: string | null
           placed_location?: string | null
           trial_prospect_id?: string | null
+          program_duration?: 'full_season' | '6_months' | '3_months' | '1_month' | null
+          enrollment_confirmed?: boolean
+          enrollment_confirmed_at?: string | null
           notes?: string | null
           last_active?: string | null
           last_contacted_at?: string | null
@@ -437,6 +446,55 @@ export interface Database {
           description?: string | null
         }
       }
+      scout_agreements: {
+        Row: {
+          id: string
+          scout_id: string
+          currency: 'EUR' | 'USD'
+          rate_full_season: number
+          rate_6_months: number
+          rate_3_months: number
+          rate_1_month: number | null
+          min_placements_per_year: number
+          agreement_start: string
+          agreement_end: string | null
+          is_active: boolean
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          scout_id: string
+          currency?: 'EUR' | 'USD'
+          rate_full_season?: number
+          rate_6_months?: number
+          rate_3_months?: number
+          rate_1_month?: number | null
+          min_placements_per_year?: number
+          agreement_start: string
+          agreement_end?: string | null
+          is_active?: boolean
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          scout_id?: string
+          currency?: 'EUR' | 'USD'
+          rate_full_season?: number
+          rate_6_months?: number
+          rate_3_months?: number
+          rate_1_month?: number | null
+          min_placements_per_year?: number
+          agreement_start?: string
+          agreement_end?: string | null
+          is_active?: boolean
+          notes?: string | null
+          updated_at?: string
+        }
+      }
       feedback: {
         Row: {
           id: string
@@ -512,3 +570,7 @@ export type EventAttendeeInsert = Database['public']['Tables']['scout_event_atte
 export type Feedback = Database['public']['Tables']['feedback']['Row']
 export type FeedbackInsert = Database['public']['Tables']['feedback']['Insert']
 export type FeedbackUpdate = Database['public']['Tables']['feedback']['Update']
+
+export type ScoutAgreement = Database['public']['Tables']['scout_agreements']['Row']
+export type ScoutAgreementInsert = Database['public']['Tables']['scout_agreements']['Insert']
+export type ScoutAgreementUpdate = Database['public']['Tables']['scout_agreements']['Update']

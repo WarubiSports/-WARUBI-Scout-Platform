@@ -74,6 +74,9 @@ function prospectToPlayerWithScout(prospect: ScoutProspect, scoutName: string): 
     activityStatus: prospect.activity_status || 'undiscovered',
     isRecalibrating: false,
     previousScore: undefined,
+    programDuration: prospect.program_duration || undefined,
+    enrollmentConfirmed: prospect.enrollment_confirmed || undefined,
+    enrollmentConfirmedAt: prospect.enrollment_confirmed_at || undefined,
     // Scout info
     scoutId: prospect.scout_id,
     scoutName: scoutName,

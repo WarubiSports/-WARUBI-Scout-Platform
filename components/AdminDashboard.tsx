@@ -16,6 +16,8 @@ import { useAllProspects, PlayerWithScout } from '../hooks/useAllProspects';
 import { supabase, supabaseRest } from '../lib/supabase';
 import type { BugReport, BugReportStatus } from '../types';
 import type { Scout } from '../lib/database.types';
+import AdminAgreementPanel from './AdminAgreementPanel';
+import { useAdminAgreements } from '../hooks/useAdminAgreements';
 
 interface AdminDashboardProps {
     players: Player[];
@@ -105,6 +107,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const [isTalentSubmissionOpen, setIsTalentSubmissionOpen] = useState(false);
 
     const [savingScout, setSavingScout] = useState(false);
+
+    // Admin agreements
+    const { confirmEnrollment } = useAdminAgreements();
 
     // --- DERIVED STATS ---
     const pendingEvents = events.filter(e => e.status === 'Pending Approval');
@@ -604,14 +609,35 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                         ) : p.status}
                                     </td>
                                     <td className="p-4 text-right">
-                                        {p.status !== PlayerStatus.PLACED && (
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); placePlayer(p); }}
-                                                className="text-xs bg-gray-900 hover:bg-gray-700 text-white px-3 py-1.5 rounded font-bold transition-colors"
-                                            >
-                                                Mark Placed
-                                            </button>
-                                        )}
+                                        <div className="flex items-center justify-end gap-2">
+                                            {p.status === PlayerStatus.PLACED && !p.enrollmentConfirmed && (
+                                                <button
+                                                    onClick={async (e) => {
+                                                        e.stopPropagation();
+                                                        try {
+                                                            await confirmEnrollment(p.id);
+                                                            refreshProspects();
+                                                        } catch (err) {
+                                                            alert('Failed to confirm enrollment');
+                                                        }
+                                                    }}
+                                                    className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-bold transition-colors"
+                                                >
+                                                    Confirm Enrollment
+                                                </button>
+                                            )}
+                                            {p.status === PlayerStatus.PLACED && p.enrollmentConfirmed && (
+                                                <span className="text-xs text-green-600 font-bold flex items-center gap-1"><CheckCircle size={12} /> Enrolled</span>
+                                            )}
+                                            {p.status !== PlayerStatus.PLACED && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); placePlayer(p); }}
+                                                    className="text-xs bg-gray-900 hover:bg-gray-700 text-white px-3 py-1.5 rounded font-bold transition-colors"
+                                                >
+                                                    Mark Placed
+                                                </button>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -1004,6 +1030,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                     />
                                 </div>
                             </div>
+
+                            {/* TDRF Agreement Panel */}
+                            <AdminAgreementPanel scoutId={selectedScout.id} scoutName={selectedScout.name} />
 
                         </div>
 

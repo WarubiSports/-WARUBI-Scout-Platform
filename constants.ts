@@ -1,6 +1,13 @@
 
 import { KnowledgeItem, PathwayDef, ToolDef, Player, PlayerStatus } from './types';
 
+export const PROGRAM_DURATIONS = [
+  { value: 'full_season' as const, label: 'Full Season (10 months)', shortLabel: 'Full Season' },
+  { value: '6_months' as const, label: '6 Months', shortLabel: '6 Months' },
+  { value: '3_months' as const, label: '3 Months', shortLabel: '3 Months' },
+  { value: '1_month' as const, label: '1 Month (Female Program)', shortLabel: '1 Month' },
+];
+
 export const MARKET_DATA = {
   GLOBAL_MARKET: "$50B+",
   TOTAL_PLAYERS: "265M",

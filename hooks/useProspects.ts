@@ -46,6 +46,8 @@ export function playerToProspect(player: Player, scoutId: string): ScoutProspect
     notes: player.notes || null,
     last_contacted_at: player.lastContactedAt || null,
     date_of_birth: player.dateOfBirth || null,
+    program_duration: player.programDuration || null,
+    enrollment_confirmed: player.enrollmentConfirmed || false,
   }
 }
 
@@ -93,6 +95,9 @@ export function prospectToPlayer(prospect: ScoutProspect, outreachLogs: Outreach
     isRecalibrating: false,
     previousScore: undefined,
     trialProspectId: prospect.trial_prospect_id || undefined,
+    programDuration: prospect.program_duration || undefined,
+    enrollmentConfirmed: prospect.enrollment_confirmed || undefined,
+    enrollmentConfirmedAt: prospect.enrollment_confirmed_at || undefined,
   }
 }
 
@@ -304,6 +309,9 @@ export function useProspects(scoutId: string | undefined) {
       if (updates.placedLocation !== undefined) dbUpdates.placed_location = updates.placedLocation
       if (updates.notes !== undefined) dbUpdates.notes = updates.notes
       if (updates.lastContactedAt !== undefined) dbUpdates.last_contacted_at = updates.lastContactedAt
+      if (updates.programDuration !== undefined) dbUpdates.program_duration = updates.programDuration || null
+      if (updates.enrollmentConfirmed !== undefined) dbUpdates.enrollment_confirmed = updates.enrollmentConfirmed
+      if (updates.enrollmentConfirmedAt !== undefined) dbUpdates.enrollment_confirmed_at = updates.enrollmentConfirmedAt || null
 
       const { error } = await supabaseRest.update('scout_prospects', `id=eq.${playerId}`, dbUpdates)
 
