@@ -29,18 +29,20 @@ const App: React.FC = () => {
   const location = useLocation();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [approvedScoutInfo, setApprovedScoutInfo] = useState<{ isAdmin: boolean; name?: string; region?: string } | null>(null);
+  const [impersonatedScoutId, setImpersonatedScoutId] = useState<string | null>(null);
 
   // Auth context
   const { isAuthenticated, loading: authLoading, signOut, needsPasswordSetup, dismissPasswordSetup, user } = useAuthContext();
 
   // Supabase integration
   const { scout, loading: scoutLoading, initializeScout, incrementPlacements } = useScoutContext();
-  const { prospects, addProspect, updateProspect, deleteProspect } = useProspects(scout?.id);
-  const { events, addEvent, updateEvent, deleteEvent } = useEvents(scout?.id);
-  const { logOutreach } = useOutreach(scout?.id);
+  const activeScoutId = impersonatedScoutId || scout?.id;
+  const { prospects, addProspect, updateProspect, deleteProspect } = useProspects(activeScoutId);
+  const { events, addEvent, updateEvent, deleteEvent } = useEvents(activeScoutId);
+  const { logOutreach } = useOutreach(activeScoutId);
 
   const scoutName = scout?.name || userProfile?.name || 'Unknown Scout';
-  const scoutId = scout?.id || '';
+  const scoutId = activeScoutId || '';
 
   const [notifications, setNotifications] = useState<AppNotification[]>([
       {
@@ -397,7 +399,7 @@ const App: React.FC = () => {
         }
     },
     onLogout: handleLogout,
-    onReturnToAdmin: userProfile?.isAdmin ? () => navigate('/admin') : undefined,
+    onReturnToAdmin: userProfile?.isAdmin ? () => { setImpersonatedScoutId(null); navigate('/admin'); } : undefined,
   };
 
   return (
@@ -446,7 +448,7 @@ const App: React.FC = () => {
                 onAddNotification={handleAddNotification}
                 onMarkAllRead={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
                 onLogout={handleLogout}
-                onImpersonate={(p) => { setUserProfile(p); navigate('/dashboard/players'); }}
+                onImpersonate={(p) => { setUserProfile(p); setImpersonatedScoutId(p.scoutId || null); navigate('/dashboard/players'); }}
                 onSwitchToScoutView={() => navigate('/dashboard/players')}
               />
             </Suspense>
