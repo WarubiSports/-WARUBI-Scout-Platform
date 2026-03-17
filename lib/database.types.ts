@@ -300,7 +300,7 @@ export interface Database {
           status: 'draft' | 'pending_approval' | 'approved' | 'published' | 'completed' | 'cancelled' | 'rejected'
           fee: string | null
           max_capacity: number | null
-          registered_count: number
+
           description: string | null
           marketing_copy: string | null
           agenda: Json | null
@@ -323,7 +323,7 @@ export interface Database {
           status?: 'draft' | 'pending_approval' | 'approved' | 'published' | 'completed' | 'cancelled' | 'rejected'
           fee?: string | null
           max_capacity?: number | null
-          registered_count?: number
+
           description?: string | null
           marketing_copy?: string | null
           agenda?: Json | null
@@ -346,7 +346,7 @@ export interface Database {
           status?: 'draft' | 'pending_approval' | 'approved' | 'published' | 'completed' | 'cancelled' | 'rejected'
           fee?: string | null
           max_capacity?: number | null
-          registered_count?: number
+
           description?: string | null
           marketing_copy?: string | null
           agenda?: Json | null

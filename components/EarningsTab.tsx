@@ -52,7 +52,7 @@ const EarningsTab: React.FC<EarningsTabProps> = ({ players, scoutId }) => {
     const progressPercent = Math.min(100, (earnings.placementsThisYear / earnings.minPlacementsPerYear) * 100);
     const licenseOnTrack = earnings.placementsThisYear >= earnings.minPlacementsPerYear;
     const hasActivity = earnings.placements.length > 0 || earnings.events.length > 0;
-    const totalEarnings = earnings.totalConfirmed + earnings.totalPending + earnings.eventRevenue;
+    const totalEarnings = earnings.totalConfirmed + earnings.totalPending;
 
     return (
         <div className="space-y-6 max-w-5xl">
@@ -221,10 +221,7 @@ const EarningsTab: React.FC<EarningsTabProps> = ({ players, scoutId }) => {
             {/* Event Revenue */}
             <div className="bg-scout-800 border border-scout-700 rounded-2xl overflow-hidden">
                 <div className="px-6 py-4 border-b border-scout-700 flex items-center justify-between">
-                    <h2 className="text-sm font-black text-white uppercase tracking-wide">Event Revenue</h2>
-                    {earnings.eventRevenue > 0 && (
-                        <span className="text-sm font-black text-green-400">{formatCurrency(earnings.eventRevenue, earnings.currency)}</span>
-                    )}
+                    <h2 className="text-sm font-black text-white uppercase tracking-wide">Events</h2>
                 </div>
 
                 {earnings.events.length === 0 ? (

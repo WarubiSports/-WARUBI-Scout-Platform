@@ -137,7 +137,7 @@ export interface ScoutingEvent {
   marketingCopy?: string;
   agenda?: string[];
   checklist?: { task: string; completed: boolean }[];
-  registeredCount?: number;
+
   hostName?: string;
   isGlobal?: boolean; // Admin-created events visible to all scouts
   link?: string; // External URL (e.g., registration page)

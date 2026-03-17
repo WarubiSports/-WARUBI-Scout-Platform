@@ -21,8 +21,6 @@ export interface EventEarning {
   eventType: string
   date: string
   fee: number
-  attendees: number
-  revenue: number
 }
 
 export interface AgreementRates {
@@ -44,7 +42,6 @@ export interface EarningsData {
   placementsThisYear: number
   minPlacementsPerYear: number
   placements: PlacementEarning[]
-  eventRevenue: number
   events: EventEarning[]
   rates: AgreementRates | null
   agreementType: 'regional_licensee' | 'talent_scout' | 'hybrid' | null
@@ -110,7 +107,6 @@ export function useEarnings(scoutId: string | undefined, players: Player[]): Ear
         placementsThisYear: 0,
         minPlacementsPerYear: 4,
         placements: [],
-        eventRevenue: 0,
         events: [],
         rates,
         agreementType: null,
@@ -158,19 +154,14 @@ export function useEarnings(scoutId: string | undefined, players: Player[]): Ear
     // Calculate event revenue from completed events
     const events: EventEarning[] = hostedEvents.map(e => {
       const fee = parseFloat(e.fee || '0') || 0
-      const attendees = e.registered_count || 0
       return {
         eventId: e.id,
         title: e.title,
         eventType: e.event_type,
         date: e.event_date,
         fee,
-        attendees,
-        revenue: fee * attendees,
       }
     })
-
-    const eventRevenue = events.reduce((sum, e) => sum + e.revenue, 0)
 
     return {
       totalConfirmed,
@@ -178,7 +169,6 @@ export function useEarnings(scoutId: string | undefined, players: Player[]): Ear
       placementsThisYear,
       minPlacementsPerYear: agreement.min_placements_per_year,
       placements,
-      eventRevenue,
       events,
       rates,
       agreementType: agreement.agreement_type,

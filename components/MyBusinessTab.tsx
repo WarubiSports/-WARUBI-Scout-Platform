@@ -429,10 +429,7 @@ const MyBusinessTab: React.FC<MyBusinessTabProps> = ({ players, scoutId }) => {
                             {/* Event Revenue - only for scouts with event rights */}
                             {earnings.hasEventRights && <div className="bg-scout-800 border border-scout-700 rounded-2xl overflow-hidden">
                                 <div className="px-6 py-4 border-b border-scout-700 flex items-center justify-between">
-                                    <h2 className="text-sm font-black text-white uppercase tracking-wide">Event Revenue</h2>
-                                    {earnings.eventRevenue > 0 && (
-                                        <span className="text-sm font-black text-green-400">{formatCurrency(earnings.eventRevenue, earnings.currency)}</span>
-                                    )}
+                                    <h2 className="text-sm font-black text-white uppercase tracking-wide">Events</h2>
                                 </div>
                                 {earnings.events.length === 0 ? (
                                     <div className="p-6 text-center">
@@ -447,8 +444,6 @@ const MyBusinessTab: React.FC<MyBusinessTabProps> = ({ players, scoutId }) => {
                                                 <th className="px-6 py-3">Event</th>
                                                 <th className="px-6 py-3">Type</th>
                                                 <th className="px-6 py-3 text-right">Fee</th>
-                                                <th className="px-6 py-3 text-right">Attendees</th>
-                                                <th className="px-6 py-3 text-right">Revenue</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-scout-700/50">
@@ -460,8 +455,6 @@ const MyBusinessTab: React.FC<MyBusinessTabProps> = ({ players, scoutId }) => {
                                                     </td>
                                                     <td className="px-6 py-4 text-sm text-gray-300">{ev.eventType}</td>
                                                     <td className="px-6 py-4 text-right text-sm text-gray-300">{formatCurrency(ev.fee, earnings.currency)}</td>
-                                                    <td className="px-6 py-4 text-right text-sm text-gray-300">{ev.attendees}</td>
-                                                    <td className="px-6 py-4 text-right text-sm font-black text-white">{formatCurrency(ev.revenue, earnings.currency)}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
