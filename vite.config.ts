@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
@@ -62,6 +63,10 @@ export default defineConfig(({ mode }) => {
       }
     ],
     // Gemini API key removed — all AI calls go through VITE_GEMINI_PROXY_URL (Edge Function)
+    test: {
+      globals: true,
+      include: ['**/*.test.ts'],
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),

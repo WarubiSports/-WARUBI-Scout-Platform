@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { X, CalendarDays } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, CalendarDays, Home, Loader2 } from 'lucide-react';
 import { Player } from '../types';
+import { checkHousingAvailability } from '../services/housingService';
 
 export interface TrialDates {
     start: string;
@@ -22,6 +23,24 @@ export const TrialRequestModal: React.FC<TrialRequestModalProps> = ({
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [datesFlexible, setDatesFlexible] = useState(false);
+    const [availability, setAvailability] = useState<{ total_available: number; total_beds: number; houses: { house_name: string; available: number; total_beds: number }[] } | null>(null);
+    const [loadingAvailability, setLoadingAvailability] = useState(false);
+
+    useEffect(() => {
+        if (!startDate || !endDate || startDate > endDate) {
+            setAvailability(null);
+            return;
+        }
+
+        const timer = setTimeout(async () => {
+            setLoadingAvailability(true);
+            const result = await checkHousingAvailability(startDate, endDate);
+            setAvailability({ total_available: result.total_available, total_beds: result.total_beds, houses: result.houses });
+            setLoadingAvailability(false);
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [startDate, endDate]);
 
     const handleSubmit = () => {
         const trialDates: TrialDates = {
@@ -80,6 +99,45 @@ export const TrialRequestModal: React.FC<TrialRequestModalProps> = ({
                             />
                         </div>
                     </div>
+
+                    {/* Housing Availability */}
+                    {(loadingAvailability || availability) && (
+                        <div className={`rounded-xl border p-3 flex items-start gap-2.5 ${
+                            loadingAvailability
+                                ? 'border-scout-700 bg-scout-800'
+                                : availability && availability.total_available > 0
+                                    ? 'border-emerald-500/30 bg-emerald-500/10'
+                                    : 'border-amber-500/30 bg-amber-500/10'
+                        }`}>
+                            {loadingAvailability ? (
+                                <>
+                                    <Loader2 size={14} className="text-gray-400 animate-spin mt-0.5 shrink-0" />
+                                    <p className="text-xs text-gray-400">Checking housing...</p>
+                                </>
+                            ) : availability && (
+                                <>
+                                    <Home size={14} className={`mt-0.5 shrink-0 ${availability.total_available > 0 ? 'text-emerald-400' : 'text-amber-400'}`} />
+                                    <div>
+                                        <p className={`text-xs font-semibold ${availability.total_available > 0 ? 'text-emerald-300' : 'text-amber-300'}`}>
+                                            {availability.total_available > 0
+                                                ? `${availability.total_available} bed${availability.total_available !== 1 ? 's' : ''} available`
+                                                : 'Houses full — player will need own accommodation'}
+                                        </p>
+                                        {availability.total_available > 0 && (
+                                            <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                                {availability.houses.filter(h => h.available > 0).map(h => (
+                                                    <span key={h.house_name} className="rounded-md bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">
+                                                        {h.house_name}: {h.available}/{h.total_beds}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
+
                     <button
                         onClick={() => setDatesFlexible(!datesFlexible)}
                         className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-colors ${
