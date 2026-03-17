@@ -11,18 +11,18 @@ import Confetti from './Confetti';
 import { ConnectionStatus } from './MobileEnhancements';
 import { ErrorBoundary } from './ErrorBoundary';
 import GlobalSearch from './GlobalSearch';
-import PathwaySelectionModal from './PathwaySelectionModal';
+import TrialRequestModal, { TrialDates } from './TrialRequestModal';
 import { haptic, useSwipeGesture } from '../hooks/useMobileFeatures';
-import { Users, CalendarDays, MessageSquare, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, LogOut, BookOpen, Mail, UserPlus, Filter, Lightbulb } from 'lucide-react';
+import { Users, CalendarDays, MessageSquare, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, LogOut, BookOpen, Mail, UserPlus, Filter, Lightbulb, FileUp, BarChart3 } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
 import PathwaysTab from './PathwaysTab';
+import InsightsTab from './InsightsTab';
 
 interface DashboardProps {
     user: UserProfile;
     players: Player[];
     events: ScoutingEvent[];
     notifications: AppNotification[];
-    scoutScore?: number;
     onAddPlayer: (player: Player) => void;
     onUpdateProfile?: (profile: UserProfile) => void;
     onAddEvent: (event: ScoutingEvent) => void;
@@ -32,7 +32,7 @@ interface DashboardProps {
     onAddNotification: (notification: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) => void;
     onMarkAllRead: () => void;
     onMessageSent?: (id: string, log: any) => void;
-    onStatusChange?: (id: string, newStatus: PlayerStatus, pathway?: 'europe' | 'college' | 'events' | 'coaching') => void;
+    onStatusChange?: (id: string, newStatus: PlayerStatus, pathway?: string, trialDates?: TrialDates) => void;
     onLogout?: () => void;
     onReturnToAdmin?: () => void;
 }
@@ -42,7 +42,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     players,
     events,
     notifications,
-    scoutScore = 0,
     onAddPlayer,
     onUpdateProfile,
     onAddEvent,
@@ -59,6 +58,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     const [activeTab, setActiveTab] = useState<DashboardTab>(DashboardTab.PLAYERS);
     const [viewMode, setViewMode] = useState<'board' | 'list' | 'stack'>('board');
     const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
+    const [submissionInitialMode, setSubmissionInitialMode] = useState<'HUB' | 'BULK' | undefined>(undefined);
     const [isBeamOpen, setIsBeamOpen] = useState(false);
     const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
     const [showCelebration, setShowCelebration] = useState(false);
@@ -71,7 +71,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     const [pendingOfferedPlayer, setPendingOfferedPlayer] = useState<Player | null>(null);
     const [pipelineFilter, setPipelineFilter] = useState<'all' | 'active'>('all');
     const [showMobileProfile, setShowMobileProfile] = useState(false);
-    const [showXpGuide, setShowXpGuide] = useState(false);
 
     useEffect(() => {
         const handleResize = () => {
@@ -127,6 +126,11 @@ const Dashboard: React.FC<DashboardProps> = ({
                 e.preventDefault();
                 setActiveTab(DashboardTab.OUTREACH);
             }
+            // I = insights tab
+            else if (e.key === 'i' || e.key === 'I') {
+                e.preventDefault();
+                setActiveTab(DashboardTab.INSIGHTS);
+            }
             // Escape = close modals
             else if (e.key === 'Escape') {
                 if (isSearchOpen) setIsSearchOpen(false);
@@ -148,13 +152,15 @@ const Dashboard: React.FC<DashboardProps> = ({
 
 
     const handleStatusChange = (id: string, newStatus: PlayerStatus, extraData?: string) => {
-        // Intercept OFFERED status to show pathway selection modal (only for new transitions, not edits)
         const player = players.find(p => p.id === id);
-        if (newStatus === PlayerStatus.OFFERED && player && player.status !== PlayerStatus.OFFERED) {
+
+        // Intercept REQUEST_TRIAL to show trial date picker
+        if (newStatus === PlayerStatus.REQUEST_TRIAL && player && player.status !== PlayerStatus.REQUEST_TRIAL) {
             setPendingOfferedPlayer(player);
-            return; // Don't proceed until pathway is selected
+            return; // Don't proceed until trial dates are submitted
         }
 
+        // Moving to SEND_CONTRACT from Lead (no trial) → direct sign, handled in App.tsx
         if (newStatus === PlayerStatus.PLACED) {
             setShowCelebration(true);
             haptic.success();
@@ -166,20 +172,20 @@ const Dashboard: React.FC<DashboardProps> = ({
         if (onStatusChange) onStatusChange(id, newStatus, extraData);
     };
 
-    const handlePathwaySelected = (pathway: 'europe' | 'college' | 'events' | 'coaching') => {
+    const handleTrialSubmitted = (trialDates: TrialDates) => {
         if (!pendingOfferedPlayer) return;
 
         haptic.success();
-        if (onStatusChange) onStatusChange(pendingOfferedPlayer.id, PlayerStatus.OFFERED, pathway);
+        if (onStatusChange) onStatusChange(pendingOfferedPlayer.id, PlayerStatus.REQUEST_TRIAL, undefined, trialDates);
         setPendingOfferedPlayer(null);
     };
 
-    const handlePathwayCancelled = () => {
+    const handleTrialCancelled = () => {
         setPendingOfferedPlayer(null);
     };
 
     const promoteLead = (id: string) => {
-        handleStatusChange(id, PlayerStatus.CONTACTED);
+        handleStatusChange(id, PlayerStatus.REQUEST_TRIAL);
         if (reviewIdx >= spotlights.length - 1) setReviewIdx(0);
     };
 
@@ -301,8 +307,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     const PipelineStack = () => {
         const allowedStatuses = pipelineFilter === 'all'
-            ? [PlayerStatus.LEAD, PlayerStatus.CONTACTED, PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED]
-            : [PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED];
+            ? [PlayerStatus.LEAD, PlayerStatus.REQUEST_TRIAL, PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED]
+            : [PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED];
 
         const activePlayers = players.filter(p => allowedStatuses.includes(p.status));
         const [stackIdx, setStackIdx] = useState(0);
@@ -341,8 +347,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
         const handlePromote = () => {
             if (currentPlayer) {
-                // Move to next stage: Lead → Contacted → Interested → Offered → Placed
-                const stages = [PlayerStatus.LEAD, PlayerStatus.CONTACTED, PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED];
+                // Move to next stage: Lead → Request Trial → Send Contract → Offered → Placed
+                const stages = [PlayerStatus.LEAD, PlayerStatus.REQUEST_TRIAL, PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED];
                 const currentIndex = stages.indexOf(currentPlayer.status);
                 if (currentIndex < stages.length - 1) {
                     handleStatusChange(currentPlayer.id, stages[currentIndex + 1]);
@@ -391,8 +397,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     const ListView = () => {
         const allowedStatuses = pipelineFilter === 'all'
-            ? [PlayerStatus.LEAD, PlayerStatus.CONTACTED, PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED]
-            : [PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED];
+            ? [PlayerStatus.LEAD, PlayerStatus.REQUEST_TRIAL, PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED]
+            : [PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED];
 
         const filteredPlayers = players.filter(p =>
             allowedStatuses.includes(p.status) &&
@@ -421,7 +427,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                     </td>
                                     <td className="px-6 py-4">
                                         <select value={p.status} onChange={(e) => handleStatusChange(p.id, e.target.value as PlayerStatus)} className="bg-scout-900/50 border border-scout-700/50 rounded-lg px-2 py-1 text-[10px] font-black uppercase text-gray-300 outline-none">
-                                            {[PlayerStatus.LEAD, PlayerStatus.CONTACTED, PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED, PlayerStatus.ARCHIVED].map(status => <option key={status} value={status}>{status}</option>)}
+                                            {[PlayerStatus.LEAD, PlayerStatus.REQUEST_TRIAL, PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED, PlayerStatus.ARCHIVED].map(status => <option key={status} value={status}>{status}</option>)}
                                         </select>
                                     </td>
                                     <td className="px-6 py-4 font-black text-scout-accent">{p.evaluation?.score || '?'}</td>
@@ -465,6 +471,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     <button onClick={() => setActiveTab(DashboardTab.PLAYERS)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.PLAYERS ? 'bg-scout-700 text-white' : 'text-gray-500 hover:bg-scout-900/50'}`}><Users size={20} /> Players</button>
                     <button onClick={() => setActiveTab(DashboardTab.EVENTS)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.EVENTS ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><CalendarDays size={20} /> Events</button>
                     <button onClick={() => setActiveTab(DashboardTab.KNOWLEDGE)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.KNOWLEDGE ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><BookOpen size={20} /> Pathways</button>
+                    <button onClick={() => setActiveTab(DashboardTab.INSIGHTS)} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === DashboardTab.INSIGHTS ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><BarChart3 size={20} /> Insights</button>
                 </nav>
                 <div className="p-4">
                     <button
@@ -477,59 +484,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                 </div>
                 <div className="flex-1" /> {/* Spacer */}
                 <div className="p-4 border-t border-scout-700 bg-scout-900/30 space-y-3">
-                    {/* XP Level Display - Clickable */}
-                    {(() => {
-                        const level = Math.floor(scoutScore / 100) + 1;
-                        const xpInLevel = scoutScore % 100;
-                        const levelNames = ['Rookie', 'Scout', 'Hunter', 'Pro Scout', 'Elite', 'Legend', 'Master', 'Grand Master'];
-                        const levelName = levelNames[Math.min(level - 1, levelNames.length - 1)];
-                        return (
-                            <button
-                                onClick={() => setShowXpGuide(!showXpGuide)}
-                                className="w-full text-left bg-gradient-to-r from-scout-accent/10 to-scout-highlight/10 border border-scout-accent/30 rounded-xl p-3 hover:border-scout-accent/50 transition-all"
-                            >
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-lg bg-scout-accent/20 flex items-center justify-center">
-                                            <Trophy size={16} className="text-scout-accent" />
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] font-bold uppercase text-gray-400">Level {level}</p>
-                                            <p className="text-sm font-black text-white">{levelName}</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-lg font-black text-scout-accent">{scoutScore}</p>
-                                        <p className="text-[9px] text-gray-500 uppercase">XP</p>
-                                    </div>
-                                </div>
-                                <div className="h-2 bg-scout-900 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-gradient-to-r from-scout-accent to-scout-highlight transition-all duration-500"
-                                        style={{ width: `${xpInLevel}%` }}
-                                    />
-                                </div>
-                                <p className="text-[9px] text-gray-500 mt-1 text-center">{100 - xpInLevel} XP to next level • <span className="text-scout-accent">tap for details</span></p>
-                            </button>
-                        );
-                    })()}
-
-                    {/* XP Guide - Desktop */}
-                    {showXpGuide && (
-                        <div className="bg-scout-900/50 rounded-xl p-3 border border-scout-700/50 animate-fade-in">
-                            <p className="text-[10px] font-bold uppercase text-gray-500 mb-2">How to earn XP</p>
-                            <div className="space-y-1 text-[11px]">
-                                <div className="flex justify-between"><span className="text-gray-400">Add player</span><span className="text-scout-accent font-bold">+5</span></div>
-                                <div className="flex justify-between"><span className="text-gray-400">Complete profile</span><span className="text-scout-accent font-bold">+5</span></div>
-                                <div className="flex justify-between"><span className="text-gray-400">First outreach</span><span className="text-scout-accent font-bold">+5</span></div>
-                                <div className="flex justify-between"><span className="text-gray-400">→ Interested</span><span className="text-scout-accent font-bold">+10</span></div>
-                                <div className="flex justify-between"><span className="text-gray-400">→ Offered</span><span className="text-scout-accent font-bold">+25</span></div>
-                                <div className="flex justify-between"><span className="text-gray-400">Attend event</span><span className="text-scout-accent font-bold">+15</span></div>
-                                <div className="flex justify-between"><span className="text-gray-400">Host event</span><span className="text-scout-accent font-bold">+50</span></div>
-                                <div className="flex justify-between pt-1 border-t border-scout-700/50"><span className="text-white font-bold">Placement</span><span className="text-scout-accent font-black">+500</span></div>
-                            </div>
-                        </div>
-                    )}
                     <div className="flex items-center gap-3 px-2 py-2">
                         <div className="w-10 h-10 rounded-lg bg-scout-accent flex items-center justify-center font-black text-scout-900">{user.name.charAt(0)}</div>
                         <p className="text-sm font-bold text-white truncate">{user.name}</p>
@@ -590,7 +544,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                             // Determine the top priority action
                             const hotSignal = spotlights.find(p => p.activityStatus === 'signal' || p.activityStatus === 'spotlight');
                             const topLead = players
-                                .filter(p => p.status === PlayerStatus.LEAD || p.status === PlayerStatus.CONTACTED || p.status === PlayerStatus.INTERESTED)
+                                .filter(p => p.status === PlayerStatus.LEAD || p.status === PlayerStatus.REQUEST_TRIAL || p.status === PlayerStatus.SEND_CONTRACT)
                                 .sort((a, b) => (b.evaluation?.score || 0) - (a.evaluation?.score || 0))[0];
                             const offeredPlayer = players.find(p => p.status === PlayerStatus.OFFERED);
 
@@ -697,23 +651,24 @@ const Dashboard: React.FC<DashboardProps> = ({
                                     <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-all flex items-center gap-2 text-[10px] font-black uppercase ${viewMode === 'list' ? 'bg-scout-accent text-scout-900' : 'text-gray-500'}`}><List size={16} /> List</button>
                                     {isMobile && <button onClick={() => setViewMode('stack')} className={`p-2 rounded-lg transition-all flex items-center gap-2 text-[10px] font-black uppercase ${viewMode === 'stack' ? 'bg-scout-accent text-scout-900' : 'text-gray-500'}`}><LayoutGrid size={16} /> Stack</button>}
                                 </div>
-                                <button onClick={() => setIsSubmissionOpen(true)} className="bg-scout-accent hover:bg-emerald-600 text-scout-900 p-4 md:px-8 md:py-4 rounded-2xl font-black shadow-glow flex items-center gap-3 active:scale-95 transition-all"><PlusCircle size={24} /> <span className="hidden md:inline">Add Player</span></button>
+                                <button onClick={() => { setSubmissionInitialMode(undefined); setIsSubmissionOpen(true); }} className="bg-scout-accent hover:bg-emerald-600 text-scout-900 p-4 md:px-8 md:py-4 rounded-2xl font-black shadow-glow flex items-center gap-3 active:scale-95 transition-all"><PlusCircle size={24} /> <span className="hidden md:inline">Add Player</span></button>
+                                <button onClick={() => { setSubmissionInitialMode('BULK'); setIsSubmissionOpen(true); }} className="bg-emerald-900 hover:bg-emerald-800 text-scout-accent p-4 md:px-6 md:py-4 rounded-2xl font-black border border-scout-accent/30 flex items-center gap-2 active:scale-95 transition-all"><FileUp size={20} /> <span className="hidden md:inline">Bulk Add</span></button>
                             </div>
                         </div>
 
                         {viewMode === 'board' ? (
                             <div className="flex gap-4 overflow-x-auto pb-8 custom-scrollbar min-h-[500px]">
                                 {(pipelineFilter === 'all'
-                                    ? [PlayerStatus.LEAD, PlayerStatus.CONTACTED, PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED]
-                                    : [PlayerStatus.INTERESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED]
+                                    ? [PlayerStatus.LEAD, PlayerStatus.REQUEST_TRIAL, PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED]
+                                    : [PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED]
                                 ).map(status => (
                                     <div key={status} onDragOver={(e) => onDragOver(e, status)} onDrop={(e) => onDrop(e, status)} className={`flex-1 min-w-[280px] flex flex-col bg-scout-800/20 rounded-[2rem] border ${draggedOverStatus === status ? 'border-scout-accent bg-scout-accent/5 shadow-glow' : 'border-scout-700/50'}`}>
                                         <div className="p-6 border-b border-scout-700/50 bg-scout-900/20 backdrop-blur-md flex justify-between items-center rounded-t-[2rem]">
                                             <h3 className={`font-black uppercase text-[10px] tracking-[0.2em] ${
                                                 status === PlayerStatus.PLACED ? 'text-scout-accent' :
                                                 status === PlayerStatus.OFFERED ? 'text-scout-highlight' :
-                                                status === PlayerStatus.INTERESTED ? 'text-blue-400' :
-                                                status === PlayerStatus.CONTACTED ? 'text-purple-400' :
+                                                status === PlayerStatus.SEND_CONTRACT ? 'text-orange-400' :
+                                                status === PlayerStatus.REQUEST_TRIAL ? 'text-blue-400' :
                                                 'text-gray-400'
                                             }`}>{status}</h3>
                                             <span className="text-[10px] bg-scout-900 border border-scout-700 px-2 py-1 rounded-full text-gray-500 font-black">{players.filter(p => p.status === status).length}</span>
@@ -723,15 +678,15 @@ const Dashboard: React.FC<DashboardProps> = ({
                                                 <div className="border-2 border-dashed border-scout-700/50 rounded-2xl p-5 text-center">
                                                     <div className="w-10 h-10 bg-scout-800 rounded-xl mx-auto mb-3 flex items-center justify-center">
                                                         {status === PlayerStatus.LEAD && <UserPlus size={18} className="text-gray-400/50" />}
-                                                        {status === PlayerStatus.CONTACTED && <Mail size={18} className="text-purple-400/50" />}
-                                                        {status === PlayerStatus.INTERESTED && <Users size={18} className="text-blue-400/50" />}
+                                                        {status === PlayerStatus.REQUEST_TRIAL && <CalendarDays size={18} className="text-blue-400/50" />}
+                                                        {status === PlayerStatus.SEND_CONTRACT && <Send size={18} className="text-orange-400/50" />}
                                                         {status === PlayerStatus.OFFERED && <Target size={18} className="text-scout-highlight/50" />}
                                                         {status === PlayerStatus.PLACED && <Trophy size={18} className="text-scout-accent/50" />}
                                                     </div>
                                                     <p className="text-[9px] font-bold text-gray-600 uppercase">
                                                         {status === PlayerStatus.LEAD && 'New players you discover'}
-                                                        {status === PlayerStatus.CONTACTED && 'Players you\'ve reached out to'}
-                                                        {status === PlayerStatus.INTERESTED && 'Players who responded'}
+                                                        {status === PlayerStatus.REQUEST_TRIAL && 'Players requesting a trial'}
+                                                        {status === PlayerStatus.SEND_CONTRACT && 'Players ready for contracts'}
                                                         {status === PlayerStatus.OFFERED && 'Players with active offers'}
                                                         {status === PlayerStatus.PLACED && 'Successfully placed'}
                                                     </p>
@@ -767,11 +722,16 @@ const Dashboard: React.FC<DashboardProps> = ({
                         <PathwaysTab />
                     </ErrorBoundary>
                 )}
+                {activeTab === DashboardTab.INSIGHTS && (
+                    <ErrorBoundary name="Insights">
+                        <InsightsTab players={players} />
+                    </ErrorBoundary>
+                )}
 
-                {isSubmissionOpen && <PlayerSubmission onClose={handleCloseSubmission} onAddPlayer={onAddPlayer} onUpdatePlayer={onUpdatePlayer} existingPlayers={players} editingPlayer={editingPlayer} />}
+                {isSubmissionOpen && <PlayerSubmission onClose={handleCloseSubmission} onAddPlayer={onAddPlayer} onUpdatePlayer={onUpdatePlayer} existingPlayers={players} editingPlayer={editingPlayer} initialMode={submissionInitialMode} />}
                 {isBeamOpen && <SidelineBeam user={user} onClose={() => setIsBeamOpen(false)} />}
                 {isBugReportOpen && <ReportBugModal onClose={() => setIsBugReportOpen(false)} />}
-                {pendingOfferedPlayer && <PathwaySelectionModal player={pendingOfferedPlayer} onSelect={handlePathwaySelected} onCancel={handlePathwayCancelled} />}
+                {pendingOfferedPlayer && <TrialRequestModal player={pendingOfferedPlayer} onSubmit={handleTrialSubmitted} onCancel={handleTrialCancelled} />}
             </main>
 
             {/* Mobile Feedback Button */}
@@ -804,79 +764,6 @@ const Dashboard: React.FC<DashboardProps> = ({
                             <div>
                                 <p className="text-lg font-bold text-white">{user.name}</p>
                                 <p className="text-sm text-gray-500">{user.email}</p>
-                            </div>
-                        </div>
-
-                        {/* XP Progress */}
-                        {(() => {
-                            const level = Math.floor(scoutScore / 100) + 1;
-                            const xpInLevel = scoutScore % 100;
-                            const levelNames = ['Rookie', 'Scout', 'Hunter', 'Pro Scout', 'Elite', 'Legend', 'Master', 'Grand Master'];
-                            const levelName = levelNames[Math.min(level - 1, levelNames.length - 1)];
-                            return (
-                                <div className="bg-gradient-to-r from-scout-accent/10 to-scout-highlight/10 border border-scout-accent/30 rounded-2xl p-4 mb-6">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-12 h-12 rounded-xl bg-scout-accent/20 flex items-center justify-center">
-                                                <Trophy size={24} className="text-scout-accent" />
-                                            </div>
-                                            <div>
-                                                <p className="text-xs font-bold uppercase text-gray-400">Level {level}</p>
-                                                <p className="text-xl font-black text-white">{levelName}</p>
-                                            </div>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-3xl font-black text-scout-accent">{scoutScore}</p>
-                                            <p className="text-xs text-gray-500 uppercase">Total XP</p>
-                                        </div>
-                                    </div>
-                                    <div className="h-3 bg-scout-900 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-gradient-to-r from-scout-accent to-scout-highlight transition-all duration-500"
-                                            style={{ width: `${xpInLevel}%` }}
-                                        />
-                                    </div>
-                                    <p className="text-xs text-gray-500 mt-2 text-center">{100 - xpInLevel} XP to Level {level + 1}</p>
-                                </div>
-                            );
-                        })()}
-
-                        {/* How to earn XP */}
-                        <div className="mb-6">
-                            <p className="text-xs font-bold uppercase text-gray-500 mb-3">How to earn XP</p>
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                                <div className="bg-scout-900/50 rounded-lg p-2 flex justify-between">
-                                    <span className="text-gray-400">Add player</span>
-                                    <span className="text-scout-accent font-bold">+5</span>
-                                </div>
-                                <div className="bg-scout-900/50 rounded-lg p-2 flex justify-between">
-                                    <span className="text-gray-400">Complete profile</span>
-                                    <span className="text-scout-accent font-bold">+5</span>
-                                </div>
-                                <div className="bg-scout-900/50 rounded-lg p-2 flex justify-between">
-                                    <span className="text-gray-400">First outreach</span>
-                                    <span className="text-scout-accent font-bold">+5</span>
-                                </div>
-                                <div className="bg-scout-900/50 rounded-lg p-2 flex justify-between">
-                                    <span className="text-gray-400">→ Interested</span>
-                                    <span className="text-scout-accent font-bold">+10</span>
-                                </div>
-                                <div className="bg-scout-900/50 rounded-lg p-2 flex justify-between">
-                                    <span className="text-gray-400">→ Offered</span>
-                                    <span className="text-scout-accent font-bold">+25</span>
-                                </div>
-                                <div className="bg-scout-900/50 rounded-lg p-2 flex justify-between">
-                                    <span className="text-gray-400">Attend event</span>
-                                    <span className="text-scout-accent font-bold">+15</span>
-                                </div>
-                                <div className="bg-scout-900/50 rounded-lg p-2 flex justify-between">
-                                    <span className="text-gray-400">Host event</span>
-                                    <span className="text-scout-accent font-bold">+50</span>
-                                </div>
-                                <div className="bg-gradient-to-r from-scout-accent/20 to-scout-highlight/20 rounded-lg p-2 flex justify-between border border-scout-accent/30">
-                                    <span className="text-white font-bold">Placement</span>
-                                    <span className="text-scout-accent font-black">+500</span>
-                                </div>
                             </div>
                         </div>
 
@@ -918,16 +805,16 @@ const Dashboard: React.FC<DashboardProps> = ({
                             <Plus size={28} />
                         </button>
                     </div>
-                    <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.KNOWLEDGE); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.KNOWLEDGE ? 'text-scout-accent' : 'text-gray-600'}`}>
-                        <BookOpen size={20} />
-                        <span className="text-[8px] font-black uppercase">Pathways</span>
+                    <button onClick={() => { haptic.light(); setActiveTab(DashboardTab.INSIGHTS); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === DashboardTab.INSIGHTS ? 'text-scout-accent' : 'text-gray-600'}`}>
+                        <BarChart3 size={20} />
+                        <span className="text-[8px] font-black uppercase">Insights</span>
                     </button>
-                    {/* XP Level indicator - opens profile sheet */}
+                    {/* Profile - opens profile sheet */}
                     <button onClick={() => { haptic.light(); setShowMobileProfile(true); }} className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95">
                         <div className="w-7 h-7 rounded-full bg-gradient-to-br from-scout-accent/30 to-scout-highlight/20 border-2 border-scout-accent flex items-center justify-center">
-                            <span className="text-[10px] font-black text-scout-accent">{Math.floor(scoutScore / 100) + 1}</span>
+                            <span className="text-[10px] font-black text-scout-accent">{user.name.charAt(0)}</span>
                         </div>
-                        <span className="text-[8px] font-black uppercase text-scout-accent">{scoutScore}xp</span>
+                        <span className="text-[8px] font-black uppercase text-gray-600">Profile</span>
                     </button>
                 </div>
             </nav>

@@ -33,7 +33,12 @@ function getSupabaseClient(): SupabaseClient<Database> {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
+        flowType: 'pkce',
         storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+        // Bypass navigator.locks which causes AbortError in Safari
+        lock: async (name: string, acquireTimeout: number, fn: () => Promise<any>) => {
+          return await fn()
+        },
       },
       global: {
         headers: {
@@ -128,9 +133,9 @@ export const supabaseRest = {
       // Add timeout to prevent hanging
       const controller = new AbortController()
       const timeoutId = setTimeout(() => {
-        console.log('[supabaseRest.insert] Request timed out after 10s')
+        console.log('[supabaseRest.insert] Request timed out after 20s')
         controller.abort()
-      }, 10000)
+      }, 20000)
 
       const response = await fetch(`${supabaseUrl}/rest/v1/${table}`, {
         method: 'POST',

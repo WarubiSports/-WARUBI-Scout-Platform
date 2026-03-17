@@ -38,7 +38,7 @@ const StatusPill = ({ status }: { status: EventStatus }) => {
 };
 
 const AttendancePrepModal = ({ event, onCancel, onConfirm }: { event: ScoutingEvent, onCancel: () => void, onConfirm: () => void }) => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
         <div className="bg-scout-800 w-full max-w-md rounded-2xl border border-scout-700 shadow-2xl overflow-hidden flex flex-col">
             <div className="p-6 bg-gradient-to-br from-scout-900 to-scout-800 border-b border-scout-700 text-center">
                 <div className="w-12 h-12 bg-scout-accent/20 rounded-full flex items-center justify-center text-scout-accent mb-4 border border-scout-accent/30 mx-auto">
@@ -91,7 +91,7 @@ const AttendancePrepModal = ({ event, onCancel, onConfirm }: { event: ScoutingEv
 );
 
 const HostGuideModal = ({ onClose }: { onClose: () => void }) => (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
        <div className="bg-scout-800 w-full max-w-2xl rounded-2xl border border-scout-700 shadow-2xl flex flex-col overflow-hidden max-h-[90vh]">
            <div className="p-4 border-b border-scout-700 flex justify-between items-center bg-scout-900">
                <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -619,11 +619,7 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                       </div>
 
                       {isMine && (
-                          <div className="grid grid-cols-2 gap-3 mt-6">
-                              <div className="bg-scout-900 p-3 rounded border border-scout-700 text-center">
-                                  <span className="block text-2xl font-bold text-white">{event.registeredCount}</span>
-                                  <span className="text-[10px] text-gray-500 uppercase">Registered</span>
-                              </div>
+                          <div className="grid grid-cols-1 gap-3 mt-6">
                               <div className="bg-scout-900 p-3 rounded border border-scout-700 text-center flex flex-col items-center justify-center">
                                   <Users size={20} className="text-gray-500 mb-1"/>
                                   <span className="text-[10px] text-gray-500 uppercase">View List</span>
@@ -753,11 +749,7 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                         </div>
 
                         {isMine && (
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-scout-800 p-4 rounded-xl border border-scout-700 text-center">
-                                    <div className="text-3xl font-black text-white">{event.registeredCount}</div>
-                                    <div className="text-xs text-gray-500 uppercase font-bold">Confirmed</div>
-                                </div>
+                            <div className="grid grid-cols-1 gap-4">
                                 <div className="bg-scout-800 p-4 rounded-xl border border-scout-700 text-center flex items-center justify-center">
                                     <button className="text-scout-accent text-xs font-bold flex flex-col items-center gap-1">
                                         <QrCode size={24} />
@@ -935,7 +927,6 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
         endDate: formData.endDate || undefined,
         type: parseEventType(formData.type),
         fee: formData.fee,
-        registeredCount: 0,
         marketingCopy: '',
         agenda: [],
         checklist: [],

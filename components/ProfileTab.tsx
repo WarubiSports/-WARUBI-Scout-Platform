@@ -6,9 +6,6 @@ import {
   Briefcase, QrCode, TrendingUp, ChevronRight,
   ShieldCheck, Copy, CheckCircle2, Zap, Edit2, Save, X, Sparkles, Calculator, Info, MessageCircle, ChevronLeft, Instagram, Radio, Download, ExternalLink, Flame, Trophy, Globe, Smartphone, User, Phone, Mail, LogOut, GraduationCap
 } from 'lucide-react';
-import BadgesDisplay from './BadgesDisplay';
-import StreakDisplay from './StreakDisplay';
-import { useBadges } from '../hooks/useBadges';
 import { useScoutContext } from '../contexts/ScoutContext';
 
 interface ProfileTabProps {
@@ -32,11 +29,6 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ user, players, events, scoutSco
     const applyLink = `warubi.com/apply/${user.scoutId || 'demo'}`;
 
     const totalPlacements = players.filter(p => p.status === PlayerStatus.PLACED).length;
-    const currentLevel = Math.floor(scoutScore / 500) + 1;
-    const progressToNextLevel = (scoutScore % 500) / 500 * 100;
-
-    // Badges
-    const { earnedBadges, allBadgesProgress } = useBadges(players, events, scoutScore, currentLevel);
 
     const copyLink = () => {
         navigator.clipboard.writeText(applyLink);
@@ -150,24 +142,6 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ user, players, events, scoutSco
                     ))}
                 </div>
 
-                {/* XP Progress Bar */}
-                <div className="w-full max-w-xl bg-scout-800/50 border border-scout-700 rounded-3xl p-6 space-y-4">
-                    <div className="flex justify-between items-end">
-                        <div>
-                            <h3 className="text-lg font-black text-white uppercase tracking-tight italic flex items-center gap-2"><Trophy size={18} className="text-scout-highlight"/> Level {currentLevel} Scout</h3>
-                            <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">{scoutScore} XP Total</p>
-                        </div>
-                        <span className="text-[10px] font-black text-scout-accent uppercase">Next Level: {500 - (scoutScore % 500)} XP</span>
-                    </div>
-                    <div className="w-full bg-scout-900 h-2.5 rounded-full overflow-hidden border border-white/5">
-                        <div className="bg-gradient-to-r from-scout-accent to-emerald-400 h-full transition-all duration-1000 shadow-glow" style={{ width: `${progressToNextLevel}%` }}></div>
-                    </div>
-                </div>
-
-                {/* Daily Streak */}
-                <div className="w-full max-w-xl">
-                    <StreakDisplay />
-                </div>
             </div>
 
             {/* QUICK ACTIONS BAR */}
@@ -228,14 +202,6 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ user, players, events, scoutSco
                 </div>
             </div>
 
-            {/* ACHIEVEMENTS */}
-            <div className="bg-scout-800/50 rounded-[2.5rem] border border-scout-700 p-8">
-                <BadgesDisplay
-                    allBadgesProgress={allBadgesProgress}
-                    earnedBadges={earnedBadges}
-                />
-            </div>
-
             {/* SIGN OUT (Mobile) */}
             {onLogout && (
                 <div className="md:hidden pt-4 border-t border-scout-700/50">
@@ -251,7 +217,7 @@ const ProfileTab: React.FC<ProfileTabProps> = ({ user, players, events, scoutSco
 
             {/* BIO EDITOR MODAL */}
             {isEditingBio && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[120] p-4">
                     <div className="bg-scout-900 border border-scout-700 rounded-[2rem] w-full max-w-lg overflow-hidden">
                         {/* Header */}
                         <div className="p-6 border-b border-scout-700 flex items-center justify-between">

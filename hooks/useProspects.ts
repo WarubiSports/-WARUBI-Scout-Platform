@@ -45,6 +45,9 @@ export function playerToProspect(player: Player, scoutId: string): ScoutProspect
     placed_location: player.placedLocation || null,
     notes: player.notes || null,
     last_contacted_at: player.lastContactedAt || null,
+    date_of_birth: player.dateOfBirth || null,
+    program_duration: player.programDuration || null,
+    enrollment_confirmed: player.enrollmentConfirmed || false,
   }
 }
 
@@ -76,6 +79,7 @@ export function prospectToPlayer(prospect: ScoutProspect, outreachLogs: Outreach
     gradYear: prospect.grad_year || undefined,
     satAct: prospect.sat_act || undefined,
     videoLink: prospect.video_link || undefined,
+    dateOfBirth: prospect.date_of_birth || undefined,
     club: prospect.club || undefined,
     teamLevel: prospect.team_level || undefined,
     interestedProgram: prospect.interested_program || undefined,
@@ -90,6 +94,10 @@ export function prospectToPlayer(prospect: ScoutProspect, outreachLogs: Outreach
     activityStatus: prospect.activity_status || 'undiscovered',
     isRecalibrating: false,
     previousScore: undefined,
+    trialProspectId: prospect.trial_prospect_id || undefined,
+    programDuration: prospect.program_duration || undefined,
+    enrollmentConfirmed: prospect.enrollment_confirmed || undefined,
+    enrollmentConfirmedAt: prospect.enrollment_confirmed_at || undefined,
   }
 }
 
@@ -97,8 +105,8 @@ export function prospectToPlayer(prospect: ScoutProspect, outreachLogs: Outreach
 export function statusToDb(status: PlayerStatus): ScoutProspect['status'] {
   const mapping: Record<PlayerStatus, ScoutProspect['status']> = {
     [PlayerStatus.LEAD]: 'lead',
-    [PlayerStatus.CONTACTED]: 'contacted',
-    [PlayerStatus.INTERESTED]: 'interested',
+    [PlayerStatus.REQUEST_TRIAL]: 'request_trial',
+    [PlayerStatus.SEND_CONTRACT]: 'send_contract',
     [PlayerStatus.OFFERED]: 'offered',
     [PlayerStatus.PLACED]: 'placed',
     [PlayerStatus.ARCHIVED]: 'archived',
@@ -110,12 +118,14 @@ export function statusToDb(status: PlayerStatus): ScoutProspect['status'] {
 export function statusFromDb(status: ScoutProspect['status']): PlayerStatus {
   const mapping: Record<string, PlayerStatus> = {
     'lead': PlayerStatus.LEAD,
-    'contacted': PlayerStatus.CONTACTED,
-    'interested': PlayerStatus.INTERESTED,
+    'request_trial': PlayerStatus.REQUEST_TRIAL,
+    'send_contract': PlayerStatus.SEND_CONTRACT,
     'offered': PlayerStatus.OFFERED,
     'placed': PlayerStatus.PLACED,
     'archived': PlayerStatus.ARCHIVED,
     // Legacy mappings for old data
+    'contacted': PlayerStatus.REQUEST_TRIAL,
+    'interested': PlayerStatus.SEND_CONTRACT,
     'prospect': PlayerStatus.LEAD,
     'final_review': PlayerStatus.OFFERED,
   }
@@ -181,9 +191,31 @@ async function fetchProspects(
     }
   }
 
-  const players = paginatedProspects.map((p) =>
-    prospectToPlayer(p, logsByProspect[p.id] || [])
-  )
+  // Load trial statuses for prospects linked to trial_prospects
+  const trialProspectIds = paginatedProspects
+    .filter((p) => p.trial_prospect_id)
+    .map((p) => p.trial_prospect_id!)
+
+  let trialStatuses: Record<string, string> = {}
+  if (trialProspectIds.length > 0) {
+    const { data: trialData } = await supabaseRest.select<{ id: string; status: string }>(
+      'trial_prospects',
+      `id=in.(${trialProspectIds.join(',')})&select=id,status`
+    )
+    if (trialData) {
+      trialData.forEach((t) => {
+        trialStatuses[t.id] = t.status
+      })
+    }
+  }
+
+  const players = paginatedProspects.map((p) => {
+    const player = prospectToPlayer(p, logsByProspect[p.id] || [])
+    if (p.trial_prospect_id && trialStatuses[p.trial_prospect_id]) {
+      player.trialStatus = trialStatuses[p.trial_prospect_id]
+    }
+    return player
+  })
 
   return {
     players,
@@ -277,6 +309,9 @@ export function useProspects(scoutId: string | undefined) {
       if (updates.placedLocation !== undefined) dbUpdates.placed_location = updates.placedLocation
       if (updates.notes !== undefined) dbUpdates.notes = updates.notes
       if (updates.lastContactedAt !== undefined) dbUpdates.last_contacted_at = updates.lastContactedAt
+      if (updates.programDuration !== undefined) dbUpdates.program_duration = updates.programDuration || null
+      if (updates.enrollmentConfirmed !== undefined) dbUpdates.enrollment_confirmed = updates.enrollmentConfirmed
+      if (updates.enrollmentConfirmedAt !== undefined) dbUpdates.enrollment_confirmed_at = updates.enrollmentConfirmedAt || null
 
       const { error } = await supabaseRest.update('scout_prospects', `id=eq.${playerId}`, dbUpdates)
 

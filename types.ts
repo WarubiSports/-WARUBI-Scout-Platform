@@ -11,14 +11,15 @@ export enum DashboardTab {
   EVENTS = 'EVENTS',
   KNOWLEDGE = 'KNOWLEDGE',
   PROFILE = 'PROFILE',
-  OUTREACH = 'OUTREACH'
+  OUTREACH = 'OUTREACH',
+  INSIGHTS = 'INSIGHTS'
 }
 
-// Simplified 5-stage pipeline: Lead → Contacted → Interested → Offered → Placed
+// Pipeline: Lead → Request Trial → Send Contract → Offered → Placed
 export enum PlayerStatus {
   LEAD = 'Lead',
-  CONTACTED = 'Contacted',
-  INTERESTED = 'Interested',
+  REQUEST_TRIAL = 'Request Trial',
+  SEND_CONTRACT = 'Send Contract',
   OFFERED = 'Offered',
   PLACED = 'Placed',
   ARCHIVED = 'Archived'
@@ -100,7 +101,7 @@ export interface Player {
   club?: string;
   teamLevel?: string;
   interestedProgram?: string;
-  offeredPathway?: 'europe' | 'college' | 'events' | 'coaching';
+  offeredPathway?: string;
   placedLocation?: string;
   evaluation: PlayerEvaluation | null;
   outreachLogs: OutreachLog[];
@@ -113,6 +114,10 @@ export interface Player {
   previousScore?: number;
   dateOfBirth?: string;
   trialProspectId?: string;
+  trialStatus?: string;
+  programDuration?: 'full_season' | '6_months' | '3_months' | '1_month';
+  enrollmentConfirmed?: boolean;
+  enrollmentConfirmedAt?: string;
 }
 
 export type EventStatus = 'Draft' | 'Pending Approval' | 'Approved' | 'Published' | 'Completed' | 'Rejected';
@@ -132,7 +137,7 @@ export interface ScoutingEvent {
   marketingCopy?: string;
   agenda?: string[];
   checklist?: { task: string; completed: boolean }[];
-  registeredCount?: number;
+
   hostName?: string;
   isGlobal?: boolean; // Admin-created events visible to all scouts
   link?: string; // External URL (e.g., registration page)

@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured, supabaseRest } from '../lib/supabase';
 import type { Player } from '../types';
+import type { TrialDates } from '../components/TrialRequestModal';
 
 interface TrialProspect {
   id: string;
@@ -27,7 +28,9 @@ interface TrialProspect {
 export async function createTrialFromProspect(
   prospect: Player,
   scoutId: string,
-  scoutName: string
+  scoutName: string,
+  directSign: boolean = false,
+  trialDates?: TrialDates
 ): Promise<{ trialProspectId: string | null; error: string | null }> {
   if (!isSupabaseConfigured) {
     console.log('Demo mode: Would create trial prospect for', prospect.name);
@@ -48,6 +51,11 @@ export async function createTrialFromProspect(
       dateOfBirth = `${birthYear}-01-01`; // Default to Jan 1 of calculated year
     }
 
+    // Validate required fields before inserting
+    if (!prospect.nationality) {
+      return { trialProspectId: null, error: 'Nationality is required to create a trial request. Please add it to the player profile first.' };
+    }
+
     // Build trial prospect data from scout prospect
     // Required fields: first_name, last_name, date_of_birth, position, nationality
     const trialData = {
@@ -55,7 +63,7 @@ export async function createTrialFromProspect(
       last_name: lastName || 'Prospect',
       date_of_birth: dateOfBirth || '2000-01-01', // Fallback date
       position: prospect.position || 'Unknown',
-      nationality: prospect.nationality || 'Unknown',
+      nationality: prospect.nationality,
       current_club: prospect.club || null,
       email: prospect.email || null,
       phone: prospect.phone || null,
@@ -64,8 +72,16 @@ export async function createTrialFromProspect(
       video_url: prospect.videoLink || null,
       scouting_notes: buildScoutingNotes(prospect),
       recommended_by: scoutName,
-      status: 'inquiry', // Initial trial status (matches table default)
+      status: directSign ? 'accepted' : (trialDates ? 'requested' : 'scheduled'),
       created_by: scoutId || null,
+      // Scout reference for trial requests
+      scout_id: scoutId || null,
+      // Requested dates (staff confirms actual trial_start_date/trial_end_date on approval)
+      ...(trialDates && {
+        requested_start_date: trialDates.start || null,
+        requested_end_date: trialDates.end || null,
+        dates_flexible: trialDates.flexible,
+      }),
       // Ratings from scout evaluation
       technical_rating: prospect.technical || null,
       tactical_rating: prospect.tactical || null,
@@ -135,13 +151,17 @@ export async function linkProspectToTrial(
 export async function sendProspectToTrial(
   prospect: Player,
   scoutId: string,
-  scoutName: string
+  scoutName: string,
+  directSign: boolean = false,
+  trialDates?: TrialDates
 ): Promise<{ success: boolean; trialProspectId: string | null; error: string | null }> {
   // Step 1: Create trial prospect
   const { trialProspectId, error: createError } = await createTrialFromProspect(
     prospect,
     scoutId,
-    scoutName
+    scoutName,
+    directSign,
+    trialDates
   );
 
   if (createError || !trialProspectId) {
@@ -159,6 +179,24 @@ export async function sendProspectToTrial(
   }
 
   return { success: true, trialProspectId, error: null };
+}
+
+/**
+ * Stamp a trial prospect with contract_requested_at/by when scout moves to Send Contract
+ */
+export async function markContractRequested(
+  trialProspectId: string,
+  scoutName: string
+): Promise<void> {
+  if (!isSupabaseConfigured || !trialProspectId) return;
+  try {
+    await supabaseRest.update('trial_prospects', `id=eq.${trialProspectId}`, {
+      contract_requested_at: new Date().toISOString(),
+      contract_requested_by: scoutName,
+    });
+  } catch (err) {
+    console.error('Error marking contract requested:', err);
+  }
 }
 
 /**

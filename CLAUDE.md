@@ -31,10 +31,15 @@ Scouting CRM for Warubi Sports. Scouts manage player pipelines, send outreach, t
 - `/lib` - Supabase client, database types
 
 ## Player Pipeline Stages
-Lead → Contacted → Interested → Offered → Placed
+Lead → Request Trial → Send Contract → Offered → Placed
+
+**Two paths:**
+- Trial path: Lead → Request Trial (date picker + ITP sync) → Send Contract → Offered → Placed
+- Direct sign: Lead → Send Contract (auto ITP sync as direct sign) → Offered → Placed
 
 ## Important Logic
-- **ITP Trial Sync:** Only syncs to ITP when player is OFFERED AND `interestedProgram` contains "ITP" (see `App.tsx:handleUpdatePlayer`)
+- **ITP Trial Sync:** Moving to REQUEST_TRIAL triggers `sendProspectToTrial()` with trial dates. Moving from Lead to SEND_CONTRACT (no trial) triggers direct sign sync. Logic exists in TWO code paths in `App.tsx`: `handleUpdatePlayer` (detail form) AND the `onStatusChange` callback (board dropdown). Both must be kept in sync.
+- **TrialRequestModal:** Replaces old `PathwaySelectionModal`. Shows date picker when moving to Request Trial. Located at `components/TrialRequestModal.tsx`.
 - **XP System:** Points awarded for player adds, placements, events (see `constants.ts:SCOUT_POINTS`)
 - **AI Features:** Gemini-powered evaluation, outreach generation, bulk import
 

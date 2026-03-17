@@ -1,5 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom';
+import './app.css';
 import App from './App';
 import { AuthProvider, useAuthContext } from './contexts/AuthContext';
 import { ScoutProvider } from './contexts/ScoutContext';
@@ -40,10 +42,12 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <AuthProvider>
-      <QueryClientProvider client={queryClient}>
-        <AppWithProviders />
-      </QueryClientProvider>
-    </AuthProvider>
+    <BrowserRouter>
+      <AuthProvider>
+        <QueryClientProvider client={queryClient}>
+          <AppWithProviders />
+        </QueryClientProvider>
+      </AuthProvider>
+    </BrowserRouter>
   </React.StrictMode>
 );

@@ -143,11 +143,14 @@ export interface Database {
           tactical: number | null
           coachable: number | null
           evaluation: Json | null
-          status: 'lead' | 'contacted' | 'interested' | 'offered' | 'placed' | 'archived'
+          status: 'lead' | 'request_trial' | 'send_contract' | 'offered' | 'placed' | 'archived'
           activity_status: 'undiscovered' | 'spark' | 'signal' | 'spotlight'
           interested_program: string | null
           placed_location: string | null
           trial_prospect_id: string | null
+          program_duration: 'full_season' | '6_months' | '3_months' | '1_month' | null
+          enrollment_confirmed: boolean
+          enrollment_confirmed_at: string | null
           notes: string | null
           submitted_at: string
           last_active: string | null
@@ -184,11 +187,14 @@ export interface Database {
           tactical?: number | null
           coachable?: number | null
           evaluation?: Json | null
-          status?: 'lead' | 'contacted' | 'interested' | 'offered' | 'placed' | 'archived'
+          status?: 'lead' | 'request_trial' | 'send_contract' | 'offered' | 'placed' | 'archived'
           activity_status?: 'undiscovered' | 'spark' | 'signal' | 'spotlight'
           interested_program?: string | null
           placed_location?: string | null
           trial_prospect_id?: string | null
+          program_duration?: 'full_season' | '6_months' | '3_months' | '1_month' | null
+          enrollment_confirmed?: boolean
+          enrollment_confirmed_at?: string | null
           notes?: string | null
           submitted_at?: string
           last_active?: string | null
@@ -225,11 +231,14 @@ export interface Database {
           tactical?: number | null
           coachable?: number | null
           evaluation?: Json | null
-          status?: 'lead' | 'contacted' | 'interested' | 'offered' | 'placed' | 'archived'
+          status?: 'lead' | 'request_trial' | 'send_contract' | 'offered' | 'placed' | 'archived'
           activity_status?: 'undiscovered' | 'spark' | 'signal' | 'spotlight'
           interested_program?: string | null
           placed_location?: string | null
           trial_prospect_id?: string | null
+          program_duration?: 'full_season' | '6_months' | '3_months' | '1_month' | null
+          enrollment_confirmed?: boolean
+          enrollment_confirmed_at?: string | null
           notes?: string | null
           last_active?: string | null
           last_contacted_at?: string | null
@@ -291,7 +300,7 @@ export interface Database {
           status: 'draft' | 'pending_approval' | 'approved' | 'published' | 'completed' | 'cancelled' | 'rejected'
           fee: string | null
           max_capacity: number | null
-          registered_count: number
+
           description: string | null
           marketing_copy: string | null
           agenda: Json | null
@@ -314,7 +323,7 @@ export interface Database {
           status?: 'draft' | 'pending_approval' | 'approved' | 'published' | 'completed' | 'cancelled' | 'rejected'
           fee?: string | null
           max_capacity?: number | null
-          registered_count?: number
+
           description?: string | null
           marketing_copy?: string | null
           agenda?: Json | null
@@ -337,7 +346,7 @@ export interface Database {
           status?: 'draft' | 'pending_approval' | 'approved' | 'published' | 'completed' | 'cancelled' | 'rejected'
           fee?: string | null
           max_capacity?: number | null
-          registered_count?: number
+
           description?: string | null
           marketing_copy?: string | null
           agenda?: Json | null
@@ -437,6 +446,82 @@ export interface Database {
           description?: string | null
         }
       }
+      scout_agreements: {
+        Row: {
+          id: string
+          scout_id: string
+          agreement_type: 'regional_licensee' | 'talent_scout' | 'hybrid'
+          currency: 'EUR' | 'USD'
+          rate_full_season: number
+          rate_6_months: number
+          rate_3_months: number
+          rate_1_month: number | null
+          rate_1_month_female: number | null
+          rate_3_months_female: number | null
+          college_rate_tier_1: number | null
+          college_rate_tier_2: number | null
+          college_rate_tier_3: number | null
+          college_rate_currency: 'EUR' | 'USD' | null
+          scholarship_adjusts_tdrf: boolean
+          has_event_rights: boolean
+          min_placements_per_year: number
+          agreement_start: string
+          agreement_end: string | null
+          is_active: boolean
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          scout_id: string
+          agreement_type?: 'regional_licensee' | 'talent_scout' | 'hybrid'
+          currency?: 'EUR' | 'USD'
+          rate_full_season?: number
+          rate_6_months?: number
+          rate_3_months?: number
+          rate_1_month?: number | null
+          rate_1_month_female?: number | null
+          rate_3_months_female?: number | null
+          college_rate_tier_1?: number | null
+          college_rate_tier_2?: number | null
+          college_rate_tier_3?: number | null
+          college_rate_currency?: 'EUR' | 'USD' | null
+          scholarship_adjusts_tdrf?: boolean
+          has_event_rights?: boolean
+          min_placements_per_year?: number
+          agreement_start: string
+          agreement_end?: string | null
+          is_active?: boolean
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          scout_id?: string
+          agreement_type?: 'regional_licensee' | 'talent_scout' | 'hybrid'
+          currency?: 'EUR' | 'USD'
+          rate_full_season?: number
+          rate_6_months?: number
+          rate_3_months?: number
+          rate_1_month?: number | null
+          rate_1_month_female?: number | null
+          rate_3_months_female?: number | null
+          college_rate_tier_1?: number | null
+          college_rate_tier_2?: number | null
+          college_rate_tier_3?: number | null
+          college_rate_currency?: 'EUR' | 'USD' | null
+          scholarship_adjusts_tdrf?: boolean
+          has_event_rights?: boolean
+          min_placements_per_year?: number
+          agreement_start?: string
+          agreement_end?: string | null
+          is_active?: boolean
+          notes?: string | null
+          updated_at?: string
+        }
+      }
       feedback: {
         Row: {
           id: string
@@ -512,3 +597,7 @@ export type EventAttendeeInsert = Database['public']['Tables']['scout_event_atte
 export type Feedback = Database['public']['Tables']['feedback']['Row']
 export type FeedbackInsert = Database['public']['Tables']['feedback']['Insert']
 export type FeedbackUpdate = Database['public']['Tables']['feedback']['Update']
+
+export type ScoutAgreement = Database['public']['Tables']['scout_agreements']['Row']
+export type ScoutAgreementInsert = Database['public']['Tables']['scout_agreements']['Insert']
+export type ScoutAgreementUpdate = Database['public']['Tables']['scout_agreements']['Update']

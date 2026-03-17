@@ -250,7 +250,7 @@ export const PathwaysTab: React.FC = () => {
             {/* System Audit Modal */}
             {showSystemAudit && (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm overflow-y-auto py-8"
+                    className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm overflow-y-auto py-8"
                     onClick={() => setShowSystemAudit(false)}
                 >
                     <div
@@ -387,7 +387,7 @@ export const PathwaysTab: React.FC = () => {
             {/* Video Modal */}
             {activeVideo && (
                 <div
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+                    className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm"
                     onClick={() => setActiveVideo(null)}
                 >
                     <div className="relative w-full max-w-4xl mx-4" onClick={(e) => e.stopPropagation()}>

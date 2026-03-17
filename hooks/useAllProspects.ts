@@ -19,11 +19,14 @@ export interface PlayerWithScout extends Player {
 function statusFromDb(status: ScoutProspect['status']): PlayerStatus {
   const mapping: Record<string, PlayerStatus> = {
     'lead': PlayerStatus.LEAD,
-    'contacted': PlayerStatus.CONTACTED,
-    'interested': PlayerStatus.INTERESTED,
+    'request_trial': PlayerStatus.REQUEST_TRIAL,
+    'send_contract': PlayerStatus.SEND_CONTRACT,
     'offered': PlayerStatus.OFFERED,
     'placed': PlayerStatus.PLACED,
     'archived': PlayerStatus.ARCHIVED,
+    // Legacy mappings
+    'contacted': PlayerStatus.REQUEST_TRIAL,
+    'interested': PlayerStatus.SEND_CONTRACT,
     'prospect': PlayerStatus.LEAD,
     'final_review': PlayerStatus.OFFERED,
   }
@@ -71,6 +74,9 @@ function prospectToPlayerWithScout(prospect: ScoutProspect, scoutName: string): 
     activityStatus: prospect.activity_status || 'undiscovered',
     isRecalibrating: false,
     previousScore: undefined,
+    programDuration: prospect.program_duration || undefined,
+    enrollmentConfirmed: prospect.enrollment_confirmed || undefined,
+    enrollmentConfirmedAt: prospect.enrollment_confirmed_at || undefined,
     // Scout info
     scoutId: prospect.scout_id,
     scoutName: scoutName,

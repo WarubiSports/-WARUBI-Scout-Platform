@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { isEmailApproved, markScoutRegistered, needsPasswordSetup, setUserPassword } from '../services/accessControlService'
 import type { User, Session } from '@supabase/supabase-js'
@@ -22,6 +22,10 @@ interface UseAuthReturn extends AuthState {
   isAuthenticated: boolean
   isDemo: boolean
 }
+
+// Module-level promise to track getSession() completion across StrictMode remounts.
+// This ensures signInWithPassword waits for the navigator lock to be released.
+let sessionInitPromise: Promise<void> | null = null
 
 export function useAuth(): UseAuthReturn {
   const [state, setState] = useState<AuthState>({
@@ -50,21 +54,24 @@ export function useAuth(): UseAuthReturn {
     }
 
     let isMounted = true
-    let hasResolved = false
 
-    // Guaranteed timeout - will always fire after 3 seconds
+    // Show login form after 3s regardless, but don't cancel getSession() —
+    // it must finish to release the navigator lock before sign-in can work.
     const timeoutId = setTimeout(() => {
-      if (isMounted && !hasResolved) {
-        console.warn('Auth session check timed out, proceeding without session')
-        hasResolved = true
-        setState(prev => ({ ...prev, loading: false }))
+      if (isMounted) {
+        setState(prev => {
+          if (prev.loading) {
+            console.warn('Auth session check slow, showing login form')
+            return { ...prev, loading: false }
+          }
+          return prev
+        })
       }
     }, 3000)
 
-    // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
-      if (!isMounted || hasResolved) return
-      hasResolved = true
+    // Track getSession() so sign-in methods can wait for the lock to release
+    sessionInitPromise = supabase.auth.getSession().then(async ({ data: { session }, error }) => {
+      if (!isMounted) return
       clearTimeout(timeoutId)
 
       if (error) {
@@ -78,14 +85,12 @@ export function useAuth(): UseAuthReturn {
           loading: false,
         }))
 
-        // Check password setup status if user is logged in
         if (session?.user) {
           checkPasswordSetup()
         }
       }
     }).catch(err => {
-      if (!isMounted || hasResolved) return
-      hasResolved = true
+      if (!isMounted) return
       clearTimeout(timeoutId)
       console.error('Error in getSession:', err)
       setState(prev => ({ ...prev, loading: false, error: 'Failed to check authentication' }))
@@ -95,12 +100,7 @@ export function useAuth(): UseAuthReturn {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth state changed:', event, session?.user?.email)
-
-        // Clear timeout and mark resolved when auth state changes
-        if (isMounted && !hasResolved) {
-          hasResolved = true
-          clearTimeout(timeoutId)
-        }
+        clearTimeout(timeoutId)
 
         setState(prev => ({
           ...prev,
@@ -109,9 +109,7 @@ export function useAuth(): UseAuthReturn {
           loading: false,
         }))
 
-        // Check password setup on login events
         if (event === 'SIGNED_IN' && session?.user) {
-          // Mark scout as registered
           await markScoutRegistered(session.user.email || '')
           checkPasswordSetup()
         }
@@ -125,16 +123,21 @@ export function useAuth(): UseAuthReturn {
     }
   }, [checkPasswordSetup])
 
+  // Wait for any pending getSession() to finish (releases navigator lock)
+  const waitForSessionInit = async () => {
+    if (sessionInitPromise) {
+      try { await sessionInitPromise } catch { /* already handled */ }
+    }
+  }
+
   const signInWithMagicLink = useCallback(async (email: string) => {
     if (!isSupabaseConfigured) {
       return { success: false, error: 'Supabase not configured' }
     }
 
-    // Don't set global loading state - Login component manages its own loading state
-    // This prevents App.tsx from showing loading screen and unmounting Login
-
     try {
-      // Check if email is in approved list
+      await waitForSessionInit()
+
       const { approved, error: approvalError } = await isEmailApproved(email)
 
       if (!approved) {
@@ -147,7 +150,6 @@ export function useAuth(): UseAuthReturn {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          // Redirect to the current origin after clicking the magic link
           emailRedirectTo: typeof window !== 'undefined'
             ? `${window.location.origin}/auth/callback`
             : undefined,
@@ -170,10 +172,10 @@ export function useAuth(): UseAuthReturn {
       return { success: false, error: 'Supabase not configured' }
     }
 
-    // Don't set global loading state - Login component manages its own loading state
-
     try {
-      // Check if email is in approved list
+      // Wait for getSession() to release the navigator lock
+      await waitForSessionInit()
+
       const { approved, error: approvalError } = await isEmailApproved(email)
 
       if (!approved) {
@@ -204,10 +206,9 @@ export function useAuth(): UseAuthReturn {
       return { success: false, error: 'Supabase not configured' }
     }
 
-    // Don't set global loading state - Login component manages its own loading state
-
     try {
-      // Check if email is in approved list
+      await waitForSessionInit()
+
       const { approved, error: approvalError } = await isEmailApproved(email)
 
       if (!approved) {
@@ -225,7 +226,7 @@ export function useAuth(): UseAuthReturn {
             ? `${window.location.origin}/auth/callback`
             : undefined,
           data: {
-            has_set_password: true, // Mark password as set during signup
+            has_set_password: true,
           },
         },
       })

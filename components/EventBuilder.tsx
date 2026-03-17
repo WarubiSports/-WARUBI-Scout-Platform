@@ -43,7 +43,6 @@ const EventBuilder: React.FC<EventBuilderProps> = ({ events, onAddEvent }) => {
             type,
             fee,
             status: 'Draft',
-            registeredCount: 0,
             marketingCopy: plan.marketingCopy,
             agenda: plan.agenda,
             checklist: plan.checklist

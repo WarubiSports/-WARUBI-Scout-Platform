@@ -5,15 +5,19 @@ import {
     ShieldCheck, Activity, Search, Filter, Briefcase, Award,
     LogOut, Globe, TrendingUp, AlertCircle, FileText, Check,
     MoreHorizontal, Edit2, BadgeCheck, X, Save, Eye, Plus,
-    List, LayoutGrid, Newspaper, Flame, Trash2, Link, Bell, KeyRound, Bug, Copy, ExternalLink, Loader2
+    List, LayoutGrid, Newspaper, Flame, Trash2, Link, Bell, KeyRound, Bug, Copy, ExternalLink, Loader2, BarChart3
 } from 'lucide-react';
 import ApprovedScoutsManager from './ApprovedScoutsManager';
+import AdminPlayerDetail from './AdminPlayerDetail';
+import PlayerSubmission from './PlayerSubmission';
 import { getAllBugReports, updateBugReportStatus, generateClaudePrompt } from '../services/bugReportService';
 import { useAllScouts } from '../hooks/useAllScouts';
 import { useAllProspects, PlayerWithScout } from '../hooks/useAllProspects';
 import { supabase, supabaseRest } from '../lib/supabase';
 import type { BugReport, BugReportStatus } from '../types';
 import type { Scout } from '../lib/database.types';
+import AdminAgreementPanel from './AdminAgreementPanel';
+import { useAdminAgreements } from '../hooks/useAdminAgreements';
 
 interface AdminDashboardProps {
     players: Player[];
@@ -61,7 +65,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     onAddNotification,
     onMarkAllRead
 }) => {
-    const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'APPROVALS' | 'TALENT' | 'SCOUTS' | 'ACCESS' | 'NEWS' | 'EVENTS' | 'BUGS'>('OVERVIEW');
+    const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'APPROVALS' | 'TALENT' | 'SCOUTS' | 'ACCESS' | 'NEWS' | 'EVENTS' | 'BUGS' | 'INSIGHTS'>('OVERVIEW');
     const [searchQuery, setSearchQuery] = useState('');
 
     // Real scout data from Supabase
@@ -97,13 +101,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const [selectedBugReport, setSelectedBugReport] = useState<BugReport | null>(null);
     const [updatingBugId, setUpdatingBugId] = useState<string | null>(null);
 
-    // Historical Achievements State
-    const [historicalPlacements, setHistoricalPlacements] = useState(0);
-    const [historicalShowcases, setHistoricalShowcases] = useState(0);
-    const [historicalPlayerNames, setHistoricalPlayerNames] = useState('');
-    const [historicalEventNames, setHistoricalEventNames] = useState('');
-    const [awardingXP, setAwardingXP] = useState(false);
+    // Talent Detail Panel State
+    const [selectedTalentPlayer, setSelectedTalentPlayer] = useState<PlayerWithScout | null>(null);
+    const [editingTalentPlayer, setEditingTalentPlayer] = useState<PlayerWithScout | null>(null);
+    const [isTalentSubmissionOpen, setIsTalentSubmissionOpen] = useState(false);
+
     const [savingScout, setSavingScout] = useState(false);
+
+    // Admin agreements
+    const { confirmEnrollment } = useAdminAgreements();
 
     // --- DERIVED STATS ---
     const pendingEvents = events.filter(e => e.status === 'Pending Approval');
@@ -177,98 +183,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         } finally {
             setSavingScout(false);
         }
-    };
-
-    // XP values for historical achievements
-    const HISTORICAL_XP = {
-        PLACEMENT: 500,
-        SHOWCASE_HOSTED: 250, // High value - showcases generate many leads
-    };
-
-    const handleAwardHistorical = async () => {
-        if (!selectedScout || (historicalPlacements === 0 && historicalShowcases === 0)) return;
-
-        setAwardingXP(true);
-
-        // Calculate total XP to award
-        const placementXP = historicalPlacements * HISTORICAL_XP.PLACEMENT;
-        const showcaseXP = historicalShowcases * HISTORICAL_XP.SHOWCASE_HOSTED;
-        const totalXP = placementXP + showcaseXP;
-
-        // Parse player names (comma-separated)
-        const playerNames = historicalPlayerNames
-            .split(',')
-            .map(n => n.trim())
-            .filter(n => n.length > 0);
-
-        // Parse event names (comma-separated)
-        const eventNames = historicalEventNames
-            .split(',')
-            .map(n => n.trim())
-            .filter(n => n.length > 0);
-
-        // Create historical player records (use REST API to avoid hanging)
-        if (historicalPlacements > 0) {
-            for (let i = 0; i < historicalPlacements; i++) {
-                const playerName = playerNames[i] || `Historical Placement #${i + 1}`;
-                await supabaseRest.insert('scout_prospects', {
-                    scout_id: selectedScout.id,
-                    name: playerName,
-                    position: 'Unknown',
-                    status: 'placed',
-                    placed_location: 'Historical Record',
-                });
-            }
-        }
-
-        // Create historical event records (use REST API to avoid hanging)
-        if (historicalShowcases > 0) {
-            for (let i = 0; i < historicalShowcases; i++) {
-                const eventName = eventNames[i] || `Historical Showcase #${i + 1}`;
-                await supabaseRest.insert('scouting_events', {
-                    host_scout_id: selectedScout.id,
-                    title: eventName,
-                    event_type: 'Showcase',
-                    event_date: new Date().toISOString().split('T')[0],
-                    location: 'Historical Record',
-                    status: 'completed',
-                });
-            }
-        }
-
-        // Update scout's XP and placements count
-        const newXPScore = (selectedScout.xp_score || 0) + totalXP;
-        const newPlacementsCount = (selectedScout.placements_count || 0) + historicalPlacements;
-        const newLevel = Math.floor(newXPScore / 100) + 1;
-
-        const success = await updateScoutInDb(selectedScout.id, {
-            xp_score: newXPScore,
-            placements_count: newPlacementsCount,
-            level: newLevel,
-        });
-
-        if (success) {
-            // Update local state
-            const updatedScout = {
-                ...selectedScout,
-                xp_score: newXPScore,
-                placements_count: newPlacementsCount,
-                level: newLevel,
-            };
-            setSelectedScout(updatedScout);
-            setScoutFormData(updatedScout);
-
-            // Reset inputs
-            setHistoricalPlacements(0);
-            setHistoricalShowcases(0);
-            setHistoricalPlayerNames('');
-            setHistoricalEventNames('');
-
-            // Refresh scouts list
-            refreshScouts();
-        }
-
-        setAwardingXP(false);
     };
 
     const scoutToUserProfile = (scout: ScoutWithStats): UserProfile => ({
@@ -500,6 +414,118 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
     );
 
+    const AdminInsightsTab = () => {
+        // Build scout stats from allProspects
+        const scoutStats = (() => {
+            const map: Record<string, { name: string; total: number; placed: number }> = {};
+            allProspects.forEach(p => {
+                if (!map[p.scoutId]) map[p.scoutId] = { name: p.scoutName, total: 0, placed: 0 };
+                map[p.scoutId].total++;
+                if (p.status === PlayerStatus.PLACED) map[p.scoutId].placed++;
+            });
+            scouts.forEach(s => {
+                if (!map[s.id]) map[s.id] = { name: s.name, total: 0, placed: 0 };
+            });
+            return Object.values(map).sort((a, b) => b.placed - a.placed || b.total - a.total);
+        })();
+
+        // Pipeline breakdown
+        const stageCounts: Record<string, number> = {};
+        ['Lead', 'Request Trial', 'Send Contract', 'Offered', 'Placed'].forEach(s => stageCounts[s] = 0);
+        allProspects.forEach(p => { if (stageCounts[p.status] !== undefined) stageCounts[p.status]++; });
+
+        // Nationality summary
+        const natMap: Record<string, number> = {};
+        allProspects.forEach(p => { const n = p.nationality || 'Unknown'; natMap[n] = (natMap[n] || 0) + 1; });
+        const topNats = Object.entries(natMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+        return (
+            <div className="space-y-6 animate-fade-in">
+                <h2 className="text-2xl font-bold text-gray-900">Platform Insights</h2>
+
+                {/* Summary Row */}
+                <div className="grid grid-cols-4 gap-4">
+                    <div className="bg-white rounded-xl border border-gray-200 p-5">
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Total Players</p>
+                        <p className="text-3xl font-bold text-gray-900 mt-1">{allProspects.length}</p>
+                    </div>
+                    <div className="bg-white rounded-xl border border-gray-200 p-5">
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Placed</p>
+                        <p className="text-3xl font-bold text-emerald-600 mt-1">{stageCounts['Placed']}</p>
+                    </div>
+                    <div className="bg-white rounded-xl border border-gray-200 p-5">
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Active Scouts</p>
+                        <p className="text-3xl font-bold text-blue-600 mt-1">{scouts.filter(s => s.status === 'active').length}</p>
+                    </div>
+                    <div className="bg-white rounded-xl border border-gray-200 p-5">
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Conversion</p>
+                        <p className="text-3xl font-bold text-purple-600 mt-1">{allProspects.length ? Math.round((stageCounts['Placed'] / allProspects.length) * 100) : 0}%</p>
+                    </div>
+                </div>
+
+                {/* Pipeline & Nationalities */}
+                <div className="grid grid-cols-2 gap-6">
+                    <div className="bg-white rounded-xl border border-gray-200 p-5">
+                        <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">Pipeline Overview</h3>
+                        <div className="space-y-3">
+                            {Object.entries(stageCounts).map(([stage, count]) => {
+                                const max = Math.max(...Object.values(stageCounts), 1);
+                                const colors: Record<string, string> = { Lead: '#6b7280', 'Request Trial': '#3b82f6', 'Send Contract': '#f59e0b', Offered: '#a855f7', Placed: '#10b981' };
+                                return (
+                                    <div key={stage}>
+                                        <div className="flex justify-between text-xs mb-1">
+                                            <span className="font-semibold text-gray-600">{stage}</span>
+                                            <span className="font-bold text-gray-900">{count}</span>
+                                        </div>
+                                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                                            <div className="h-full rounded-full transition-all" style={{ width: `${(count / max) * 100}%`, backgroundColor: colors[stage] }} />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                    <div className="bg-white rounded-xl border border-gray-200 p-5">
+                        <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">Top Nationalities</h3>
+                        <div className="space-y-2">
+                            {topNats.map(([nat, count]) => (
+                                <div key={nat} className="flex items-center justify-between">
+                                    <span className="text-sm text-gray-700">{nat}</span>
+                                    <span className="text-sm font-bold text-gray-900">{count}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Scout Performance */}
+                <div className="bg-white rounded-xl border border-gray-200 p-5">
+                    <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">Scout Performance</h3>
+                    <table className="w-full">
+                        <thead>
+                            <tr className="text-xs text-gray-500 uppercase border-b border-gray-100">
+                                <th className="text-left py-2 font-semibold">#</th>
+                                <th className="text-left py-2 font-semibold">Scout</th>
+                                <th className="text-right py-2 font-semibold">Players</th>
+                                <th className="text-right py-2 font-semibold">Placed</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {scoutStats.map((s, i) => (
+                                <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
+                                    <td className="py-2 text-sm text-gray-400 font-bold">{i + 1}</td>
+                                    <td className="py-2 text-sm font-semibold text-gray-900">{s.name}</td>
+                                    <td className="py-2 text-sm text-right text-gray-700">{s.total}</td>
+                                    <td className="py-2 text-sm text-right font-bold text-emerald-600">{s.placed}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        );
+    };
+
     const TalentTab = () => (
         <div className="space-y-6 animate-fade-in">
             <div className="flex justify-between items-center">
@@ -543,6 +569,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             <tr>
                                 <th className="p-4">Player</th>
                                 <th className="p-4">Position</th>
+                                <th className="p-4">Score</th>
                                 <th className="p-4">Scout</th>
                                 <th className="p-4">Tier</th>
                                 <th className="p-4">Status</th>
@@ -554,9 +581,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                                            p.scoutName.toLowerCase().includes(searchQuery.toLowerCase()))
                                 .map(p => (
-                                <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                                <tr
+                                    key={p.id}
+                                    onClick={() => setSelectedTalentPlayer(p)}
+                                    className={`hover:bg-gray-50 transition-colors cursor-pointer ${selectedTalentPlayer?.id === p.id ? 'bg-blue-50 border-l-2 border-l-blue-500' : ''}`}
+                                >
                                     <td className="p-4 font-bold text-gray-900">{p.name}</td>
                                     <td className="p-4 text-gray-600">{p.position || '-'}</td>
+                                    <td className="p-4 font-black text-blue-600">{p.evaluation?.score || '—'}</td>
                                     <td className="p-4">
                                         <span className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
                                             {p.scoutName}
@@ -577,14 +609,35 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                         ) : p.status}
                                     </td>
                                     <td className="p-4 text-right">
-                                        {p.status !== PlayerStatus.PLACED && (
-                                            <button
-                                                onClick={() => placePlayer(p)}
-                                                className="text-xs bg-gray-900 hover:bg-gray-700 text-white px-3 py-1.5 rounded font-bold transition-colors"
-                                            >
-                                                Mark Placed
-                                            </button>
-                                        )}
+                                        <div className="flex items-center justify-end gap-2">
+                                            {p.status === PlayerStatus.PLACED && !p.enrollmentConfirmed && (
+                                                <button
+                                                    onClick={async (e) => {
+                                                        e.stopPropagation();
+                                                        try {
+                                                            await confirmEnrollment(p.id);
+                                                            refreshProspects();
+                                                        } catch (err) {
+                                                            alert('Failed to confirm enrollment');
+                                                        }
+                                                    }}
+                                                    className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-bold transition-colors"
+                                                >
+                                                    Confirm Enrollment
+                                                </button>
+                                            )}
+                                            {p.status === PlayerStatus.PLACED && p.enrollmentConfirmed && (
+                                                <span className="text-xs text-green-600 font-bold flex items-center gap-1"><CheckCircle size={12} /> Enrolled</span>
+                                            )}
+                                            {p.status !== PlayerStatus.PLACED && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); placePlayer(p); }}
+                                                    className="text-xs bg-gray-900 hover:bg-gray-700 text-white px-3 py-1.5 rounded font-bold transition-colors"
+                                                >
+                                                    Mark Placed
+                                                </button>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -878,7 +931,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="flex min-h-screen bg-gray-50 font-sans text-gray-900 relative">
             {/* Scout Management Modal - inlined to prevent re-render issues */}
             {selectedScout && scoutFormData && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+                <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
                     <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
                         {/* Header */}
                         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
@@ -893,7 +946,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                             <BadgeCheck size={18} className="text-blue-500 fill-blue-50" />
                                         )}
                                     </h3>
-                                    <p className="text-sm text-gray-500">Level {selectedScout.level || 1} • {selectedScout.xp_score || 0} XP</p>
+                                    <p className="text-sm text-gray-500">{selectedScout.region} • {selectedScout.placements_count || 0} placements</p>
                                 </div>
                             </div>
                             <button onClick={() => setSelectedScout(null)} className="text-gray-400 hover:text-gray-700">
@@ -913,10 +966,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 <div className="flex-1 bg-green-50 rounded-lg p-4 border border-green-200 text-center">
                                     <div className="text-2xl font-bold text-green-600">{selectedScout.placements_count || 0}</div>
                                     <div className="text-xs text-gray-500 uppercase">Placed</div>
-                                </div>
-                                <div className="flex-1 bg-purple-50 rounded-lg p-4 border border-purple-200 text-center">
-                                    <div className="text-2xl font-bold text-purple-600">{selectedScout.xp_score || 0}</div>
-                                    <div className="text-xs text-gray-500 uppercase">XP Score</div>
                                 </div>
                                 <div className="flex-1 bg-blue-50 rounded-lg p-4 border border-blue-100 flex items-center justify-center">
                                     <button
@@ -982,107 +1031,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 </div>
                             </div>
 
-                            {/* Historical Achievements */}
-                            <div className="mt-8 pt-6 border-t border-gray-200 space-y-4">
-                                <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wider flex items-center gap-2">
-                                    <Award size={16} className="text-yellow-500" /> Award Historical Achievements
-                                </h4>
-                                <p className="text-xs text-gray-500">
-                                    Credit this scout for past placements and showcases they hosted before joining the platform.
-                                </p>
-                                <div className="grid md:grid-cols-2 gap-4">
-                                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
-                                        <label className="block text-xs font-bold text-green-700 mb-2">
-                                            Historical Placements (+500 XP each)
-                                        </label>
-                                        <div className="flex items-center gap-3">
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                max="100"
-                                                value={historicalPlacements}
-                                                onChange={e => setHistoricalPlacements(Math.max(0, parseInt(e.target.value) || 0))}
-                                                className="w-20 border border-green-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-green-500 outline-none text-center font-bold"
-                                            />
-                                            <span className="text-xs text-green-600 font-medium">
-                                                = {historicalPlacements * 500} XP
-                                            </span>
-                                        </div>
-                                        <div className={historicalPlacements > 0 ? '' : 'hidden'}>
-                                            <label className="block text-[10px] text-green-600 mb-1">
-                                                Player names (comma-separated, optional)
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={historicalPlayerNames}
-                                                onChange={e => setHistoricalPlayerNames(e.target.value)}
-                                                placeholder="John Smith, Mike Jones, Alex Chen"
-                                                className="w-full border border-green-300 rounded p-2 text-xs text-gray-900 focus:ring-2 focus:ring-green-500 outline-none placeholder:text-gray-400"
-                                            />
-                                        </div>
-                                    </div>
-                                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 space-y-3">
-                                        <label className="block text-xs font-bold text-orange-700 mb-2">
-                                            Historical Showcases Hosted (+250 XP each)
-                                        </label>
-                                        <div className="flex items-center gap-3">
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                max="100"
-                                                value={historicalShowcases}
-                                                onChange={e => setHistoricalShowcases(Math.max(0, parseInt(e.target.value) || 0))}
-                                                className="w-20 border border-orange-300 rounded p-2 text-sm text-gray-900 focus:ring-2 focus:ring-orange-500 outline-none text-center font-bold"
-                                            />
-                                            <span className="text-xs text-orange-600 font-medium">
-                                                = {historicalShowcases * 250} XP
-                                            </span>
-                                        </div>
-                                        <div className={historicalShowcases > 0 ? '' : 'hidden'}>
-                                            <label className="block text-[10px] text-orange-600 mb-1">
-                                                Event names (comma-separated, optional)
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={historicalEventNames}
-                                                onChange={e => setHistoricalEventNames(e.target.value)}
-                                                placeholder="Miami Spring Showcase, Atlanta ID Day"
-                                                className="w-full border border-orange-300 rounded p-2 text-xs text-gray-900 focus:ring-2 focus:ring-orange-500 outline-none placeholder:text-gray-400"
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                                {(historicalPlacements > 0 || historicalShowcases > 0) && (
-                                    <div className="flex items-center justify-between bg-purple-50 border border-purple-200 rounded-lg p-4">
-                                        <div>
-                                            <p className="text-xs text-purple-600 font-medium">Total XP to Award</p>
-                                            <p className="text-2xl font-black text-purple-700">
-                                                +{(historicalPlacements * 500) + (historicalShowcases * 250)} XP
-                                            </p>
-                                            <p className="text-[10px] text-purple-500">
-                                                {historicalPlacements > 0 && `${historicalPlacements} placement${historicalPlacements > 1 ? 's' : ''}`}
-                                                {historicalPlacements > 0 && historicalShowcases > 0 && ' + '}
-                                                {historicalShowcases > 0 && `${historicalShowcases} showcase${historicalShowcases > 1 ? 's' : ''}`}
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={handleAwardHistorical}
-                                            disabled={awardingXP}
-                                            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white font-bold text-sm rounded-lg shadow-lg flex items-center gap-2 transition-all"
-                                        >
-                                            {awardingXP ? (
-                                                <>
-                                                    <Loader2 size={16} className="animate-spin" /> Awarding...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <TrendingUp size={16} /> Award XP
-                                                </>
-                                            )}
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
+                            {/* TDRF Agreement Panel */}
+                            <AdminAgreementPanel scoutId={selectedScout.id} scoutName={selectedScout.name} />
+
                         </div>
 
                         {/* Footer */}
@@ -1202,6 +1153,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <Calendar size={20} /> Global Events
                     </button>
                     <button
+                        onClick={() => setActiveTab('INSIGHTS')}
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'INSIGHTS' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
+                    >
+                        <BarChart3 size={20} /> Insights
+                    </button>
+                    <button
                         onClick={() => setActiveTab('BUGS')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'BUGS' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
                     >
@@ -1231,6 +1188,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {activeTab === 'OVERVIEW' && <OverviewTab />}
                 {activeTab === 'APPROVALS' && <ApprovalsTab />}
                 {activeTab === 'TALENT' && <TalentTab />}
+                {activeTab === 'INSIGHTS' && <AdminInsightsTab />}
                 
                 {activeTab === 'SCOUTS' && (
                     <div className="space-y-6 animate-fade-in">
@@ -1295,10 +1253,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                                 <div className="text-lg font-bold text-green-600">{scout.placements_count || 0}</div>
                                                 <div className="text-[10px] text-gray-400 uppercase">Placed</div>
                                             </div>
-                                            <div>
-                                                <div className="text-lg font-bold text-purple-600">{scout.xp_score || 0}</div>
-                                                <div className="text-[10px] text-gray-400 uppercase">XP</div>
-                                            </div>
                                         </div>
 
                                         <div className="flex justify-center items-center gap-2">
@@ -1320,7 +1274,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                             <th className="p-4">Scout Identity</th>
                                             <th className="p-4">Region</th>
                                             <th className="p-4">Performance</th>
-                                            <th className="p-4">Level</th>
                                             <th className="p-4">Status</th>
                                             <th className="p-4 text-right">Actions</th>
                                         </tr>
@@ -1359,12 +1312,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                                             <span className="block font-bold text-green-600">{scout.placements_count || 0}</span>
                                                             <span className="text-[10px] text-gray-400 uppercase">Placed</span>
                                                         </div>
-                                                    </div>
-                                                </td>
-                                                <td className="p-4">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-sm font-bold text-purple-600">Lv.{scout.level || 1}</span>
-                                                        <span className="text-xs text-gray-400">({scout.xp_score || 0} XP)</span>
                                                     </div>
                                                 </td>
                                                 <td className="p-4">
@@ -1535,7 +1482,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                         {/* Edit Event Modal */}
                         {editingEvent && (
-                            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[120]">
                                 <div className="bg-white p-6 rounded-xl shadow-xl max-w-2xl w-full mx-4 space-y-4">
                                     <div className="flex justify-between items-center">
                                         <h3 className="font-bold text-gray-900 flex items-center gap-2">
@@ -1858,7 +1805,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                         {/* Bug Report Detail Modal */}
                         {selectedBugReport && (
-                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
+                            <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
                                 <div className="bg-white w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
                                     <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
                                         <div className="flex items-center gap-3">
@@ -1955,6 +1902,36 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                 )}
             </main>
+
+            {/* Player Detail Slide-over */}
+            {selectedTalentPlayer && !isTalentSubmissionOpen && (
+                <AdminPlayerDetail
+                    player={selectedTalentPlayer}
+                    onClose={() => setSelectedTalentPlayer(null)}
+                    onEdit={(p) => {
+                        setEditingTalentPlayer(p);
+                        setIsTalentSubmissionOpen(true);
+                    }}
+                    onPlace={(p) => {
+                        placePlayer(p);
+                        setSelectedTalentPlayer(null);
+                    }}
+                />
+            )}
+
+            {/* Player Edit Modal (reuses existing PlayerSubmission) */}
+            {isTalentSubmissionOpen && (
+                <PlayerSubmission
+                    onClose={() => {
+                        setIsTalentSubmissionOpen(false);
+                        setEditingTalentPlayer(null);
+                    }}
+                    onAddPlayer={onUpdatePlayer}
+                    onUpdatePlayer={onUpdatePlayer}
+                    existingPlayers={players}
+                    editingPlayer={editingTalentPlayer}
+                />
+            )}
         </div>
     );
 };

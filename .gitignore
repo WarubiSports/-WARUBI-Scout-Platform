@@ -25,3 +25,6 @@ dist-ssr
 .vercel
 .env*.local
 public/brochures/
+
+.env.prod
+.env.supabase
