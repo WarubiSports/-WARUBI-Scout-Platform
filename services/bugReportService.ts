@@ -51,10 +51,7 @@ export async function createBugReport(
   }
 
   try {
-    console.log('[createBugReport] Starting submission...');
-
     // Get current user info - use a timeout to prevent hanging
-    console.log('[createBugReport] Getting user info...');
     let user = null;
     try {
       const userPromise = supabase.auth.getUser();
@@ -63,7 +60,6 @@ export async function createBugReport(
       );
       const { data: { user: fetchedUser } } = await Promise.race([userPromise, timeoutPromise]) as any;
       user = fetchedUser;
-      console.log('[createBugReport] Got user:', user?.email);
     } catch (userError) {
       console.warn('[createBugReport] Could not get user, continuing without:', userError);
     }
@@ -94,8 +90,6 @@ export async function createBugReport(
       priority: priority || 'medium'
     };
 
-    console.log('[createBugReport] Submitting feedback:', feedbackData);
-
     const { data, error } = await supabaseRest.insert<Feedback>('feedback', feedbackData);
 
     if (error) {
@@ -112,7 +106,6 @@ export async function createBugReport(
       return { success: false, error: error.message };
     }
 
-    console.log('[createBugReport] Success! Feedback ID:', data?.id);
     return { success: true, id: data?.id };
   } catch (err) {
     console.error('Error in createBugReport:', err);

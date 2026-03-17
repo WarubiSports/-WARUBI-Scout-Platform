@@ -70,7 +70,6 @@ export function useEventAttendees(scoutId: string | undefined) {
 
     // Check if already attending
     if (isAttending(eventId)) {
-      console.log('[registerAttendance] Already attending')
       return true
     }
 

@@ -117,8 +117,6 @@ export function useEvents(scoutId: string | undefined) {
 
   const addEvent = useCallback(
     async (event: ScoutingEvent): Promise<ScoutingEvent | null> => {
-      console.log('[addEvent] Starting with scoutId:', scoutId, 'isSupabaseConfigured:', isSupabaseConfigured, 'isGlobal:', (event as any).isGlobal)
-
       if (!isSupabaseConfigured) {
         console.error('[addEvent] Supabase not configured')
         return null
@@ -133,12 +131,9 @@ export function useEvents(scoutId: string | undefined) {
 
       try {
         const eventData = eventToDb(event, scoutId || '')
-        console.log('[addEvent] Inserting:', eventData)
 
         // Use REST API to avoid Supabase JS client hanging issues
         const { data, error } = await supabaseRest.insert<DbEvent>('scouting_events', eventData)
-
-        console.log('[addEvent] Result:', { data, error })
 
         if (error) {
           throw new Error(error.message)

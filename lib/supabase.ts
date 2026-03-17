@@ -62,13 +62,10 @@ function getAccessToken(): string | null {
   if (typeof window === 'undefined') return null
   try {
     const storageKey = `sb-${supabaseUrl?.split('//')[1]?.split('.')[0]}-auth-token`
-    console.log('[getAccessToken] Looking for key:', storageKey)
     const storedSession = localStorage.getItem(storageKey)
-    console.log('[getAccessToken] Found session:', storedSession ? 'YES' : 'NO')
     if (storedSession) {
       const parsed = JSON.parse(storedSession)
       const token = parsed?.access_token
-      console.log('[getAccessToken] Token extracted:', token ? 'YES (length: ' + token.length + ')' : 'NO')
       return token || null
     }
   } catch (e) {
@@ -111,29 +108,20 @@ export const supabaseRest = {
   },
 
   async insert<T>(table: string, data: Record<string, any>): Promise<RestResponse<T>> {
-    console.log('[supabaseRest.insert] Starting insert to', table)
-    console.log('[supabaseRest.insert] Data:', data)
-
     if (!isSupabaseConfigured) {
-      console.error('[supabaseRest.insert] ERROR: Supabase not configured')
       return { data: null, error: { message: 'Not configured' } }
     }
 
     const token = getAccessToken()
-    console.log('[supabaseRest.insert] Token found:', token ? 'YES' : 'NO')
 
     if (!token) {
-      console.error('[supabaseRest.insert] ERROR: No auth token found in localStorage')
       return { data: null, error: { message: 'No auth token - please sign in again' } }
     }
 
     try {
-      console.log('[supabaseRest.insert] Making fetch request to:', `${supabaseUrl}/rest/v1/${table}`)
-
       // Add timeout to prevent hanging
       const controller = new AbortController()
       const timeoutId = setTimeout(() => {
-        console.log('[supabaseRest.insert] Request timed out after 20s')
         controller.abort()
       }, 20000)
 
@@ -150,20 +138,16 @@ export const supabaseRest = {
       })
 
       clearTimeout(timeoutId)
-      console.log('[supabaseRest.insert] Response status:', response.status)
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        console.error('[supabaseRest.insert] Error response:', errorData)
         return { data: null, error: { message: errorData.message || `HTTP ${response.status}` } }
       }
 
       const result = await response.json()
-      console.log('[supabaseRest.insert] Success! Result:', result)
       // REST API returns array, get first item
       return { data: Array.isArray(result) ? result[0] : result, error: null }
     } catch (e) {
-      console.error('[supabaseRest.insert] Exception:', e)
       return { data: null, error: { message: e instanceof Error ? e.message : 'Unknown error' } }
     }
   },

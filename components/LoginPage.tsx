@@ -70,7 +70,6 @@ async function markScoutRegistered(email: string, retries = 2): Promise<boolean>
         return false;
       }
 
-      console.log(`[markScoutRegistered] Success for ${normalizedEmail}:`, data[0]);
       return true;
     } catch (e) {
       console.error(`[markScoutRegistered] Attempt ${attempt}/${retries} exception for ${normalizedEmail}:`, e);

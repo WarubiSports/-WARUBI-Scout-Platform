@@ -33,7 +33,6 @@ export async function createTrialFromProspect(
   trialDates?: TrialDates
 ): Promise<{ trialProspectId: string | null; error: string | null }> {
   if (!isSupabaseConfigured) {
-    console.log('Demo mode: Would create trial prospect for', prospect.name);
     return { trialProspectId: `demo-trial-${Date.now()}`, error: null };
   }
 
@@ -101,7 +100,6 @@ export async function createTrialFromProspect(
       return { trialProspectId: null, error: 'No data returned' };
     }
 
-    console.log('Created trial prospect:', data.id);
     return { trialProspectId: data.id, error: null };
   } catch (err) {
     console.error('Error in createTrialFromProspect:', err);
@@ -120,7 +118,6 @@ export async function linkProspectToTrial(
   trialProspectId: string
 ): Promise<{ success: boolean; error: string | null }> {
   if (!isSupabaseConfigured) {
-    console.log('Demo mode: Would link prospect', prospectId, 'to trial', trialProspectId);
     return { success: true, error: null };
   }
 

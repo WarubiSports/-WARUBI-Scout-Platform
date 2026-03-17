@@ -68,12 +68,9 @@ export function ScoutProvider({ children, userId }: ScoutProviderProps) {
 
       // Only query if we have a userId (authenticated user)
       if (!userId) {
-        console.log('ScoutContext: No userId, skipping load')
         setLoading(false)
         return
       }
-
-      console.log('ScoutContext: Loading scout for userId:', userId)
 
       // Try fetch with user's session token
       let data = null
@@ -90,7 +87,6 @@ export function ScoutProvider({ children, userId }: ScoutProviderProps) {
         if (storedSession) {
           const parsed = JSON.parse(storedSession)
           accessToken = parsed?.access_token
-          console.log('ScoutContext: Got token from localStorage')
         }
       } catch (e) {
         console.warn('ScoutContext: Failed to get token from localStorage')
@@ -118,7 +114,6 @@ export function ScoutProvider({ children, userId }: ScoutProviderProps) {
           if (response.ok) {
             const results = await response.json()
             data = results[0] || null
-            console.log('ScoutContext: Fetch succeeded, data:', data ? 'found' : 'none')
           } else {
             error = { message: `HTTP ${response.status}` }
           }
@@ -129,8 +124,6 @@ export function ScoutProvider({ children, userId }: ScoutProviderProps) {
       } else {
         console.warn('ScoutContext: Missing credentials or session')
       }
-
-      console.log('ScoutContext: Query result:', { data: data ? 'found' : 'null', error: error?.message })
 
       if (error) {
         console.warn('Supabase error:', error.message)
