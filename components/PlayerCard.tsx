@@ -305,7 +305,14 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
 
                             if (isNegative) {
                                 return (
-                                    <span className="text-red-400 font-bold">{labels[status] || status}</span>
+                                    <div>
+                                        <span className="text-red-400 font-bold">{labels[status] || status}</span>
+                                        {player.trialFeedback && (
+                                            <p className="mt-1 text-[9px] text-gray-500 leading-tight">
+                                                {player.trialFeedback}
+                                            </p>
+                                        )}
+                                    </div>
                                 );
                             }
 
@@ -326,6 +333,11 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                                     <span className={`font-bold ${status === 'placed' ? 'text-scout-accent' : 'text-scout-highlight'}`}>
                                         {labels[status] || status}
                                     </span>
+                                    {player.trialFeedback && (status === 'accepted' || status === 'placed') && (
+                                        <p className="mt-0.5 text-[9px] text-gray-500 leading-tight">
+                                            {player.trialFeedback}
+                                        </p>
+                                    )}
                                 </div>
                             );
                         })()}

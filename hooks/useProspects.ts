@@ -197,14 +197,20 @@ async function fetchProspects(
     .map((p) => p.trial_prospect_id!)
 
   let trialStatuses: Record<string, string> = {}
+  let trialFeedback: Record<string, string> = {}
   if (trialProspectIds.length > 0) {
-    const { data: trialData } = await supabaseRest.select<{ id: string; status: string }>(
+    const { data: trialData } = await supabaseRest.select<{ id: string; status: string; rejection_reason: string | null; coach_feedback: string | null }>(
       'trial_prospects',
-      `id=in.(${trialProspectIds.join(',')})&select=id,status`
+      `id=in.(${trialProspectIds.join(',')})&select=id,status,rejection_reason,coach_feedback`
     )
     if (trialData) {
       trialData.forEach((t) => {
         trialStatuses[t.id] = t.status
+        if (t.status === 'rejected' && t.rejection_reason) {
+          trialFeedback[t.id] = t.rejection_reason
+        } else if (t.coach_feedback) {
+          trialFeedback[t.id] = t.coach_feedback
+        }
       })
     }
   }
@@ -213,6 +219,9 @@ async function fetchProspects(
     const player = prospectToPlayer(p, logsByProspect[p.id] || [])
     if (p.trial_prospect_id && trialStatuses[p.trial_prospect_id]) {
       player.trialStatus = trialStatuses[p.trial_prospect_id]
+      if (trialFeedback[p.trial_prospect_id]) {
+        player.trialFeedback = trialFeedback[p.trial_prospect_id]
+      }
     }
     return player
   })

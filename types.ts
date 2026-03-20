@@ -115,6 +115,7 @@ export interface Player {
   dateOfBirth?: string;
   trialProspectId?: string;
   trialStatus?: string;
+  trialFeedback?: string;
   programDuration?: 'full_season' | '6_months' | '3_months' | '1_month';
   enrollmentConfirmed?: boolean;
   enrollmentConfirmedAt?: string;
