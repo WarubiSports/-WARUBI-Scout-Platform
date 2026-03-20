@@ -18,6 +18,11 @@ import type { BugReport, BugReportStatus } from '../types';
 import type { Scout } from '../lib/database.types';
 import AdminAgreementPanel from './AdminAgreementPanel';
 import { useAdminAgreements } from '../hooks/useAdminAgreements';
+import { OverviewTab } from './admin/OverviewTab';
+import { ApprovalsTab } from './admin/ApprovalsTab';
+import { InsightsTab } from './admin/InsightsTab';
+import { TalentTab } from './admin/TalentTab';
+import { NewsRoomTab } from './admin/NewsRoomTab';
 
 interface AdminDashboardProps {
     players: Player[];
@@ -276,481 +281,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         }
     }, [activeTab]);
 
-    // --- SUB-VIEWS ---
+    // --- SUB-VIEWS (extracted to components/admin/) ---
 
-    const OverviewTab = () => (
-        <div className="space-y-6 animate-fade-in">
-            {/* Stats Grid */}
-            <div className="grid grid-cols-4 gap-4">
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-blue-50 rounded-lg text-blue-600">
-                            <Users size={24} />
-                        </div>
-                        <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">+12%</span>
-                    </div>
-                    <div className="text-3xl font-bold text-gray-900">{scoutsLoading ? '...' : scouts.length}</div>
-                    <div className="text-sm text-gray-500">Active Scouts</div>
-                </div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-purple-50 rounded-lg text-purple-600">
-                            <Activity size={24} />
-                        </div>
-                    </div>
-                    <div className="text-3xl font-bold text-gray-900">{players.length}</div>
-                    <div className="text-sm text-gray-500">Players in Pipeline</div>
-                </div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-orange-50 rounded-lg text-orange-600">
-                            <AlertCircle size={24} />
-                        </div>
-                        {pendingEvents.length > 0 && <span className="text-xs font-bold text-white bg-red-500 px-2 py-1 rounded animate-pulse">{pendingEvents.length} New</span>}
-                    </div>
-                    <div className="text-3xl font-bold text-gray-900">{pendingEvents.length}</div>
-                    <div className="text-sm text-gray-500">Pending Approvals</div>
-                </div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="p-3 bg-green-50 rounded-lg text-green-600">
-                            <TrendingUp size={24} />
-                        </div>
-                    </div>
-                    <div className="text-3xl font-bold text-gray-900">${(totalValue / 1000).toFixed(0)}k</div>
-                    <div className="text-sm text-gray-500">Placement Value (YTD)</div>
-                </div>
-            </div>
 
-            <div className="grid grid-cols-2 gap-6">
-                {/* Recent Activity */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <h3 className="font-bold text-gray-900 mb-4">Live Network Feed</h3>
-                    <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-                        <Activity size={32} className="mb-3 opacity-50" />
-                        <p className="text-sm">No recent activity</p>
-                        <p className="text-xs mt-1">Activity will appear here as scouts work</p>
-                    </div>
-                </div>
 
-                {/* Quick Actions */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                    <h3 className="font-bold text-gray-900 mb-4">HQ Quick Actions</h3>
-                    <div className="grid grid-cols-2 gap-3">
-                        <button className="p-4 rounded-lg border border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all text-left group">
-                            <Globe size={24} className="text-gray-400 group-hover:text-blue-500 mb-2"/>
-                            <div className="text-sm font-bold text-gray-700 group-hover:text-blue-600">Create Global Event</div>
-                        </button>
-                        <button className="p-4 rounded-lg border border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all text-left group">
-                            <FileText size={24} className="text-gray-400 group-hover:text-green-500 mb-2"/>
-                            <div className="text-sm font-bold text-gray-700 group-hover:text-green-600">Export Annual Report</div>
-                        </button>
-                        <button className="p-4 rounded-lg border border-gray-200 hover:border-purple-500 hover:bg-purple-50 transition-all text-left group">
-                            <Users size={24} className="text-gray-400 group-hover:text-purple-500 mb-2"/>
-                            <div className="text-sm font-bold text-gray-700 group-hover:text-purple-600">Invite New Scouts</div>
-                        </button>
-                        <button className="p-4 rounded-lg border border-gray-200 hover:border-red-500 hover:bg-red-50 transition-all text-left group">
-                            <AlertCircle size={24} className="text-gray-400 group-hover:text-red-500 mb-2"/>
-                            <div className="text-sm font-bold text-gray-700 group-hover:text-red-600">System Alerts</div>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-
-    const ApprovalsTab = () => (
-        <div className="space-y-6 animate-fade-in">
-            <h2 className="text-2xl font-bold text-gray-900">Event Requests</h2>
-            
-            {pendingEvents.length === 0 ? (
-                <div className="bg-white p-12 rounded-xl border border-gray-200 text-center">
-                    <CheckCircle size={48} className="mx-auto text-green-500 mb-4" />
-                    <h3 className="text-lg font-bold text-gray-900">All Caught Up!</h3>
-                    <p className="text-gray-500">No pending event approvals in the queue.</p>
-                </div>
-            ) : (
-                <div className="grid gap-4">
-                    {pendingEvents.map(evt => (
-                        <div key={evt.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row gap-6">
-                            <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <span className="bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-1 rounded uppercase">Pending Review</span>
-                                    {evt.scoutId && <span className="text-sm text-gray-500">Submitted by {scouts.find(s => s.id === evt.scoutId)?.name || 'Scout'}</span>}
-                                </div>
-                                <h3 className="text-xl font-bold text-gray-900 mb-1">{evt.title}</h3>
-                                <div className="flex gap-4 text-sm text-gray-600 mb-4">
-                                    <span className="flex items-center gap-1"><Calendar size={14}/> {evt.date}</span>
-                                    <span>•</span>
-                                    <span>{evt.location}</span>
-                                    <span>•</span>
-                                    <span>{evt.type}</span>
-                                </div>
-                                
-                                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                    <h4 className="text-xs font-bold text-gray-500 uppercase mb-2">AI Marketing Plan Preview</h4>
-                                    <p className="text-sm text-gray-600 italic">"{evt.marketingCopy?.substring(0, 150)}..."</p>
-                                </div>
-                            </div>
-                            
-                            <div className="flex flex-col gap-3 justify-center border-l border-gray-100 pl-6 w-48">
-                                <button 
-                                    onClick={() => approveEvent(evt)}
-                                    className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
-                                >
-                                    <Check size={18} /> Approve
-                                </button>
-                                <button 
-                                    onClick={() => rejectEvent(evt)}
-                                    className="w-full bg-white hover:bg-red-50 text-red-600 border border-gray-200 font-bold py-2 rounded-lg transition-colors"
-                                >
-                                    Reject
-                                </button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-
-    const AdminInsightsTab = () => {
-        const stages = ['Lead', 'Request Trial', 'Send Contract', 'Offered', 'Placed'] as const;
-        const stageColors: Record<string, string> = { Lead: '#6b7280', 'Request Trial': '#3b82f6', 'Send Contract': '#f59e0b', Offered: '#a855f7', Placed: '#10b981' };
-
-        // Build per-scout funnel data
-        type ScoutFunnel = { id: string; name: string; region: string; total: number; lead: number; trial: number; contract: number; offered: number; placed: number; archived: number; convRate: number; trialRate: number; avgScore: number };
-        const scoutFunnels: ScoutFunnel[] = (() => {
-            const map: Record<string, ScoutFunnel> = {};
-            scouts.forEach(s => {
-                map[s.id] = { id: s.id, name: s.name, region: s.region || '—', total: 0, lead: 0, trial: 0, contract: 0, offered: 0, placed: 0, archived: 0, convRate: 0, trialRate: 0, avgScore: 0 };
-            });
-            const scoreAccum: Record<string, { sum: number; count: number }> = {};
-            allProspects.forEach(p => {
-                if (!map[p.scoutId]) map[p.scoutId] = { id: p.scoutId, name: p.scoutName, region: '—', total: 0, lead: 0, trial: 0, contract: 0, offered: 0, placed: 0, archived: 0, convRate: 0, trialRate: 0, avgScore: 0 };
-                const f = map[p.scoutId];
-                f.total++;
-                if (p.status === PlayerStatus.LEAD) f.lead++;
-                else if (p.status === PlayerStatus.REQUEST_TRIAL) f.trial++;
-                else if (p.status === PlayerStatus.SEND_CONTRACT) f.contract++;
-                else if (p.status === PlayerStatus.OFFERED) f.offered++;
-                else if (p.status === PlayerStatus.PLACED) f.placed++;
-                else if (p.status === PlayerStatus.ARCHIVED) f.archived++;
-                if (p.evaluation?.score) {
-                    if (!scoreAccum[p.scoutId]) scoreAccum[p.scoutId] = { sum: 0, count: 0 };
-                    scoreAccum[p.scoutId].sum += p.evaluation.score;
-                    scoreAccum[p.scoutId].count++;
-                }
-            });
-            return Object.values(map).map(f => {
-                const nonLead = f.total - f.lead - f.archived;
-                f.convRate = f.total > 0 ? Math.round((f.placed / f.total) * 100) : 0;
-                f.trialRate = f.total > 0 ? Math.round(((f.trial + f.contract + f.offered + f.placed) / f.total) * 100) : 0;
-                const sc = scoreAccum[f.id];
-                f.avgScore = sc ? Math.round(sc.sum / sc.count) : 0;
-                return f;
-            }).sort((a, b) => b.placed - a.placed || b.convRate - a.convRate || b.total - a.total);
-        })();
-
-        // Global pipeline
-        const globalStages: Record<string, number> = {};
-        stages.forEach(s => globalStages[s] = 0);
-        allProspects.forEach(p => { if (globalStages[p.status] !== undefined) globalStages[p.status]++; });
-        const totalPlaced = globalStages['Placed'];
-        const totalActive = allProspects.filter(p => p.status !== PlayerStatus.ARCHIVED).length;
-
-        // Funnel drop-off rates
-        const funnelSteps = stages.map(s => globalStages[s]);
-        const funnelCumulative = stages.map((_, i) => funnelSteps.slice(i).reduce((a, b) => a + b, 0));
-
-        // Nationality summary
-        const natMap: Record<string, number> = {};
-        allProspects.forEach(p => { const n = p.nationality || 'Unknown'; natMap[n] = (natMap[n] || 0) + 1; });
-        const topNats = Object.entries(natMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
-
-        // Stale leads (leads with no status change, submitted > 30 days ago)
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const staleLeads = allProspects.filter(p =>
-            p.status === PlayerStatus.LEAD &&
-            new Date(p.submittedAt) < thirtyDaysAgo
-        );
-
-        return (
-            <div className="space-y-6 animate-fade-in">
-                <h2 className="text-2xl font-bold text-gray-900">Scout Conversion Dashboard</h2>
-
-                {/* Summary Row */}
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    <div className="bg-white rounded-xl border border-gray-200 p-5">
-                        <p className="text-xs font-semibold text-gray-500 uppercase">Total Submitted</p>
-                        <p className="text-3xl font-bold text-gray-900 mt-1">{allProspects.length}</p>
-                    </div>
-                    <div className="bg-white rounded-xl border border-gray-200 p-5">
-                        <p className="text-xs font-semibold text-gray-500 uppercase">In Pipeline</p>
-                        <p className="text-3xl font-bold text-blue-600 mt-1">{totalActive - totalPlaced}</p>
-                    </div>
-                    <div className="bg-white rounded-xl border border-gray-200 p-5">
-                        <p className="text-xs font-semibold text-gray-500 uppercase">Placed</p>
-                        <p className="text-3xl font-bold text-emerald-600 mt-1">{totalPlaced}</p>
-                    </div>
-                    <div className="bg-white rounded-xl border border-gray-200 p-5">
-                        <p className="text-xs font-semibold text-gray-500 uppercase">Conversion</p>
-                        <p className="text-3xl font-bold text-purple-600 mt-1">{allProspects.length ? Math.round((totalPlaced / allProspects.length) * 100) : 0}%</p>
-                    </div>
-                    <div className="bg-white rounded-xl border border-gray-200 p-5">
-                        <p className="text-xs font-semibold text-gray-500 uppercase">Stale Leads</p>
-                        <p className={`text-3xl font-bold mt-1 ${staleLeads.length > 0 ? 'text-amber-600' : 'text-gray-400'}`}>{staleLeads.length}</p>
-                        <p className="text-[10px] text-gray-400 mt-0.5">30+ days, still Lead</p>
-                    </div>
-                </div>
-
-                {/* Pipeline Funnel */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-white rounded-xl border border-gray-200 p-5">
-                        <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">Pipeline Funnel</h3>
-                        <div className="space-y-3">
-                            {stages.map((stage, i) => {
-                                const count = globalStages[stage];
-                                const cumulative = funnelCumulative[i];
-                                const pct = allProspects.length > 0 ? Math.round((cumulative / allProspects.length) * 100) : 0;
-                                const dropOff = i > 0 ? funnelCumulative[i - 1] - cumulative : 0;
-                                return (
-                                    <div key={stage}>
-                                        <div className="flex justify-between text-xs mb-1">
-                                            <span className="font-semibold text-gray-600">{stage}</span>
-                                            <span className="flex items-center gap-2">
-                                                <span className="font-bold text-gray-900">{count}</span>
-                                                <span className="text-gray-400">({pct}% reach here)</span>
-                                                {dropOff > 0 && <span className="text-red-400 text-[10px]">-{dropOff}</span>}
-                                            </span>
-                                        </div>
-                                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                                            <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: stageColors[stage] }} />
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                    <div className="bg-white rounded-xl border border-gray-200 p-5">
-                        <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">Top Nationalities</h3>
-                        <div className="space-y-2">
-                            {topNats.map(([nat, count]) => (
-                                <div key={nat} className="flex items-center justify-between">
-                                    <span className="text-sm text-gray-700">{nat}</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm font-bold text-gray-900">{count}</span>
-                                        <span className="text-xs text-gray-400">{Math.round((count / allProspects.length) * 100)}%</span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Scout Conversion Table */}
-                <div className="bg-white rounded-xl border border-gray-200 p-5">
-                    <h3 className="text-sm font-bold text-gray-700 uppercase mb-4">Scout Conversion Breakdown</h3>
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="text-xs text-gray-500 uppercase border-b border-gray-100">
-                                    <th className="text-left py-2 font-semibold">#</th>
-                                    <th className="text-left py-2 font-semibold">Scout</th>
-                                    <th className="text-left py-2 font-semibold">Region</th>
-                                    <th className="text-right py-2 font-semibold">Total</th>
-                                    <th className="text-right py-2 font-semibold">Lead</th>
-                                    <th className="text-right py-2 font-semibold">Trial</th>
-                                    <th className="text-right py-2 font-semibold">Contract</th>
-                                    <th className="text-right py-2 font-semibold">Offered</th>
-                                    <th className="text-right py-2 font-semibold text-emerald-700">Placed</th>
-                                    <th className="text-right py-2 font-semibold">Trial %</th>
-                                    <th className="text-right py-2 font-semibold">Conv %</th>
-                                    <th className="text-right py-2 font-semibold">Avg Score</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {scoutFunnels.map((s, i) => (
-                                    <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50">
-                                        <td className="py-2.5 text-sm text-gray-400 font-bold">{i + 1}</td>
-                                        <td className="py-2.5 text-sm font-semibold text-gray-900">{s.name}</td>
-                                        <td className="py-2.5 text-sm text-gray-500">{s.region}</td>
-                                        <td className="py-2.5 text-sm text-right text-gray-700 font-medium">{s.total}</td>
-                                        <td className="py-2.5 text-sm text-right text-gray-500">{s.lead}</td>
-                                        <td className="py-2.5 text-sm text-right text-blue-600">{s.trial}</td>
-                                        <td className="py-2.5 text-sm text-right text-amber-600">{s.contract}</td>
-                                        <td className="py-2.5 text-sm text-right text-purple-600">{s.offered}</td>
-                                        <td className="py-2.5 text-sm text-right font-bold text-emerald-600">{s.placed}</td>
-                                        <td className="py-2.5 text-sm text-right">
-                                            <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-bold ${s.trialRate >= 50 ? 'bg-blue-50 text-blue-700' : s.trialRate >= 25 ? 'bg-gray-100 text-gray-600' : 'bg-red-50 text-red-600'}`}>
-                                                {s.trialRate}%
-                                            </span>
-                                        </td>
-                                        <td className="py-2.5 text-sm text-right">
-                                            <span className={`inline-block px-1.5 py-0.5 rounded text-xs font-bold ${s.convRate >= 20 ? 'bg-emerald-50 text-emerald-700' : s.convRate >= 10 ? 'bg-gray-100 text-gray-600' : s.total > 0 ? 'bg-red-50 text-red-600' : 'text-gray-300'}`}>
-                                                {s.convRate}%
-                                            </span>
-                                        </td>
-                                        <td className="py-2.5 text-sm text-right text-gray-500">{s.avgScore || '—'}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                {/* Stale Leads Alert */}
-                {staleLeads.length > 0 && (
-                    <div className="bg-amber-50 rounded-xl border border-amber-200 p-5">
-                        <h3 className="text-sm font-bold text-amber-800 uppercase mb-3 flex items-center gap-2">
-                            <AlertCircle size={16} /> Stale Leads — 30+ Days Without Progress
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                            {staleLeads.slice(0, 12).map(p => (
-                                <div key={p.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-amber-100">
-                                    <div>
-                                        <span className="text-sm font-medium text-gray-900">{p.name}</span>
-                                        <span className="text-xs text-gray-400 ml-2">{p.scoutName}</span>
-                                    </div>
-                                    <span className="text-[10px] text-amber-600 font-medium">
-                                        {Math.round((Date.now() - new Date(p.submittedAt).getTime()) / (1000 * 60 * 60 * 24))}d
-                                    </span>
-                                </div>
-                            ))}
-                            {staleLeads.length > 12 && (
-                                <div className="flex items-center justify-center text-sm text-amber-600 font-medium">
-                                    +{staleLeads.length - 12} more
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-            </div>
-        );
-    };
-
-    const TalentTab = () => (
-        <div className="space-y-6 animate-fade-in">
-            <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900">Global Talent Pool</h2>
-                <div className="flex items-center gap-4">
-                    <span className="text-sm text-gray-500">
-                        {prospectsLoading ? 'Loading...' : `${allProspects.length} players from all scouts`}
-                    </span>
-                    <div className="flex gap-2">
-                        <div className="relative">
-                            <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
-                            <input
-                                placeholder="Search all players..."
-                                className="pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm w-64 focus:ring-2 focus:ring-blue-500 outline-none"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
-                        <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-50">
-                            <Filter size={16} /> Filter
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                {prospectsLoading ? (
-                    <div className="flex items-center justify-center py-12">
-                        <Loader2 className="animate-spin text-gray-400" size={24} />
-                        <span className="ml-2 text-gray-500">Loading all prospects...</span>
-                    </div>
-                ) : allProspects.length === 0 ? (
-                    <div className="text-center py-12 text-gray-500">
-                        <Users size={48} className="mx-auto mb-4 text-gray-300" />
-                        <p className="font-medium">No players in the pipeline yet</p>
-                        <p className="text-sm">Players added by scouts will appear here</p>
-                    </div>
-                ) : (
-                    <table className="w-full text-left">
-                        <thead className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold">
-                            <tr>
-                                <th className="p-4">Player</th>
-                                <th className="p-4">Position</th>
-                                <th className="p-4">Score</th>
-                                <th className="p-4">Scout</th>
-                                <th className="p-4">Tier</th>
-                                <th className="p-4">Status</th>
-                                <th className="p-4 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {allProspects
-                                .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                                           p.scoutName.toLowerCase().includes(searchQuery.toLowerCase()))
-                                .map(p => (
-                                <tr
-                                    key={p.id}
-                                    onClick={() => setSelectedTalentPlayer(p)}
-                                    className={`hover:bg-gray-50 transition-colors cursor-pointer ${selectedTalentPlayer?.id === p.id ? 'bg-blue-50 border-l-2 border-l-blue-500' : ''}`}
-                                >
-                                    <td className="p-4 font-bold text-gray-900">{p.name}</td>
-                                    <td className="p-4 text-gray-600">{p.position || '-'}</td>
-                                    <td className="p-4 font-black text-blue-600">{p.evaluation?.score || '—'}</td>
-                                    <td className="p-4">
-                                        <span className="text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                                            {p.scoutName}
-                                        </span>
-                                    </td>
-                                    <td className="p-4">
-                                        <span className={`text-[10px] px-2 py-1 rounded font-bold uppercase ${
-                                            p.evaluation?.scholarshipTier === 'Tier 1' ? 'bg-purple-100 text-purple-700' :
-                                            p.evaluation?.scholarshipTier === 'Tier 2' ? 'bg-blue-100 text-blue-700' :
-                                            'bg-gray-100 text-gray-600'
-                                        }`}>
-                                            {p.evaluation?.scholarshipTier || 'N/A'}
-                                        </span>
-                                    </td>
-                                    <td className="p-4 text-sm font-medium text-gray-700">
-                                        {p.status === PlayerStatus.PLACED ? (
-                                            <span className="text-green-600 flex items-center gap-1"><CheckCircle size={14}/> Placed</span>
-                                        ) : p.status}
-                                    </td>
-                                    <td className="p-4 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            {p.status === PlayerStatus.PLACED && !p.enrollmentConfirmed && (
-                                                <button
-                                                    onClick={async (e) => {
-                                                        e.stopPropagation();
-                                                        try {
-                                                            await confirmEnrollment(p.id);
-                                                            refreshProspects();
-                                                        } catch (err) {
-                                                            alert('Failed to confirm enrollment');
-                                                        }
-                                                    }}
-                                                    className="text-xs bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded font-bold transition-colors"
-                                                >
-                                                    Confirm Enrollment
-                                                </button>
-                                            )}
-                                            {p.status === PlayerStatus.PLACED && p.enrollmentConfirmed && (
-                                                <span className="text-xs text-green-600 font-bold flex items-center gap-1"><CheckCircle size={12} /> Enrolled</span>
-                                            )}
-                                            {p.status !== PlayerStatus.PLACED && (
-                                                <button
-                                                    onClick={(e) => { e.stopPropagation(); placePlayer(p); }}
-                                                    className="text-xs bg-gray-900 hover:bg-gray-700 text-white px-3 py-1.5 rounded font-bold transition-colors"
-                                                >
-                                                    Mark Placed
-                                                </button>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )}
-            </div>
-        </div>
-    );
 
     // Global Events State
     const [isAddingGlobalEvent, setIsAddingGlobalEvent] = useState(false);
@@ -895,141 +429,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     // Filter global events (published events visible to all scouts)
     const globalEvents = events.filter(e => e.status === 'Published');
 
-    const NewsRoomTab = () => (
-        <div className="space-y-6 animate-fade-in flex gap-6 h-[calc(100vh-140px)]">
-            {/* Left: News Feed Manager */}
-            <div className="flex-1 flex flex-col gap-6">
-                <div className="flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-gray-900">News Feed Manager</h2>
-                    <button 
-                        onClick={() => setIsAddingNews(!isAddingNews)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2"
-                    >
-                        <Plus size={18} /> {isAddingNews ? 'Cancel' : 'Add New Post'}
-                    </button>
-                </div>
-
-                {isAddingNews && (
-                    <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Title</label>
-                                <input 
-                                    className="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                    value={newsForm.title}
-                                    onChange={e => setNewsForm({...newsForm, title: e.target.value})}
-                                    placeholder="e.g. New Partnership Announced"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Category</label>
-                                <select 
-                                    className="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                    value={newsForm.type}
-                                    onChange={e => setNewsForm({...newsForm, type: e.target.value})}
-                                >
-                                    <option>General</option>
-                                    <option>Transfer News</option>
-                                    <option>Platform Update</option>
-                                    <option>Event Recap</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Summary</label>
-                            <textarea 
-                                className="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none h-20 resize-none"
-                                value={newsForm.summary}
-                                onChange={e => setNewsForm({...newsForm, summary: e.target.value})}
-                                placeholder="Brief description of the news item..."
-                            />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Source</label>
-                                <input 
-                                    className="w-full border border-gray-300 rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                    value={newsForm.source}
-                                    onChange={e => setNewsForm({...newsForm, source: e.target.value})}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Blog URL (Optional)</label>
-                                <div className="relative">
-                                    <Link size={14} className="absolute left-3 top-2.5 text-gray-400" />
-                                    <input 
-                                        className="w-full border border-gray-300 rounded p-2 pl-9 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                        value={newsForm.linkUrl}
-                                        onChange={e => setNewsForm({...newsForm, linkUrl: e.target.value})}
-                                        placeholder="https://..."
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                        <div className="flex justify-end">
-                            <button 
-                                onClick={handleSaveNews}
-                                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded font-bold text-sm"
-                            >
-                                Publish Post
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                <div className="flex-1 overflow-y-auto bg-white rounded-xl border border-gray-200 shadow-sm">
-                    {newsItems.length === 0 ? (
-                        <div className="p-8 text-center text-gray-500">No news items posted.</div>
-                    ) : (
-                        <div className="divide-y divide-gray-100">
-                            {newsItems.map(item => (
-                                <div key={item.id} className="p-4 hover:bg-gray-50 flex justify-between items-start group">
-                                    <div>
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <span className="text-xs font-bold text-blue-600 uppercase bg-blue-50 px-2 py-0.5 rounded">{item.type}</span>
-                                            <span className="text-xs text-gray-400">{item.date}</span>
-                                        </div>
-                                        <h4 className="font-bold text-gray-900">{item.title}</h4>
-                                        <p className="text-sm text-gray-500 line-clamp-1">{item.summary}</p>
-                                        {item.linkUrl && <a href={item.linkUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline flex items-center gap-1 mt-1"><Link size={10}/> {item.linkUrl}</a>}
-                                    </div>
-                                    <button 
-                                        onClick={() => onDeleteNews && onDeleteNews(item.id)}
-                                        className="text-gray-400 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                                        title="Delete Post"
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* Right: Ticker Manager */}
-            <div className="w-80 bg-white rounded-xl border border-gray-200 shadow-sm p-6 flex flex-col">
-                <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <Flame size={20} className="text-red-500" /> Live Ticker Signals
-                </h3>
-                <p className="text-xs text-gray-500 mb-4">Edit the scrolling text shown on the News tab. Enter one item per line.</p>
-                
-                <textarea 
-                    className="flex-1 w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none mb-4 font-mono text-gray-700 bg-gray-50"
-                    value={tickerInput}
-                    onChange={e => setTickerInput(e.target.value)}
-                    placeholder="Enter ticker items..."
-                />
-                
-                <button 
-                    onClick={handleSaveTicker}
-                    className="w-full bg-gray-900 hover:bg-gray-800 text-white font-bold py-2 rounded-lg transition-colors"
-                >
-                    Update Signals
-                </button>
-            </div>
-        </div>
-    );
 
     return (
         <div className="flex min-h-screen bg-gray-50 font-sans text-gray-900 relative">
@@ -1289,10 +688,42 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
             {/* Main Content Area */}
             <main className="flex-1 ml-64 p-8">
-                {activeTab === 'OVERVIEW' && <OverviewTab />}
-                {activeTab === 'APPROVALS' && <ApprovalsTab />}
-                {activeTab === 'TALENT' && <TalentTab />}
-                {activeTab === 'INSIGHTS' && <AdminInsightsTab />}
+                {activeTab === 'OVERVIEW' && (
+                    <OverviewTab
+                        scoutsLoading={scoutsLoading}
+                        scoutsCount={scouts.length}
+                        playersCount={players.length}
+                        pendingEventsCount={pendingEvents.length}
+                        totalValue={totalValue}
+                    />
+                )}
+                {activeTab === 'APPROVALS' && (
+                    <ApprovalsTab
+                        pendingEvents={pendingEvents}
+                        scouts={scouts}
+                        approveEvent={approveEvent}
+                        rejectEvent={rejectEvent}
+                    />
+                )}
+                {activeTab === 'TALENT' && (
+                    <TalentTab
+                        prospectsLoading={prospectsLoading}
+                        allProspects={allProspects}
+                        searchQuery={searchQuery}
+                        setSearchQuery={setSearchQuery}
+                        selectedTalentPlayer={selectedTalentPlayer}
+                        setSelectedTalentPlayer={setSelectedTalentPlayer}
+                        placePlayer={placePlayer}
+                        confirmEnrollment={confirmEnrollment}
+                        refreshProspects={refreshProspects}
+                    />
+                )}
+                {activeTab === 'INSIGHTS' && (
+                    <InsightsTab
+                        scouts={scouts}
+                        allProspects={allProspects}
+                    />
+                )}
                 
                 {activeTab === 'SCOUTS' && (
                     <div className="space-y-6 animate-fade-in">
@@ -1462,7 +893,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                 )}
 
-                {activeTab === 'NEWS' && <NewsRoomTab />}
+                {activeTab === 'NEWS' && (
+                    <NewsRoomTab
+                        newsItems={newsItems}
+                        isAddingNews={isAddingNews}
+                        setIsAddingNews={setIsAddingNews}
+                        newsForm={newsForm}
+                        setNewsForm={setNewsForm}
+                        tickerInput={tickerInput}
+                        setTickerInput={setTickerInput}
+                        onDeleteNews={onDeleteNews}
+                        handleSaveNews={handleSaveNews}
+                        handleSaveTicker={handleSaveTicker}
+                    />
+                )}
 
                 {activeTab === 'EVENTS' && (
                     <div className="space-y-6 animate-fade-in">

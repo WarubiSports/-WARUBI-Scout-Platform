@@ -195,7 +195,7 @@ const App: React.FC = () => {
   };
 
   const handleMessageSent = async (playerId: string, log: any) => {
-      const outreachLog = await logOutreach(
+      await logOutreach(
         playerId,
         log.method,
         log.templateName,
@@ -203,14 +203,11 @@ const App: React.FC = () => {
         log.note
       );
 
-      const player = prospects.find(p => p.id === playerId);
-      if (player) {
-        await updateProspect(playerId, {
-          outreachLogs: [...player.outreachLogs, outreachLog || log],
-          lastContactedAt: new Date().toISOString(),
-          activityStatus: 'spark'
-        });
-      }
+      // Update contact timestamp and activity — don't depend on stale prospects array
+      await updateProspect(playerId, {
+        lastContactedAt: new Date().toISOString(),
+        activityStatus: 'spark'
+      });
   };
 
   const handleUpdatePlayer = async (updatedPlayer: Player) => {

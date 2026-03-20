@@ -283,6 +283,14 @@ export function useProspects(scoutId: string | undefined) {
     mutationFn: async ({ playerId, updates }: { playerId: string; updates: Partial<Player> }) => {
       if (!isSupabaseConfigured) throw new Error('Supabase not configured')
 
+      // Capture old status from cache before updating
+      let oldStatus: string | undefined
+      if (updates.status !== undefined) {
+        const cached = queryClient.getQueryData(queryKey) as any
+        const currentPlayer = cached?.players?.find((p: Player) => p.id === playerId)
+        oldStatus = currentPlayer?.status ? statusToDb(currentPlayer.status) : undefined
+      }
+
       const dbUpdates: ScoutProspectUpdate = {}
 
       // Map frontend fields to database fields
@@ -325,6 +333,23 @@ export function useProspects(scoutId: string | undefined) {
       const { error } = await supabaseRest.update('scout_prospects', `id=eq.${playerId}`, dbUpdates)
 
       if (error) throw new Error(error.message)
+
+      // Log status change (best-effort)
+      if (updates.status !== undefined && scoutId) {
+        const newDbStatus = statusToDb(updates.status)
+        if (oldStatus !== newDbStatus) {
+          try {
+            await supabaseRest.insert('prospect_status_history', {
+              prospect_id: playerId,
+              scout_id: scoutId,
+              old_status: oldStatus || null,
+              new_status: newDbStatus,
+            })
+          } catch (_) {
+            // Best-effort: don't fail the update if history insert fails
+          }
+        }
+      }
 
       return { playerId, updates }
     },
