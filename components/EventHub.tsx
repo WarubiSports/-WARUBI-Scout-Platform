@@ -4,6 +4,7 @@ import { generateEventPlan } from '../services/geminiService';
 import { haptic, handleMobileFocus } from '../hooks/useMobileFeatures';
 import { parseEventType } from '../lib/guards';
 import { useEventAttendees, AttendeeWithScout } from '../hooks/useEventAttendees';
+import { supabaseRest } from '../lib/supabase';
 import {
   Calendar, MapPin, Sparkles, Plus, Copy, CheckCircle,
   Share2, Users, FileText, CheckSquare, Loader2, ArrowRight,
@@ -36,6 +37,42 @@ const StatusPill = ({ status }: { status: EventStatus }) => {
         </span>
     );
 };
+
+// Shows player registration count from showcase_players for linked events
+const RegistrationCount = ({ showcaseEventId, scoutId }: { showcaseEventId: string; scoutId?: string }) => {
+    const [total, setTotal] = useState<number | null>(null)
+    const [myReferrals, setMyReferrals] = useState<number | null>(null)
+    useEffect(() => {
+        supabaseRest.select('showcase_players', `event_id=eq.${showcaseEventId}&select=id,referred_by_scout_id`).then(
+            (res: { data: { id: string; referred_by_scout_id: string | null }[] | null }) => {
+                const rows = res.data || []
+                setTotal(rows.length)
+                if (scoutId) {
+                    setMyReferrals(rows.filter(r => r.referred_by_scout_id === scoutId).length)
+                }
+            }
+        )
+    }, [showcaseEventId, scoutId])
+
+    if (total === null) return null
+    return (
+        <div className="bg-scout-900 p-3 rounded-lg border border-scout-700 space-y-2">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <Users size={14} className="text-scout-accent" />
+                    <span className="text-xs font-bold text-gray-400 uppercase">Registrations</span>
+                </div>
+                <span className="text-lg font-bold text-white">{total}</span>
+            </div>
+            {myReferrals != null && myReferrals > 0 && (
+                <div className="flex items-center justify-between text-xs">
+                    <span className="text-scout-accent font-medium">Your referrals</span>
+                    <span className="text-scout-accent font-bold">{myReferrals}</span>
+                </div>
+            )}
+        </div>
+    )
+}
 
 const AttendancePrepModal = ({ event, onCancel, onConfirm }: { event: ScoutingEvent, onCancel: () => void, onConfirm: () => void }) => (
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
@@ -562,11 +599,12 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                       <div className="bg-scout-900 p-4 rounded-lg border border-scout-700">
                                           <label className="text-xs text-gray-500 font-bold uppercase mb-2 block">Registration Link</label>
                                           <div className="flex gap-2">
-                                              <input readOnly value={`warubi.com/e/${event.id}`} className="bg-scout-800 text-scout-accent text-sm px-2 rounded border border-scout-600 w-full"/>
-                                              <button onClick={() => copyToClipboard(`https://warubi-sports.com/register?event=${event.id}`, 'link')} className="p-2 bg-scout-700 hover:bg-scout-600 rounded text-white">{copied === 'link' ? <CheckCircle size={16}/> : <Copy size={16}/>}</button>
+                                              <input readOnly value={event.showcaseSlug ? `showcase-coordinator.vercel.app/event/${event.showcaseSlug}${currentScoutId ? `?ref=${currentScoutId}` : ''}` : 'Syncing...'} className="bg-scout-800 text-scout-accent text-sm px-2 rounded border border-scout-600 w-full"/>
+                                              <button onClick={() => event.showcaseSlug && copyToClipboard(`https://showcase-coordinator.vercel.app/event/${event.showcaseSlug}${currentScoutId ? `?ref=${currentScoutId}` : ''}`, 'link')} className="p-2 bg-scout-700 hover:bg-scout-600 rounded text-white">{copied === 'link' ? <CheckCircle size={16}/> : <Copy size={16}/>}</button>
                                           </div>
                                       </div>
                                   )}
+                                  {event.showcaseEventId && <RegistrationCount showcaseEventId={event.showcaseEventId} scoutId={currentScoutId} />}
                               </div>
                           ) : (
                               <div className="bg-scout-900/50 p-4 rounded-lg border border-scout-700">
@@ -828,9 +866,9 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
             </div>
 
             <div className="absolute bottom-0 w-full bg-scout-800 border-t border-scout-700 p-4 pb-safe flex gap-3">
-                {isMine && event.status === 'Published' && (
-                    <button onClick={() => copyToClipboard(`warubi.com/e/${event.id}`, 'link')} className="flex-1 bg-scout-700 text-white font-bold py-3 rounded-xl">
-                        Share Link
+                {event.status === 'Published' && event.showcaseSlug && (
+                    <button onClick={() => copyToClipboard(`https://showcase-coordinator.vercel.app/event/${event.showcaseSlug}${currentScoutId ? `?ref=${currentScoutId}` : ''}`, 'link')} className="flex-1 bg-scout-700 text-white font-bold py-3 rounded-xl">
+                        {copied === 'link' ? 'Copied!' : 'Share Link'}
                     </button>
                 )}
                 <button className="flex-1 bg-scout-accent text-scout-900 font-bold py-3 rounded-xl shadow-lg">

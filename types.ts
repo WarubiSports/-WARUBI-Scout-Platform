@@ -143,6 +143,8 @@ export interface ScoutingEvent {
   isGlobal?: boolean; // Admin-created events visible to all scouts
   link?: string; // External URL (e.g., registration page)
   notes?: string; // Additional notes about the event
+  showcaseEventId?: string; // Linked showcase_events record for public registration page
+  showcaseSlug?: string; // Slug for the public event page URL
 }
 
 export interface NewsItem {

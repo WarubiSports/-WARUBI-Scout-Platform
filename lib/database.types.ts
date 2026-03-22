@@ -306,6 +306,7 @@ export interface Database {
           agenda: Json | null
           checklist: Json | null
           event_link: string | null
+          showcase_event_id: string | null
           created_at: string
           updated_at: string
         }
@@ -329,6 +330,7 @@ export interface Database {
           agenda?: Json | null
           checklist?: Json | null
           event_link?: string | null
+          showcase_event_id?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -352,6 +354,7 @@ export interface Database {
           agenda?: Json | null
           checklist?: Json | null
           event_link?: string | null
+          showcase_event_id?: string | null
           updated_at?: string
         }
       }
