@@ -21,6 +21,7 @@ import { useProspects } from './hooks/useProspects';
 import { useEvents } from './hooks/useEvents';
 import { useOutreach } from './hooks/useOutreach';
 import { LazyAdminDashboard, LazyFallback } from './router';
+import PublicSubmissionPage from './components/public/PublicSubmissionPage';
 
 const App: React.FC = () => {
   const navigate = useNavigate();
@@ -86,7 +87,7 @@ const App: React.FC = () => {
 
     if (!isAuthenticated) {
       // Only redirect to login if not already on a public route
-      if (!['/login', '/reset-password'].includes(location.pathname)) {
+      if (!['/login', '/reset-password'].includes(location.pathname) && !location.pathname.startsWith('/submit/')) {
         navigate('/login', { replace: true });
       }
       setInitialRouteSet(false);
@@ -408,6 +409,7 @@ const App: React.FC = () => {
             window.location.href = '/';
           }} />
         } />
+        <Route path="/submit/:scoutId" element={<PublicSubmissionPage />} />
         <Route path="/onboarding" element={
           <Onboarding
             onComplete={handleOnboardingComplete}

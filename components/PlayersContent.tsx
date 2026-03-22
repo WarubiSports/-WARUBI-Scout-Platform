@@ -6,6 +6,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { haptic } from '../hooks/useMobileFeatures';
 import { Users, CalendarDays, Plus, PlusCircle, Flame, List, LayoutGrid, Search, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, LogOut, Mail, UserPlus, Filter, FileUp, BarChart3 } from 'lucide-react';
 import { useDashboardContext } from './DashboardLayout';
+import OutreachComposer from './OutreachComposer';
 
 const PlayersContent: React.FC = () => {
     const {
@@ -19,6 +20,7 @@ const PlayersContent: React.FC = () => {
         setIsSubmissionOpen,
         setSubmissionInitialMode,
         openBulkOutreach,
+        onMessageSent,
     } = useDashboardContext();
 
     const handleUpdateNotes = useCallback((id: string, notes: string) => {
@@ -55,7 +57,8 @@ const PlayersContent: React.FC = () => {
         if (reviewIdx >= spotlights.length - 1) setReviewIdx(0);
     };
 
-    const jumpToOutreach = (player: Player) => { setOutreachTargetId(player.id); navigate('/dashboard/outreach'); };
+    const [outreachPlayer, setOutreachPlayer] = useState<Player | null>(null);
+    const jumpToOutreach = (player: Player) => { setOutreachPlayer(player); };
 
     const onDragOver = (e: React.DragEvent, status: PlayerStatus) => {
         e.preventDefault();
@@ -265,6 +268,7 @@ const PlayersContent: React.FC = () => {
     };
 
     return (
+        <>
         <ErrorBoundary name="Pipeline">
         <div className="space-y-8 animate-fade-in">
             {/* P2: HOT LEAD BANNER */}
@@ -454,6 +458,17 @@ const PlayersContent: React.FC = () => {
             )}
         </div>
         </ErrorBoundary>
+
+        {/* Outreach Composer slide-over */}
+        {outreachPlayer && onMessageSent && (
+            <OutreachComposer
+                player={outreachPlayer}
+                user={user}
+                onMessageSent={onMessageSent}
+                onClose={() => setOutreachPlayer(null)}
+            />
+        )}
+        </>
     );
 };
 
