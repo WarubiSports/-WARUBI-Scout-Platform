@@ -4,9 +4,6 @@ import { lazy } from 'react';
 export const LazyAdminDashboard = lazy(() => import('./components/AdminDashboard'));
 export const LazyEventHub = lazy(() => import('./components/EventHub'));
 export const LazyOutreachTab = lazy(() => import('./components/OutreachTab'));
-export const LazyKnowledgeTab = lazy(() => import('./components/KnowledgeTab'));
-export const LazyInsightsTab = lazy(() => import('./components/InsightsTab'));
-export const LazyEarningsTab = lazy(() => import('./components/EarningsTab'));
 export const LazyMyBusinessTab = lazy(() => import('./components/MyBusinessTab'));
 
 export const LazyFallback = () => (

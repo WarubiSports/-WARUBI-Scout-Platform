@@ -1,11 +1,11 @@
 import React, { useState, useEffect, memo } from 'react';
-import { Player, ScoutingEvent, PlayerStatus, UserProfile, NewsItem, AppNotification } from '../types';
+import { Player, ScoutingEvent, PlayerStatus, UserProfile, AppNotification } from '../types';
 import {
     LayoutDashboard, Users, Calendar, CheckCircle, XCircle,
     ShieldCheck, Activity, Search, Filter, Briefcase, Award,
     LogOut, Globe, TrendingUp, AlertCircle, FileText, Check,
     MoreHorizontal, Edit2, BadgeCheck, X, Save, Eye, Plus,
-    List, LayoutGrid, Newspaper, Flame, Trash2, Link, Bell, KeyRound, Bug, Copy, ExternalLink, Loader2, BarChart3
+    List, LayoutGrid, Flame, Trash2, Link, Bell, KeyRound, Bug, Copy, ExternalLink, Loader2, BarChart3
 } from 'lucide-react';
 import ApprovedScoutsManager from './ApprovedScoutsManager';
 import AdminPlayerDetail from './AdminPlayerDetail';
@@ -22,7 +22,6 @@ import { OverviewTab } from './admin/OverviewTab';
 import { ApprovalsTab } from './admin/ApprovalsTab';
 import { InsightsTab } from './admin/InsightsTab';
 import { TalentTab } from './admin/TalentTab';
-import { NewsRoomTab } from './admin/NewsRoomTab';
 
 interface AdminDashboardProps {
     players: Player[];
@@ -34,13 +33,7 @@ interface AdminDashboardProps {
     onLogout: () => void;
     onSwitchToScoutView?: () => void;
     onImpersonate?: (scout: UserProfile) => void;
-    // News Props
-    newsItems?: NewsItem[];
-    tickerItems?: string[];
     notifications?: AppNotification[];
-    onAddNews?: (item: NewsItem) => void;
-    onDeleteNews?: (id: string) => void;
-    onUpdateTicker?: (items: string[]) => void;
     onAddNotification?: (notification: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) => void;
     onMarkAllRead?: () => void;
 }
@@ -61,16 +54,11 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     onLogout,
     onSwitchToScoutView,
     onImpersonate,
-    newsItems = [],
-    tickerItems = [],
     notifications = [],
-    onAddNews,
-    onDeleteNews,
-    onUpdateTicker,
     onAddNotification,
     onMarkAllRead
 }) => {
-    const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'APPROVALS' | 'TALENT' | 'SCOUTS' | 'ACCESS' | 'NEWS' | 'EVENTS' | 'BUGS' | 'INSIGHTS'>('OVERVIEW');
+    const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'APPROVALS' | 'TALENT' | 'SCOUTS' | 'ACCESS' | 'EVENTS' | 'BUGS' | 'INSIGHTS'>('OVERVIEW');
     const [searchQuery, setSearchQuery] = useState('');
 
     // Real scout data from Supabase
@@ -85,17 +73,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const [scoutFormData, setScoutFormData] = useState<ScoutWithStats | null>(null);
     const [newBadge, setNewBadge] = useState('');
     const [scoutViewMode, setScoutViewMode] = useState<'grid' | 'list'>('grid');
-
-    // News Management State
-    const [isAddingNews, setIsAddingNews] = useState(false);
-    const [newsForm, setNewsForm] = useState<Partial<NewsItem>>({
-        title: '',
-        type: 'General',
-        summary: '',
-        source: 'Warubi HQ',
-        linkUrl: ''
-    });
-    const [tickerInput, setTickerInput] = useState(tickerItems.join('\n'));
 
     // Notification State
     const [showNotifications, setShowNotifications] = useState(false);
@@ -213,35 +190,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         e.stopPropagation();
         if (onImpersonate) onImpersonate(scoutToUserProfile(scout));
     }
-
-    // --- NEWS MANAGEMENT HANDLERS ---
-    
-    const handleSaveNews = () => {
-        if (!newsForm.title || !newsForm.summary) return;
-        if (onAddNews) {
-            onAddNews({
-                id: Date.now().toString(),
-                title: newsForm.title || 'Untitled',
-                summary: newsForm.summary || '',
-                type: newsForm.type || 'Update',
-                source: newsForm.source || 'Warubi HQ',
-                date: 'Just now',
-                linkUrl: newsForm.linkUrl,
-                categoryColor: 'text-scout-accent', // Default color
-                borderColor: 'border-scout-accent/30'
-            });
-        }
-        setNewsForm({ title: '', type: 'General', summary: '', source: 'Warubi HQ', linkUrl: '' });
-        setIsAddingNews(false);
-    };
-
-    const handleSaveTicker = () => {
-        if (onUpdateTicker) {
-            const items = tickerInput.split('\n').filter(line => line.trim() !== '');
-            onUpdateTicker(items);
-            alert("Ticker updated!");
-        }
-    };
 
     // --- BUG REPORTS HANDLERS ---
 
@@ -644,12 +592,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <KeyRound size={20} /> Access Control
                     </button>
                     <button
-                        onClick={() => setActiveTab('NEWS')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'NEWS' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
-                    >
-                        <Newspaper size={20} /> Newsroom
-                    </button>
-                    <button
                         onClick={() => setActiveTab('EVENTS')}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${activeTab === 'EVENTS' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'}`}
                     >
@@ -891,21 +833,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </div>
                         <ApprovedScoutsManager />
                     </div>
-                )}
-
-                {activeTab === 'NEWS' && (
-                    <NewsRoomTab
-                        newsItems={newsItems}
-                        isAddingNews={isAddingNews}
-                        setIsAddingNews={setIsAddingNews}
-                        newsForm={newsForm}
-                        setNewsForm={setNewsForm}
-                        tickerInput={tickerInput}
-                        setTickerInput={setTickerInput}
-                        onDeleteNews={onDeleteNews}
-                        handleSaveNews={handleSaveNews}
-                        handleSaveTicker={handleSaveTicker}
-                    />
                 )}
 
                 {activeTab === 'EVENTS' && (

@@ -10,9 +10,6 @@ import ResetPassword from './components/ResetPassword';
 import PlayersContent from './components/PlayersContent';
 import EventsRoute from './components/routes/EventsRoute';
 import OutreachRoute from './components/routes/OutreachRoute';
-import KnowledgeRoute from './components/routes/KnowledgeRoute';
-import InsightsRoute from './components/routes/InsightsRoute';
-import EarningsRoute from './components/routes/EarningsRoute';
 import MyBusinessRoute from './components/routes/MyBusinessRoute';
 import { evaluatePlayer } from './services/geminiService';
 import { isEmailApproved } from './services/accessControlService';
@@ -425,10 +422,7 @@ const App: React.FC = () => {
             <Route path="players" element={<PlayersContent />} />
             <Route path="events" element={<EventsRoute />} />
             <Route path="outreach" element={<OutreachRoute />} />
-            <Route path="knowledge" element={<KnowledgeRoute />} />
             <Route path="my-business" element={<MyBusinessRoute />} />
-            <Route path="insights" element={<Navigate to="/dashboard/my-business" replace />} />
-            <Route path="earnings" element={<Navigate to="/dashboard/my-business" replace />} />
           </Route>
         )}
 

@@ -2,14 +2,12 @@ import React, { useState, useEffect, useCallback, memo } from 'react';
 import { Outlet, useNavigate, useLocation, useOutletContext } from 'react-router-dom';
 import { UserProfile, Player, ScoutingEvent, PlayerStatus, AppNotification } from '../types';
 import PlayerSubmission from './PlayerSubmission';
-import SidelineBeam from './SidelineBeam';
-import Confetti from './Confetti';
 import { ConnectionStatus } from './MobileEnhancements';
 import GlobalSearch from './GlobalSearch';
 import TrialRequestModal, { TrialDates } from './TrialRequestModal';
 import PlacementModal, { PlacementData } from './PlacementModal';
 import { haptic } from '../hooks/useMobileFeatures';
-import { Users, CalendarDays, Plus, BookOpen, LogOut, Lightbulb, BarChart3 } from 'lucide-react';
+import { Users, CalendarDays, Plus, LogOut, Lightbulb, BarChart3 } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
 
 // Context type for child routes
@@ -82,9 +80,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
     const [isSubmissionOpen, setIsSubmissionOpen] = useState(false);
     const [submissionInitialMode, setSubmissionInitialMode] = useState<'HUB' | 'BULK' | undefined>(undefined);
-    const [isBeamOpen, setIsBeamOpen] = useState(false);
     const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
-    const [showCelebration, setShowCelebration] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isBugReportOpen, setIsBugReportOpen] = useState(false);
     const [pendingOfferedPlayer, setPendingOfferedPlayer] = useState<Player | null>(null);
@@ -155,7 +151,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         }
 
         if (newStatus === PlayerStatus.PLACED) {
-            setShowCelebration(true);
             haptic.success();
         } else if (newStatus === PlayerStatus.ARCHIVED) {
             haptic.medium();
@@ -178,7 +173,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
     const handlePlacementSubmitted = (data: PlacementData) => {
         if (!pendingPlacedPlayer) return;
-        setShowCelebration(true);
         haptic.success();
         if (onStatusChange) onStatusChange(pendingPlacedPlayer.id, PlayerStatus.PLACED, data.placedLocation);
         // Also update program duration
@@ -244,8 +238,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 }}
                 onOpenAddPlayer={() => setIsSubmissionOpen(true)}
             />
-            {showCelebration && <Confetti onComplete={() => setShowCelebration(false)} />}
-
             <aside className="w-72 bg-scout-800 border-r border-scout-700 hidden md:flex flex-col shrink-0 overflow-y-auto">
                 <div className="p-8 border-b border-scout-700">
                     <h1 className="text-2xl font-black tracking-tighter text-white uppercase italic">Warubi<span className="text-scout-accent">Scout</span></h1>
@@ -253,7 +245,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 <nav className="flex-1 p-4 space-y-2 mt-4">
                     <button onClick={() => navigate('/dashboard/players')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'players' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:bg-scout-900/50'}`}><Users size={20} /> Players</button>
                     <button onClick={() => navigate('/dashboard/events')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'events' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><CalendarDays size={20} /> Events</button>
-                    <button onClick={() => navigate('/dashboard/knowledge')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'knowledge' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><BookOpen size={20} /> Pathways</button>
                     <button onClick={() => navigate('/dashboard/my-business')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'my-business' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><BarChart3 size={20} /> My Business</button>
                 </nav>
                 <div className="p-4">
@@ -288,7 +279,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 <Outlet context={outletContext} />
 
                 {isSubmissionOpen && <PlayerSubmission onClose={handleCloseSubmission} onAddPlayer={onAddPlayer} onUpdatePlayer={onUpdatePlayer} existingPlayers={players} editingPlayer={editingPlayer} initialMode={submissionInitialMode} />}
-                {isBeamOpen && <SidelineBeam user={user} onClose={() => setIsBeamOpen(false)} />}
                 {isBugReportOpen && <ReportBugModal onClose={() => setIsBugReportOpen(false)} />}
                 {pendingOfferedPlayer && <TrialRequestModal player={pendingOfferedPlayer} onSubmit={handleTrialSubmitted} onCancel={handleTrialCancelled} />}
                 {pendingPlacedPlayer && <PlacementModal player={pendingPlacedPlayer} onSubmit={handlePlacementSubmitted} onCancel={handlePlacementCancelled} />}
