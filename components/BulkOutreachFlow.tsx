@@ -1,0 +1,558 @@
+import React, { useState, useCallback, useRef } from 'react';
+import { X, Upload, FileUp, Trash2, Loader2, Copy, Check, Send, ChevronRight, MessageSquare, ExternalLink } from 'lucide-react';
+import { Player, PlayerStatus } from '../types';
+import { extractPlayersFromBulkData, extractRosterFromPhoto, bulkGenerateOutreach, BulkOutreachResult } from '../services/geminiService';
+import { useProspects } from '../hooks/useProspects';
+import { useOutreach } from '../hooks/useOutreach';
+import { toast } from 'sonner';
+
+type FlowStep = 'UPLOAD' | 'REVIEW' | 'SAVING' | 'OUTREACH';
+type OutreachTemplate = 'First Spark' | 'Invite to ID' | 'Follow-up' | 'Request Video';
+
+interface ExtractedPlayer {
+  name: string;
+  position: string;
+  age: number;
+  club: string;
+  email: string;
+  phone: string;
+  parentName: string;
+  parentPhone: string;
+  parentEmail: string;
+  notes: string;
+}
+
+interface OutreachMessage {
+  playerId: string;
+  playerName: string;
+  phone: string;
+  parentPhone: string;
+  message: string;
+  copied: boolean;
+}
+
+interface BulkOutreachFlowProps {
+  scoutId: string;
+  scoutName: string;
+  scoutBio?: string;
+  onClose: () => void;
+}
+
+export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
+  scoutId,
+  scoutName,
+  scoutBio,
+  onClose,
+}) => {
+  const [step, setStep] = useState<FlowStep>('UPLOAD');
+  const [extractedPlayers, setExtractedPlayers] = useState<ExtractedPlayer[]>([]);
+  const [savedPlayers, setSavedPlayers] = useState<Player[]>([]);
+  const [outreachMessages, setOutreachMessages] = useState<OutreachMessage[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<OutreachTemplate>('First Spark');
+  const [outreachLang, setOutreachLang] = useState<'en' | 'de'>('de');
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { addProspectsBatch } = useProspects(scoutId);
+  const { logOutreach } = useOutreach(scoutId);
+
+  const handleClose = () => {
+    if (step !== 'UPLOAD' && extractedPlayers.length > 0) {
+      if (!confirm('Close? Unsaved data will be lost.')) return;
+    }
+    onClose();
+  };
+
+  // UPLOAD handlers
+  const handleFileUpload = async (file: File) => {
+    setIsExtracting(true);
+    try {
+      const isImage = file.type.startsWith('image/');
+      if (isImage) {
+        const base64 = await fileToBase64(file);
+        const players = await extractRosterFromPhoto(base64, file.type);
+        setExtractedPlayers(normalizeExtracted(players));
+      } else {
+        const text = await file.text();
+        const players = await extractPlayersFromBulkData(text);
+        setExtractedPlayers(normalizeExtracted(players));
+      }
+      setStep('REVIEW');
+    } catch (err) {
+      toast.error('Failed to extract players', { description: err instanceof Error ? err.message : 'Try a different format' });
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
+  const handlePasteSubmit = async () => {
+    if (!pasteText.trim()) return;
+    setIsExtracting(true);
+    try {
+      const players = await extractPlayersFromBulkData(pasteText);
+      setExtractedPlayers(normalizeExtracted(players));
+      setStep('REVIEW');
+    } catch (err) {
+      toast.error('Failed to extract players', { description: err instanceof Error ? err.message : 'Try a different format' });
+    } finally {
+      setIsExtracting(false);
+    }
+  };
+
+  const normalizeExtracted = (raw: Partial<Player>[]): ExtractedPlayer[] => {
+    return (raw || []).filter(p => p.name).map(p => ({
+      name: p.name || '',
+      position: p.position || 'CM',
+      age: p.age || 0,
+      club: p.club || '',
+      email: p.email || '',
+      phone: p.phone || '',
+      parentName: p.parentName || '',
+      parentPhone: p.parentPhone || '',
+      parentEmail: p.parentEmail || '',
+      notes: p.notes || '',
+    }));
+  };
+
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve(result.split(',')[1]);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  // REVIEW handlers
+  const removePlayer = (index: number) => {
+    setExtractedPlayers(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updatePlayer = (index: number, field: keyof ExtractedPlayer, value: string | number) => {
+    setExtractedPlayers(prev => prev.map((p, i) => i === index ? { ...p, [field]: value } : p));
+  };
+
+  // SAVING
+  const handleSavePlayers = async () => {
+    setIsSaving(true);
+    setStep('SAVING');
+    try {
+      const playersToSave: Player[] = extractedPlayers.map(p => ({
+        id: '',
+        name: p.name,
+        position: p.position,
+        age: p.age,
+        club: p.club,
+        email: p.email || undefined,
+        phone: p.phone || undefined,
+        parentName: p.parentName || undefined,
+        parentPhone: p.parentPhone || undefined,
+        parentEmail: p.parentEmail || undefined,
+        notes: p.notes || undefined,
+        status: PlayerStatus.LEAD,
+        outreachLogs: [],
+        activityStatus: 'undiscovered' as const,
+        isRecalibrating: false,
+      }));
+
+      const saved = await addProspectsBatch(playersToSave);
+      setSavedPlayers(saved);
+
+      if (saved.length > 0) {
+        toast.success(`${saved.length} player${saved.length > 1 ? 's' : ''} saved`);
+        setStep('OUTREACH');
+      } else {
+        toast.error('Failed to save players');
+        setStep('REVIEW');
+      }
+    } catch (err) {
+      toast.error('Error saving players');
+      setStep('REVIEW');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // OUTREACH
+  const handleGenerateOutreach = async () => {
+    setIsGenerating(true);
+    try {
+      const playerData = savedPlayers.map(p => ({
+        id: p.id,
+        name: p.name,
+        position: p.position,
+        age: p.age,
+        club: p.club || '',
+      }));
+
+      const results = await bulkGenerateOutreach(scoutName, playerData, selectedTemplate, {
+        scoutBio,
+        language: outreachLang,
+      });
+
+      const messages: OutreachMessage[] = savedPlayers.map(p => {
+        const match = results.find(r => r.id === p.id);
+        return {
+          playerId: p.id,
+          playerName: p.name,
+          phone: p.phone || '',
+          parentPhone: p.parentPhone || '',
+          message: match?.message || '',
+          copied: false,
+        };
+      });
+
+      setOutreachMessages(messages);
+    } catch (err) {
+      toast.error('Failed to generate messages', { description: err instanceof Error ? err.message : '' });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleCopyMessage = async (index: number) => {
+    const msg = outreachMessages[index];
+    await navigator.clipboard.writeText(msg.message);
+    setOutreachMessages(prev => prev.map((m, i) => i === index ? { ...m, copied: true } : m));
+
+    // Log outreach
+    await logOutreach(msg.playerId, 'Clipboard', `Bulk: ${selectedTemplate}`, msg.message);
+
+    setTimeout(() => {
+      setOutreachMessages(prev => prev.map((m, i) => i === index ? { ...m, copied: false } : m));
+    }, 2000);
+  };
+
+  const handleWhatsApp = async (index: number) => {
+    const msg = outreachMessages[index];
+    const phone = msg.phone.replace(/[^\d+]/g, '').replace(/^\+/, '');
+    if (phone) {
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg.message)}`, '_blank');
+      await logOutreach(msg.playerId, 'WhatsApp', `Bulk: ${selectedTemplate}`, msg.message);
+    }
+  };
+
+  const handleParentWhatsApp = async (index: number) => {
+    const msg = outreachMessages[index];
+    const phone = msg.parentPhone.replace(/[^\d+]/g, '').replace(/^\+/, '');
+    if (phone) {
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg.message)}`, '_blank');
+      await logOutreach(msg.playerId, 'WhatsApp', `Bulk: ${selectedTemplate} (Parent)`, msg.message);
+    }
+  };
+
+  const templates: { value: OutreachTemplate; label: string; desc: string }[] = [
+    { value: 'First Spark', label: 'First Spark', desc: 'Initial contact' },
+    { value: 'Invite to ID', label: 'Invite to ID', desc: 'Event invitation' },
+    { value: 'Follow-up', label: 'Follow-up', desc: 'Second touch' },
+    { value: 'Request Video', label: 'Request Video', desc: 'Ask for footage' },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-end md:items-center justify-center">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={handleClose} />
+      <div className="relative w-full md:max-w-3xl md:mx-4 bg-scout-900 rounded-t-2xl md:rounded-2xl border border-scout-700 max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b border-scout-700 shrink-0">
+          <div>
+            <h2 className="text-lg font-black text-white uppercase tracking-tight">
+              {step === 'UPLOAD' && 'Bulk Import'}
+              {step === 'REVIEW' && `Review ${extractedPlayers.length} Players`}
+              {step === 'SAVING' && 'Saving Players...'}
+              {step === 'OUTREACH' && 'Generate Outreach'}
+            </h2>
+            <div className="flex items-center gap-2 mt-1">
+              {(['UPLOAD', 'REVIEW', 'OUTREACH'] as const).map((s, i) => (
+                <React.Fragment key={s}>
+                  <span className={`text-[10px] font-black uppercase ${step === s || (step === 'SAVING' && s === 'REVIEW') ? 'text-scout-accent' : 'text-gray-600'}`}>
+                    {i + 1}. {s === 'UPLOAD' ? 'Import' : s === 'REVIEW' ? 'Review' : 'Outreach'}
+                  </span>
+                  {i < 2 && <ChevronRight size={10} className="text-gray-700" />}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+          <button onClick={handleClose} className="p-2 hover:bg-scout-800 rounded-xl transition-colors">
+            <X size={20} className="text-gray-500" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-5">
+          {/* UPLOAD STEP */}
+          {step === 'UPLOAD' && (
+            <div className="space-y-6">
+              {/* Drop zone */}
+              <div
+                className="border-2 border-dashed border-scout-700 rounded-2xl p-10 text-center hover:border-scout-accent/50 transition-colors cursor-pointer"
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const file = e.dataTransfer.files[0]; if (file) handleFileUpload(file); }}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,.txt,.pdf,image/*"
+                  className="hidden"
+                  onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileUpload(file); }}
+                />
+                {isExtracting ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 size={32} className="text-scout-accent animate-spin" />
+                    <p className="text-gray-400 text-sm">Extracting players with AI...</p>
+                  </div>
+                ) : (
+                  <>
+                    <Upload size={32} className="mx-auto text-gray-600 mb-3" />
+                    <p className="text-white font-bold mb-1">Drop a file or click to upload</p>
+                    <p className="text-gray-500 text-xs">CSV, TXT, PDF, or photo of a roster</p>
+                  </>
+                )}
+              </div>
+
+              <div className="flex items-center gap-4">
+                <div className="flex-1 h-px bg-scout-700" />
+                <span className="text-gray-600 text-xs font-bold uppercase">or paste</span>
+                <div className="flex-1 h-px bg-scout-700" />
+              </div>
+
+              {/* Paste area */}
+              <div>
+                <textarea
+                  value={pasteText}
+                  onChange={(e) => setPasteText(e.target.value)}
+                  placeholder="Paste player names, roster data, or a CSV here...&#10;&#10;Example:&#10;Max Mueller, 18, CM, FC Bayern Youth, +49151123456&#10;Tom Schmidt, 17, CB, BVB U19, tom@email.com"
+                  className="w-full h-40 bg-scout-800 border border-scout-700 rounded-xl p-4 text-white placeholder:text-gray-600 text-sm resize-none focus:outline-none focus:border-scout-accent"
+                />
+                <button
+                  onClick={handlePasteSubmit}
+                  disabled={!pasteText.trim() || isExtracting}
+                  className="mt-3 w-full py-3 bg-scout-accent text-scout-900 rounded-xl font-black uppercase text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isExtracting ? <Loader2 size={18} className="animate-spin" /> : <FileUp size={18} />}
+                  Extract Players
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* REVIEW STEP */}
+          {step === 'REVIEW' && (
+            <div className="space-y-3">
+              {extractedPlayers.length === 0 ? (
+                <div className="text-center py-10 text-gray-500">
+                  <p>No players extracted. Try a different format.</p>
+                  <button onClick={() => setStep('UPLOAD')} className="mt-3 text-scout-accent font-bold text-sm">Go back</button>
+                </div>
+              ) : (
+                extractedPlayers.map((player, index) => (
+                  <div key={index} className="bg-scout-800 border border-scout-700 rounded-xl p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <input
+                          value={player.name}
+                          onChange={(e) => updatePlayer(index, 'name', e.target.value)}
+                          placeholder="Name"
+                          className="bg-scout-900 border border-scout-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-scout-accent col-span-2 md:col-span-1"
+                        />
+                        <input
+                          value={player.position}
+                          onChange={(e) => updatePlayer(index, 'position', e.target.value)}
+                          placeholder="Position"
+                          className="bg-scout-900 border border-scout-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-scout-accent w-full"
+                        />
+                        <input
+                          value={player.club}
+                          onChange={(e) => updatePlayer(index, 'club', e.target.value)}
+                          placeholder="Club"
+                          className="bg-scout-900 border border-scout-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-scout-accent w-full"
+                        />
+                        <input
+                          value={player.phone}
+                          onChange={(e) => updatePlayer(index, 'phone', e.target.value)}
+                          placeholder="Phone (incl. country code)"
+                          className="bg-scout-900 border border-scout-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-scout-accent"
+                        />
+                        <input
+                          value={player.email}
+                          onChange={(e) => updatePlayer(index, 'email', e.target.value)}
+                          placeholder="Email"
+                          className="bg-scout-900 border border-scout-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-scout-accent"
+                        />
+                        <input
+                          value={player.parentPhone}
+                          onChange={(e) => updatePlayer(index, 'parentPhone', e.target.value)}
+                          placeholder="Parent phone"
+                          className="bg-scout-900 border border-scout-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-scout-accent"
+                        />
+                      </div>
+                      <button onClick={() => removePlayer(index)} className="p-2 text-gray-600 hover:text-red-400 transition-colors shrink-0">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* SAVING STEP */}
+          {step === 'SAVING' && (
+            <div className="flex flex-col items-center justify-center py-16 gap-4">
+              <Loader2 size={40} className="text-scout-accent animate-spin" />
+              <p className="text-gray-400 text-sm">Saving {extractedPlayers.length} players to your pipeline...</p>
+            </div>
+          )}
+
+          {/* OUTREACH STEP */}
+          {step === 'OUTREACH' && (
+            <div className="space-y-5">
+              {/* Template + Language picker */}
+              {outreachMessages.length === 0 && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Message Type</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {templates.map(t => (
+                        <button
+                          key={t.value}
+                          onClick={() => setSelectedTemplate(t.value)}
+                          className={`p-3 rounded-xl border text-left transition-all ${selectedTemplate === t.value
+                            ? 'border-scout-accent bg-scout-accent/10 text-white'
+                            : 'border-scout-700 bg-scout-800 text-gray-400 hover:border-scout-600'
+                          }`}
+                        >
+                          <span className="text-sm font-bold block">{t.label}</span>
+                          <span className="text-[10px] text-gray-500">{t.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Language</label>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setOutreachLang('de')}
+                        className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${outreachLang === 'de' ? 'bg-scout-accent text-scout-900' : 'bg-scout-800 text-gray-500 border border-scout-700'}`}
+                      >
+                        Deutsch
+                      </button>
+                      <button
+                        onClick={() => setOutreachLang('en')}
+                        className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${outreachLang === 'en' ? 'bg-scout-accent text-scout-900' : 'bg-scout-800 text-gray-500 border border-scout-700'}`}
+                      >
+                        English
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleGenerateOutreach}
+                    disabled={isGenerating}
+                    className="w-full py-4 bg-scout-accent text-scout-900 rounded-xl font-black uppercase text-sm flex items-center justify-center gap-3 disabled:opacity-50"
+                  >
+                    {isGenerating ? <Loader2 size={20} className="animate-spin" /> : <MessageSquare size={20} />}
+                    Generate {savedPlayers.length} Messages
+                  </button>
+
+                  <p className="text-center text-gray-600 text-xs">
+                    {savedPlayers.length} players saved. Generate personalized outreach for each.
+                  </p>
+                </div>
+              )}
+
+              {/* Generated messages */}
+              {outreachMessages.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                      {outreachMessages.length} Messages Ready
+                    </p>
+                    <button
+                      onClick={() => setOutreachMessages([])}
+                      className="text-xs text-gray-500 hover:text-white"
+                    >
+                      Regenerate
+                    </button>
+                  </div>
+
+                  {outreachMessages.map((msg, index) => (
+                    <div key={msg.playerId} className="bg-scout-800 border border-scout-700 rounded-xl overflow-hidden">
+                      <div className="flex items-center justify-between p-3 border-b border-scout-700/50 bg-scout-900/30">
+                        <span className="text-sm font-bold text-white">{msg.playerName}</span>
+                        <div className="flex items-center gap-1">
+                          {msg.phone && (
+                            <button
+                              onClick={() => handleWhatsApp(index)}
+                              className="p-2 text-green-400 hover:bg-green-500/10 rounded-lg transition-colors"
+                              title="Send via WhatsApp"
+                            >
+                              <ExternalLink size={14} />
+                            </button>
+                          )}
+                          {msg.parentPhone && (
+                            <button
+                              onClick={() => handleParentWhatsApp(index)}
+                              className="p-2 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors text-[10px] font-bold"
+                              title="Send to parent via WhatsApp"
+                            >
+                              Parent
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleCopyMessage(index)}
+                            className={`p-2 rounded-lg transition-colors ${msg.copied ? 'text-scout-accent bg-scout-accent/10' : 'text-gray-400 hover:bg-scout-700'}`}
+                          >
+                            {msg.copied ? <Check size={14} /> : <Copy size={14} />}
+                          </button>
+                        </div>
+                      </div>
+                      <textarea
+                        value={msg.message}
+                        onChange={(e) => setOutreachMessages(prev => prev.map((m, i) => i === index ? { ...m, message: e.target.value } : m))}
+                        className="w-full bg-transparent p-3 text-gray-300 text-sm resize-none focus:outline-none min-h-[100px]"
+                        rows={4}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        {step === 'REVIEW' && extractedPlayers.length > 0 && (
+          <div className="p-5 border-t border-scout-700 shrink-0 flex items-center justify-between">
+            <button onClick={() => { setStep('UPLOAD'); setExtractedPlayers([]); setPasteText(''); }} className="text-gray-500 text-sm font-bold hover:text-white transition-colors">
+              Back
+            </button>
+            <button
+              onClick={handleSavePlayers}
+              className="px-8 py-3 bg-scout-accent text-scout-900 rounded-xl font-black uppercase text-sm flex items-center gap-2"
+            >
+              Save {extractedPlayers.length} Players <ChevronRight size={16} />
+            </button>
+          </div>
+        )}
+
+        {step === 'OUTREACH' && outreachMessages.length > 0 && (
+          <div className="p-5 border-t border-scout-700 shrink-0 flex items-center justify-between">
+            <p className="text-gray-500 text-xs">
+              {outreachMessages.filter(m => m.copied).length} of {outreachMessages.length} copied
+            </p>
+            <button onClick={onClose} className="px-8 py-3 bg-scout-700 text-white rounded-xl font-black uppercase text-sm">
+              Done
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};

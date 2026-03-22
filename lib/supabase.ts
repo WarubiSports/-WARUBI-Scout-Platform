@@ -182,6 +182,36 @@ export const supabaseRest = {
     }
   },
 
+  async insertBatch<T>(table: string, rows: Record<string, any>[]): Promise<RestResponse<T[]>> {
+    if (!isSupabaseConfigured) return { data: null, error: { message: 'Not configured' } }
+    const token = getAccessToken()
+    if (!token) return { data: null, error: { message: 'No auth token' } }
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000)
+      const response = await fetch(`${supabaseUrl}/rest/v1/${table}`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseAnonKey!,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation',
+        },
+        body: JSON.stringify(rows),
+        signal: controller.signal,
+      })
+      clearTimeout(timeoutId)
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        return { data: null, error: { message: errorData.message || `HTTP ${response.status}` } }
+      }
+      const result = await response.json()
+      return { data: Array.isArray(result) ? result : [result], error: null }
+    } catch (e) {
+      return { data: null, error: { message: e instanceof Error ? e.message : 'Unknown error' } }
+    }
+  },
+
   async delete(table: string, query: string): Promise<RestResponse<null>> {
     if (!isSupabaseConfigured) return { data: null, error: { message: 'Not configured' } }
 

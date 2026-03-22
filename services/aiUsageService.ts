@@ -16,7 +16,8 @@ export type AIOperationType =
   | 'duplicate_check'        // Low cost
   | 'scout_bio'              // Low cost
   | 'scout_ai_chat'          // Low cost
-  | 'onboarding';            // Low cost (one-time)
+  | 'onboarding'             // Low cost (one-time)
+  | 'bulk_outreach';          // Medium cost - batch message generation
 
 // Credit costs per operation type
 const OPERATION_COSTS: Record<AIOperationType, number> = {
@@ -30,6 +31,7 @@ const OPERATION_COSTS: Record<AIOperationType, number> = {
   scout_bio: 1,              // Low - short text generation
   scout_ai_chat: 1,          // Low - general Q&A
   onboarding: 2,             // Low - one-time per scout
+  bulk_outreach: 3,          // Medium - batch of up to 10 messages per call
 };
 
 // Limits for free tier scouts
@@ -253,7 +255,8 @@ export const getOperationLabel = (type: AIOperationType): string => {
     duplicate_check: 'Duplicate Check',
     scout_bio: 'Scout Bio',
     scout_ai_chat: 'AI Chat',
-    onboarding: 'Onboarding'
+    onboarding: 'Onboarding',
+    bulk_outreach: 'Bulk Outreach'
   };
   return labels[type] || type;
 };

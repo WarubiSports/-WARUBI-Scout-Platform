@@ -410,6 +410,39 @@ Best,
 ${scoutName}`;
 };
 
+export interface BulkOutreachResult {
+  id: string
+  message: string
+}
+
+export const bulkGenerateOutreach = async (
+  scoutName: string,
+  players: Array<{ id: string; name: string; position: string; age: number; club: string }>,
+  templateType: string,
+  options?: OutreachOptions
+): Promise<BulkOutreachResult[]> => {
+  // Chunk into batches of 10
+  const chunks: (typeof players)[] = []
+  for (let i = 0; i < players.length; i += 10) {
+    chunks.push(players.slice(i, i + 10))
+  }
+  const results: BulkOutreachResult[] = []
+  for (const chunk of chunks) {
+    checkAndRecordUsage('bulk_outreach')
+    const chunkResult = await callGeminiProxy('bulkGenerateOutreach', {
+      scoutName,
+      scoutBio: options?.scoutBio,
+      language: options?.language || 'en',
+      players: chunk,
+      templateType,
+    })
+    if (Array.isArray(chunkResult)) {
+      results.push(...chunkResult)
+    }
+  }
+  return results
+}
+
 export const checkPlayerDuplicates = async (candidate: Partial<Player>, existingPlayers: Player[]): Promise<{ id: string; name: string; reason: string; confidence: string }[]> => {
     checkAndRecordUsage('duplicate_check');
     const result = await callGeminiProxy('checkPlayerDuplicates', {

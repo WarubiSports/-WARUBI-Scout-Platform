@@ -9,6 +9,7 @@ import PlacementModal, { PlacementData } from './PlacementModal';
 import { haptic } from '../hooks/useMobileFeatures';
 import { Users, CalendarDays, Plus, LogOut, Lightbulb, BarChart3 } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
+import { BulkOutreachFlow } from './BulkOutreachFlow';
 
 // Context type for child routes
 export interface DashboardContext {
@@ -31,6 +32,7 @@ export interface DashboardContext {
     handleEditPlayer: (player: Player) => void;
     setIsSubmissionOpen: (open: boolean) => void;
     setSubmissionInitialMode: (mode: 'HUB' | 'BULK' | undefined) => void;
+    openBulkOutreach: () => void;
 }
 
 // Hook for child routes to access dashboard context
@@ -82,6 +84,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     const [submissionInitialMode, setSubmissionInitialMode] = useState<'HUB' | 'BULK' | undefined>(undefined);
     const [editingPlayer, setEditingPlayer] = useState<Player | null>(null);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [isBulkOutreachOpen, setIsBulkOutreachOpen] = useState(false);
     const [isBugReportOpen, setIsBugReportOpen] = useState(false);
     const [pendingOfferedPlayer, setPendingOfferedPlayer] = useState<Player | null>(null);
     const [pendingPlacedPlayer, setPendingPlacedPlayer] = useState<Player | null>(null);
@@ -216,6 +219,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         handleEditPlayer,
         setIsSubmissionOpen,
         setSubmissionInitialMode,
+        openBulkOutreach: () => setIsBulkOutreachOpen(true),
     };
 
     const isOutreachTab = activeTab === 'outreach';
@@ -279,6 +283,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 <Outlet context={outletContext} />
 
                 {isSubmissionOpen && <PlayerSubmission onClose={handleCloseSubmission} onAddPlayer={onAddPlayer} onUpdatePlayer={onUpdatePlayer} existingPlayers={players} editingPlayer={editingPlayer} initialMode={submissionInitialMode} />}
+                {isBulkOutreachOpen && <BulkOutreachFlow scoutId={user.scoutId} scoutName={user.name} scoutBio={user.bio} onClose={() => setIsBulkOutreachOpen(false)} />}
                 {isBugReportOpen && <ReportBugModal onClose={() => setIsBugReportOpen(false)} />}
                 {pendingOfferedPlayer && <TrialRequestModal player={pendingOfferedPlayer} onSubmit={handleTrialSubmitted} onCancel={handleTrialCancelled} />}
                 {pendingPlacedPlayer && <PlacementModal player={pendingPlacedPlayer} onSubmit={handlePlacementSubmitted} onCancel={handlePlacementCancelled} />}

@@ -278,6 +278,22 @@ export function useProspects(scoutId: string | undefined) {
     },
   })
 
+  // Add mutation for batch adding prospects
+  const batchMutation = useMutation({
+    mutationFn: async (players: Player[]) => {
+      if (!scoutId) throw new Error('No scout ID')
+      if (!isSupabaseConfigured) throw new Error('Supabase not configured')
+      const rows = players.map(p => playerToProspect(p, scoutId))
+      const { data, error } = await supabaseRest.insertBatch<ScoutProspect>('scout_prospects', rows)
+      if (error) throw new Error(error.message)
+      if (!data) throw new Error('No data returned')
+      return data.map(p => prospectToPlayer(p))
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['prospects', scoutId] })
+    },
+  })
+
   // Add mutation for updating prospects
   const updateMutation = useMutation({
     mutationFn: async ({ playerId, updates }: { playerId: string; updates: Partial<Player> }) => {
@@ -403,6 +419,18 @@ export function useProspects(scoutId: string | undefined) {
     [addMutation]
   )
 
+  const addProspectsBatch = useCallback(
+    async (players: Player[]): Promise<Player[]> => {
+      try {
+        return await batchMutation.mutateAsync(players)
+      } catch (err) {
+        console.error('[addProspectsBatch] Error:', err)
+        return []
+      }
+    },
+    [batchMutation]
+  )
+
   const updateProspect = useCallback(
     async (playerId: string, updates: Partial<Player>): Promise<void> => {
       try {
@@ -437,6 +465,7 @@ export function useProspects(scoutId: string | undefined) {
     loading,
     error: queryError?.message || null,
     addProspect,
+    addProspectsBatch,
     updateProspect,
     deleteProspect,
     refreshProspects: () => refetch(),

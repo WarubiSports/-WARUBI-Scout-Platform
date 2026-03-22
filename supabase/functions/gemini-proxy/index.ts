@@ -174,11 +174,16 @@ const operations: Record<string, (payload: any) => Promise<any>> = {
     const prompt = `Extract each player into a structured JSON array.
 
     Return an array of objects, each with:
-    - name: string
-    - age: number (if available)
-    - position: string
-    - club: string
-    - evaluation: { score: number, scholarshipTier: string, summary: string } (optional)`;
+    - name: string (required)
+    - age: number (if available, otherwise omit)
+    - position: string (soccer position e.g. CM, GK, CB - infer if not explicit)
+    - club: string (if available, empty string if not)
+    - email: string (player email if present, empty string if not)
+    - phone: string (player phone/WhatsApp if present, empty string if not)
+    - parentName: string (parent/guardian name if present, empty string if not)
+    - parentPhone: string (parent/guardian phone if present, empty string if not)
+    - parentEmail: string (parent/guardian email if present, empty string if not)
+    - notes: string (any other relevant info, empty string if not)`;
 
     let result;
     if (payload.isImage) {
@@ -218,6 +223,70 @@ const operations: Record<string, (payload: any) => Promise<any>> = {
       { text: prompt }
     ]);
 
+    const text = result.response.text();
+    return JSON.parse(cleanJson(text));
+  },
+
+  // Bulk generate outreach messages
+  async bulkGenerateOutreach(payload: {
+    scoutName: string
+    scoutBio?: string
+    language: 'en' | 'de'
+    players: Array<{ name: string; position: string; age: number; club: string; id: string }>
+    templateType: string
+  }) {
+    const ai = getAiClient();
+    const model = ai.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      generationConfig: { responseMimeType: 'application/json' }
+    });
+
+    const isGerman = payload.language === 'de';
+    const scoutBioContext = payload.scoutBio
+      ? (isGerman ? `\nDEIN HINTERGRUND: ${payload.scoutBio}` : `\nYOUR BACKGROUND: ${payload.scoutBio}`)
+      : '';
+
+    const playerList = payload.players.map(p =>
+      `- ID: ${p.id}, Name: ${p.name}, Position: ${p.position || (isGerman ? 'Unbekannt' : 'Unknown')}, Age: ${p.age || '?'}, Club: ${p.club || (isGerman ? 'Unbekannt' : 'Unknown')}`
+    ).join('\n');
+
+    const prompt = isGerman
+      ? `Du bist ${payload.scoutName}, Elite-Fußballscout für Warubi Sports.${scoutBioContext}
+
+Schreibe eine personalisierte "${payload.templateType}" WhatsApp-Nachricht für JEDEN der folgenden Spieler.
+
+SPIELER:
+${playerList}
+
+ANFORDERUNGEN PRO NACHRICHT:
+1. 3-4 Sätze, knapp und persönlich
+2. Speziell auf Position und Verein des Spielers eingehen
+3. Erwähne Warubis Netzwerk (FC Köln ITP, 200+ US-College-Programme)
+4. Auf Deutsch, locker und authentisch
+5. Beginne mit "Hey [Name],"
+
+Gib ein JSON-Array zurück, jedes Element mit:
+- id: string (die Spieler-ID von oben)
+- message: string (die fertige Nachricht)`
+      : `You are ${payload.scoutName}, elite soccer scout for Warubi Sports.${scoutBioContext}
+
+Write a personalized "${payload.templateType}" WhatsApp message for EACH of the following players.
+
+PLAYERS:
+${playerList}
+
+REQUIREMENTS PER MESSAGE:
+1. 3-4 sentences, concise and personal
+2. Reference the specific position and club
+3. Mention Warubi's network (FC Köln ITP, 200+ US college programs)
+4. Natural, direct tone — no corporate speak
+5. Start with "Hey [Name],"
+
+Return a JSON array, each element with:
+- id: string (the player ID from above)
+- message: string (the finished message)`;
+
+    const result = await model.generateContent(prompt);
     const text = result.response.text();
     return JSON.parse(cleanJson(text));
   },
