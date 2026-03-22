@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { X, Users, Upload, Send, Loader2, CheckCircle, AlertCircle, Mail, ChevronRight } from 'lucide-react';
+import { X, Users, Upload, Send, CheckCircle, Mail, ChevronRight, Copy, Check } from 'lucide-react';
 import { Player } from '../types';
-import { supabase } from '../lib/supabase';
 
 interface NetworkOutreachModalProps {
   open: boolean;
@@ -12,46 +11,26 @@ interface NetworkOutreachModalProps {
   submissionLink: string;
 }
 
-type Step = 'audience' | 'compose' | 'sending' | 'done';
+type Step = 'audience' | 'compose';
 type Audience = 'database' | 'custom';
 
-interface Recipient {
-  email: string;
-  name?: string;
+// Build plain-text email body for mailto (email clients don't support HTML in mailto)
+function buildEmailBody(scoutName: string, submissionLink: string): string {
+  return `Hi,
+
+I'm actively looking for talented players who could benefit from professional development opportunities in Germany.
+
+If you know someone — or are a player yourself — you can submit a profile directly through my personal link. It only takes 60 seconds:
+
+${submissionLink}
+
+Any player submitted goes straight into my pipeline. I'll personally review every submission.
+
+Best regards,
+${scoutName}`;
 }
 
-// Build the email HTML — all values are from the scout's own profile, not user input
-function buildEmailHtml(scoutName: string, submissionLink: string, recipientName: string): string {
-  const safeName = scoutName.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const safeRecipient = recipientName.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-  return `
-<div style="font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px 24px; background: #0a0f1a; color: #e5e7eb;">
-  <div style="text-align: center; margin-bottom: 32px;">
-    <h1 style="font-size: 24px; font-weight: 900; color: white; margin: 0; letter-spacing: -0.5px;">
-      Scout<span style="color: #10b981;">Buddy</span>
-    </h1>
-  </div>
-  <div style="background: #111827; border: 1px solid #1f2937; border-radius: 16px; padding: 32px;">
-    <h2 style="color: white; font-size: 20px; font-weight: 800; margin: 0 0 16px;">
-      Know a talented player?
-    </h2>
-    <p style="color: #9ca3af; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
-      Hi ${safeRecipient},<br><br>
-      <strong style="color: white;">${safeName}</strong> is actively scouting new talent. If you know a player who could benefit from professional development opportunities in Germany, you can submit them directly — it only takes 60 seconds.
-    </p>
-    <a href="${submissionLink}" style="display: inline-block; background: #10b981; color: #0a0f1a; padding: 14px 28px; border-radius: 12px; font-weight: 800; font-size: 14px; text-decoration: none; text-transform: uppercase; letter-spacing: 0.5px;">
-      Submit a Player
-    </a>
-    <p style="color: #6b7280; font-size: 12px; margin: 24px 0 0;">
-      This link is unique to ${safeName}. Any player submitted will go directly into their pipeline.
-    </p>
-  </div>
-  <p style="text-align: center; color: #4b5563; font-size: 11px; margin-top: 24px;">
-    Powered by Scout Buddy
-  </p>
-</div>`;
-}
+const BATCH_SIZE = 30; // mailto BCC limit per batch to avoid URL length issues
 
 const NetworkOutreachModal: React.FC<NetworkOutreachModalProps> = ({
   open,
@@ -64,66 +43,57 @@ const NetworkOutreachModal: React.FC<NetworkOutreachModalProps> = ({
   const [step, setStep] = useState<Step>('audience');
   const [audience, setAudience] = useState<Audience | null>(null);
   const [customEmails, setCustomEmails] = useState('');
-  const [subject, setSubject] = useState(`${scoutName} — Submit a Player`);
-  const [sendCount, setSendCount] = useState(0);
-  const [sendError, setSendError] = useState<string | null>(null);
+  const [subject, setSubject] = useState(`Know a talented player?`);
+  const [bodyCopied, setBodyCopied] = useState(false);
+  const [batchesSent, setBatchesSent] = useState(0);
 
   // Players from DB with email addresses
-  const dbRecipients = useMemo<Recipient[]>(() =>
+  const dbRecipients = useMemo(() =>
     players
       .filter(p => p.email)
-      .map(p => ({ email: p.email!, name: p.name })),
+      .map(p => p.email!),
     [players]
   );
 
-  // Parse custom email list (comma, newline, or semicolon separated)
-  const customRecipients = useMemo<Recipient[]>(() => {
+  // Parse custom email list
+  const customRecipients = useMemo(() => {
     if (!customEmails.trim()) return [];
     return customEmails
       .split(/[,;\n]+/)
       .map(e => e.trim())
-      .filter(e => e.includes('@'))
-      .map(e => ({ email: e }));
+      .filter(e => e.includes('@'));
   }, [customEmails]);
 
   const recipients = audience === 'database' ? dbRecipients : customRecipients;
 
-  const previewHtml = useMemo(() => buildEmailHtml(scoutName, submissionLink, 'Coach'), [scoutName, submissionLink]);
+  const emailBody = useMemo(() => buildEmailBody(scoutName, submissionLink), [scoutName, submissionLink]);
 
-  const handleSend = async () => {
-    if (recipients.length === 0) return;
-    setStep('sending');
-    setSendError(null);
-
-    try {
-      // Build the HTML template with {{name}} placeholder for the edge function
-      const htmlBody = buildEmailHtml(scoutName, submissionLink, '{{name}}');
-
-      const { data, error } = await supabase.functions.invoke('send-outreach-email', {
-        body: {
-          recipients,
-          subject,
-          htmlBody,
-          fromName: scoutName,
-          fromDomain: 'warubi',
-        },
-      });
-
-      if (error) throw error;
-      setSendCount(recipients.length);
-      setStep('done');
-    } catch (err) {
-      console.error('[NetworkOutreach] Send error:', err);
-      setSendError(err instanceof Error ? err.message : 'Failed to send emails');
-      setStep('compose');
+  // Split recipients into batches for mailto links
+  const batches = useMemo(() => {
+    const result: string[][] = [];
+    for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
+      result.push(recipients.slice(i, i + BATCH_SIZE));
     }
+    return result;
+  }, [recipients]);
+
+  const openMailto = (bccList: string[], batchIndex: number) => {
+    const mailto = `mailto:?bcc=${encodeURIComponent(bccList.join(','))}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
+    window.open(mailto, '_blank');
+    setBatchesSent(prev => Math.max(prev, batchIndex + 1));
+  };
+
+  const copyBody = () => {
+    navigator.clipboard.writeText(emailBody);
+    setBodyCopied(true);
+    setTimeout(() => setBodyCopied(false), 2000);
   };
 
   const handleClose = () => {
     setStep('audience');
     setAudience(null);
     setCustomEmails('');
-    setSendError(null);
+    setBatchesSent(0);
     onClose();
   };
 
@@ -144,7 +114,7 @@ const NetworkOutreachModal: React.FC<NetworkOutreachModalProps> = ({
           {/* Step 1: Audience */}
           {step === 'audience' && (
             <div className="space-y-4">
-              <p className="text-sm text-gray-400">Who should receive your submission link?</p>
+              <p className="text-sm text-gray-400">Choose who to email your submission link to. Opens in your mail app so it sends from your own email.</p>
 
               {/* My Database */}
               <button
@@ -158,7 +128,7 @@ const NetworkOutreachModal: React.FC<NetworkOutreachModalProps> = ({
                   <div className="flex-1">
                     <p className="font-bold text-white text-sm">My Players Database</p>
                     <p className="text-xs text-gray-500 mt-1">
-                      Send to all players with email addresses ({dbRecipients.length} contacts)
+                      {dbRecipients.length} players with email addresses
                     </p>
                   </div>
                   <ChevronRight size={18} className="text-gray-600 group-hover:text-scout-accent transition-colors" />
@@ -177,7 +147,7 @@ const NetworkOutreachModal: React.FC<NetworkOutreachModalProps> = ({
                   <div className="flex-1">
                     <p className="font-bold text-white text-sm">Custom Email List</p>
                     <p className="text-xs text-gray-500 mt-1">
-                      Paste or type email addresses for coaches, parents, agents
+                      Paste email addresses for coaches, parents, agents
                     </p>
                   </div>
                   <ChevronRight size={18} className="text-gray-600 group-hover:text-blue-400 transition-colors" />
@@ -186,7 +156,7 @@ const NetworkOutreachModal: React.FC<NetworkOutreachModalProps> = ({
             </div>
           )}
 
-          {/* Step 2: Compose */}
+          {/* Step 2: Compose & Send */}
           {step === 'compose' && (
             <div className="space-y-5">
               {/* Custom email input */}
@@ -230,80 +200,77 @@ const NetworkOutreachModal: React.FC<NetworkOutreachModalProps> = ({
                 />
               </div>
 
-              {/* Email Preview */}
+              {/* Email Body Preview */}
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Email Preview</label>
-                <div className="bg-[#0a0f1a] rounded-xl overflow-hidden max-h-72 overflow-y-auto border border-scout-700">
-                  <iframe
-                    srcDoc={previewHtml}
-                    title="Email preview"
-                    className="w-full h-64 border-0"
-                    sandbox=""
-                  />
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Message</label>
+                  <button
+                    onClick={copyBody}
+                    className="text-[10px] font-bold text-gray-500 hover:text-scout-accent flex items-center gap-1 transition-colors"
+                  >
+                    {bodyCopied ? <><Check size={10} /> Copied</> : <><Copy size={10} /> Copy Text</>}
+                  </button>
+                </div>
+                <div className="bg-scout-900 border border-scout-700 rounded-xl p-4 text-sm text-gray-300 whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed">
+                  {emailBody}
                 </div>
               </div>
 
               {/* Sender info */}
               <div className="bg-scout-900/50 border border-scout-700 rounded-xl p-4">
-                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Sent From</p>
-                <p className="text-sm text-gray-300">
-                  {scoutName} &lt;{scoutName.toLowerCase().replace(/\s+/g, '.')}@warubi-sports.com&gt;
-                </p>
+                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">Sent From</p>
+                <p className="text-sm text-gray-300">Your own email (opens in your mail app)</p>
               </div>
 
-              {sendError && (
-                <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-center gap-3 text-red-400 text-sm">
-                  <AlertCircle size={18} />
-                  {sendError}
-                </div>
-              )}
+              {/* Send buttons — one per batch */}
+              <div className="space-y-3">
+                {recipients.length === 0 && (
+                  <p className="text-sm text-gray-500 text-center py-2">No recipients yet</p>
+                )}
 
-              {/* Actions */}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => { setStep('audience'); setAudience(null); }}
-                  className="px-5 py-3 bg-scout-700 text-gray-300 rounded-xl text-sm font-bold hover:bg-scout-600 transition-colors"
-                >
-                  Back
-                </button>
-                <button
-                  onClick={handleSend}
-                  disabled={recipients.length === 0}
-                  className="flex-1 py-3 bg-scout-accent text-scout-900 rounded-xl font-black uppercase text-sm flex items-center justify-center gap-2 shadow-glow hover:bg-emerald-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Send size={16} />
-                  Send to {recipients.length} {recipients.length === 1 ? 'Contact' : 'Contacts'}
-                </button>
-              </div>
-            </div>
-          )}
+                {batches.length === 1 && (
+                  <button
+                    onClick={() => openMailto(batches[0], 0)}
+                    className="w-full py-3.5 bg-scout-accent text-scout-900 rounded-xl font-black uppercase text-sm flex items-center justify-center gap-2 shadow-glow hover:bg-emerald-400 transition-all"
+                  >
+                    <Send size={16} />
+                    Open Email — {recipients.length} {recipients.length === 1 ? 'Recipient' : 'Recipients'}
+                  </button>
+                )}
 
-          {/* Step 3: Sending */}
-          {step === 'sending' && (
-            <div className="py-12 text-center space-y-4">
-              <Loader2 size={40} className="mx-auto text-scout-accent animate-spin" />
-              <p className="text-white font-bold">Sending to {recipients.length} contacts...</p>
-              <p className="text-gray-500 text-sm">This may take a moment.</p>
-            </div>
-          )}
+                {batches.length > 1 && (
+                  <>
+                    <p className="text-xs text-gray-500">
+                      {recipients.length} recipients split into {batches.length} batches (max {BATCH_SIZE} per email).
+                      Send each batch — they'll open in your mail app.
+                    </p>
+                    {batches.map((batch, i) => (
+                      <button
+                        key={i}
+                        onClick={() => openMailto(batch, i)}
+                        className={`w-full py-3 rounded-xl font-bold uppercase text-sm flex items-center justify-center gap-2 transition-all ${
+                          i < batchesSent
+                            ? 'bg-scout-accent/10 text-scout-accent border border-scout-accent/30'
+                            : 'bg-scout-accent text-scout-900 shadow-glow hover:bg-emerald-400'
+                        }`}
+                      >
+                        {i < batchesSent ? (
+                          <><CheckCircle size={16} /> Batch {i + 1} Opened ({batch.length})</>
+                        ) : (
+                          <><Send size={16} /> Send Batch {i + 1} — {batch.length} Recipients</>
+                        )}
+                      </button>
+                    ))}
+                  </>
+                )}
+              </div>
 
-          {/* Step 4: Done */}
-          {step === 'done' && (
-            <div className="py-12 text-center space-y-5">
-              <div className="w-16 h-16 bg-scout-accent/20 rounded-full flex items-center justify-center mx-auto border-2 border-scout-accent/30">
-                <CheckCircle size={32} className="text-scout-accent" />
-              </div>
-              <div>
-                <h3 className="text-xl font-black text-white uppercase">Emails Sent</h3>
-                <p className="text-gray-400 text-sm mt-2">
-                  {sendCount} contacts will receive your submission link. New players they submit will appear in your pipeline automatically.
-                </p>
-              </div>
+              {/* Back */}
               <button
-                onClick={handleClose}
-                className="px-8 py-3 bg-scout-accent text-scout-900 rounded-xl font-black uppercase text-sm"
+                onClick={() => { setStep('audience'); setAudience(null); setBatchesSent(0); }}
+                className="w-full py-2.5 text-gray-500 text-sm font-bold hover:text-gray-300 transition-colors"
               >
-                Done
+                &larr; Back
               </button>
             </div>
           )}
