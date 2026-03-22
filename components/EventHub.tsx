@@ -691,9 +691,20 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                         <Megaphone size={16} /> Let Your Network Know
                                       </button>
                                   )}
+                                  {event.showcaseSlug && (
+                                      <a
+                                        href={`https://showcase-coordinator.vercel.app/event/${event.showcaseSlug}/manage?name=${encodeURIComponent(user?.name || '')}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="w-full py-3 bg-scout-700 border border-scout-600 text-white rounded-lg font-bold text-sm flex items-center justify-center gap-2 hover:bg-scout-600 transition-all"
+                                      >
+                                        <ClipboardList size={16} /> Manage Event
+                                      </a>
+                                  )}
                                   {event.showcaseEventId && <RegistrationCount showcaseEventId={event.showcaseEventId} scoutId={currentScoutId} />}
                               </div>
                           ) : (
+                              <>
                               <div className="bg-scout-900/50 p-4 rounded-lg border border-scout-700">
                                   {!isUserAttending ? (
                                       <>
@@ -708,6 +719,17 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                       </div>
                                   )}
                               </div>
+                              {event.status === 'Published' && event.showcaseSlug && (
+                                  <div className="bg-scout-900 p-4 rounded-lg border border-scout-700 mt-4 space-y-3">
+                                      <label className="text-xs text-gray-500 font-bold uppercase block">Your Registration Link</label>
+                                      <div className="flex gap-2">
+                                          <input readOnly value={`showcase-coordinator.vercel.app/event/${event.showcaseSlug}${currentScoutId ? `?ref=${currentScoutId}` : ''}`} className="bg-scout-800 text-scout-accent text-sm px-2 rounded border border-scout-600 w-full"/>
+                                          <button onClick={() => copyToClipboard(`https://showcase-coordinator.vercel.app/event/${event.showcaseSlug}${currentScoutId ? `?ref=${currentScoutId}` : ''}`, 'link')} className="p-2 bg-scout-700 hover:bg-scout-600 rounded text-white">{copied === 'link' ? <CheckCircle size={16}/> : <Copy size={16}/>}</button>
+                                      </div>
+                                      <ShareMessages event={event} scoutId={currentScoutId} copyToClipboard={copyToClipboard} copied={copied} />
+                                  </div>
+                              )}
+                              </>
                           )}
 
                           {/* Scouts Attending */}

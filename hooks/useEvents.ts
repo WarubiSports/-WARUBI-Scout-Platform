@@ -93,7 +93,8 @@ function eventToDb(event: ScoutingEvent, scoutId: string): ScoutingEventInsert {
 
 // Map database event to frontend format
 function eventFromDb(dbEvent: DbEvent, scoutId?: string): ScoutingEvent {
-  const slug = slugify(dbEvent.title + (dbEvent.event_date ? `-${dbEvent.event_date.slice(0, 4)}` : ''))
+  // Use stored slug from DB; fall back to computed slug for backwards compatibility
+  const slug = dbEvent.showcase_slug || slugify(dbEvent.title + (dbEvent.event_date ? `-${dbEvent.event_date.slice(0, 4)}` : ''))
   return {
     id: dbEvent.id,
     isMine: dbEvent.host_scout_id === scoutId,
@@ -232,6 +233,10 @@ export function useEvents(scoutId: string | undefined) {
       if (event.showcaseEventId) {
         // Update existing showcase event
         await supabaseRest.update('showcase_events', `id=eq.${event.showcaseEventId}`, showcaseData)
+        // Keep slug in sync
+        await supabaseRest.update('scouting_events', `id=eq.${event.id}`, {
+          showcase_slug: slug,
+        })
         return event.showcaseEventId
       } else {
         // Create new showcase event
@@ -239,10 +244,32 @@ export function useEvents(scoutId: string | undefined) {
         if (error) throw new Error(error.message)
         if (!data) throw new Error('No data returned from showcase insert')
 
-        // Link back to scouting event
+        // Link back to scouting event with slug
         await supabaseRest.update('scouting_events', `id=eq.${event.id}`, {
           showcase_event_id: data.id,
+          showcase_slug: slug,
         })
+
+        // Auto-add hosting scout to the public event page
+        if (scoutId) {
+          try {
+            const { data: scoutData } = await supabaseRest.select<{ name: string; region: string; affiliation: string | null }>(
+              'scouts',
+              `id=eq.${scoutId}&select=name,region,affiliation`
+            )
+            if (scoutData && scoutData.length > 0) {
+              const scout = scoutData[0]
+              await supabaseRest.insert('showcase_event_scouts', {
+                event_id: data.id,
+                name: scout.name,
+                organization: scout.affiliation || scout.region || null,
+                sort_order: 0,
+              })
+            }
+          } catch {
+            // Best-effort — don't block sync if this fails
+          }
+        }
 
         return data.id
       }
