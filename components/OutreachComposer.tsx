@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Player, UserProfile, OutreachLog } from '../types';
 import {
   X, Copy, CheckCircle, MessageCircle, Send, Loader2,
-  Zap, Globe, Link,
+  Zap, Globe, Link, Instagram,
 } from 'lucide-react';
 import { generateOutreachMessage, AIUsageLimitError, OutreachOptions } from '../services/geminiService';
 import { haptic } from '../hooks/useMobileFeatures';
@@ -48,6 +48,18 @@ const OutreachComposer: React.FC<OutreachComposerProps> = ({ player, user, onMes
     return () => window.removeEventListener('keydown', handleEsc);
   }, [onClose]);
 
+  // Auto-select intent for EE leads (warmest leads → generate immediately)
+  useEffect(() => {
+    const eval_ = (player.evaluation as any);
+    const isEE = eval_?.source === 'exposure_engine';
+    const hasOutreach = player.outreachLogs && player.outreachLogs.length > 0;
+    const autoIntent = hasOutreach ? 'follow_up' : 'first_spark';
+    // Auto-fire for EE leads or any lead with no prior outreach
+    if (isEE || !hasOutreach) {
+      handleIntentClick(autoIntent);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleIntentClick = async (intentId: string) => {
     setActiveIntent(intentId);
     setIsLoading(true);
@@ -86,9 +98,9 @@ const OutreachComposer: React.FC<OutreachComposerProps> = ({ player, user, onMes
       // Warm intro for ExposureEngine leads — reference their actual results
       if (isEE && bestFit) {
         if (outreachLang === 'de') {
-          setDraftedMessage(appendEELink(`Hey ${name},\n\nich hab gesehen, dass du den ExposureEngine-Check gemacht hast — dein Ergebnis zeigt ${bestFit} als beste Passung. ${strengths ? `Besonders stark: ${strengths}.` : ''}\n\nIch bin ${scoutName} und arbeite mit Warubi Sports zusammen. Ich arbeite direkt mit Programmen auf diesem Level und denke, dass es da echte Möglichkeiten für dich gibt.\n\nHast du Lust, kurz zu quatschen, was die nächsten Schritte wären?\n\nBeste Grüße,\n${scoutName}`));
+          setDraftedMessage(appendEELink(`Hey ${name},\n\nich hab gesehen, dass du den ExposureEngine-Check gemacht hast — dein Ergebnis zeigt ${bestFit} als beste Passung. ${strengths ? `Besonders stark: ${strengths}.` : ''}\n\nIch bin ${user.name} und arbeite mit Warubi Sports zusammen. Ich arbeite direkt mit Programmen auf diesem Level und denke, dass es da echte Möglichkeiten für dich gibt.\n\nHast du Lust, kurz zu quatschen, was die nächsten Schritte wären?\n\nBeste Grüße,\n${user.name}`));
         } else {
-          setDraftedMessage(appendEELink(`Hey ${name},\n\nI saw you completed the ExposureEngine analysis — your results show ${bestFit} as your best fit. ${strengths ? `Key strengths: ${strengths}.` : ''}\n\nI'm ${scoutName} with Warubi Sports. I work directly with programs at that level and think there are real opportunities for you.\n\nWant to hop on a quick call to talk next steps?\n\nBest,\n${scoutName}`));
+          setDraftedMessage(appendEELink(`Hey ${name},\n\nI saw you completed the ExposureEngine analysis — your results show ${bestFit} as your best fit. ${strengths ? `Key strengths: ${strengths}.` : ''}\n\nI'm ${user.name} with Warubi Sports. I work directly with programs at that level and think there are real opportunities for you.\n\nWant to hop on a quick call to talk next steps?\n\nBest,\n${user.name}`));
         }
       } else if (outreachLang === 'de') {
         setDraftedMessage(appendEELink(hasCollege
@@ -150,6 +162,20 @@ const OutreachComposer: React.FC<OutreachComposerProps> = ({ player, user, onMes
     onMessageSent(player.id, {
       date: new Date().toISOString(),
       method: 'Email',
+      templateName: 'Outreach Studio Draft',
+      note: draftedMessage.substring(0, 50) + '...',
+    });
+  };
+
+  const handleInstagram = () => {
+    if (!draftedMessage) return;
+    navigator.clipboard.writeText(draftedMessage);
+    window.open('https://www.instagram.com/direct/new/', '_blank');
+    haptic.success();
+
+    onMessageSent(player.id, {
+      date: new Date().toISOString(),
+      method: 'Instagram',
       templateName: 'Outreach Studio Draft',
       note: draftedMessage.substring(0, 50) + '...',
     });
@@ -255,6 +281,12 @@ const OutreachComposer: React.FC<OutreachComposerProps> = ({ player, user, onMes
                 className="flex-1 bg-[#25D366] hover:bg-[#20bd5a] text-white font-black py-3 rounded-xl shadow-lg transition-all flex items-center justify-center gap-1.5 uppercase text-[10px]"
               >
                 <MessageCircle size={14} /> WA
+              </button>
+              <button
+                onClick={handleInstagram}
+                className="flex-1 bg-gradient-to-br from-[#833AB4] to-[#F77737] hover:opacity-90 text-white font-black py-3 rounded-xl transition-all flex items-center justify-center gap-1.5 uppercase text-[10px]"
+              >
+                <Instagram size={14} /> IG
               </button>
               <button
                 onClick={handleEmail}
