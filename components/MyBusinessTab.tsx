@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { DollarSign, CheckCircle, Clock, Target, AlertCircle, Calendar, TrendingUp, Users, Globe, BarChart3, Copy, Check, Link, Megaphone } from 'lucide-react';
+import { DollarSign, CheckCircle, Clock, Target, AlertCircle, Calendar, TrendingUp, Users, Globe, BarChart3, Copy, Check, Link } from 'lucide-react';
 import NetworkOutreachModal from './NetworkOutreachModal';
 import ShareToolkit from './ShareToolkit';
 import {
@@ -188,14 +188,7 @@ const MyBusinessTab: React.FC<MyBusinessTabProps> = ({ players, scoutId, scoutNa
             {/* Share Toolkit + Network Outreach */}
             {scoutId && (
                 <>
-                    <ShareToolkit scoutId={scoutId} scoutName={scoutName || ''} variant="card" />
-                    <button
-                        onClick={() => setNetworkModalOpen(true)}
-                        className="w-full py-3 bg-scout-accent/10 border border-scout-accent/20 text-scout-accent rounded-xl font-black uppercase text-xs flex items-center justify-center gap-2 hover:bg-scout-accent/20 transition-all"
-                    >
-                        <Megaphone size={16} />
-                        Blast Email to Your Network
-                    </button>
+                    <ShareToolkit scoutId={scoutId} scoutName={scoutName || ''} variant="card" onEmailBlast={() => setNetworkModalOpen(true)} />
                 </>
             )}
 

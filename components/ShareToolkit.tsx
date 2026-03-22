@@ -1,16 +1,17 @@
 import React, { useState, useMemo } from 'react';
-import { Copy, Check, MessageCircle, Mail, Share2, QrCode, X, Smartphone, Instagram, Users } from 'lucide-react';
+import { Copy, Check, MessageCircle, Mail, Share2, QrCode, X, Smartphone, Instagram, Users, Send } from 'lucide-react';
 
 interface ShareToolkitProps {
   scoutId: string;
   scoutName: string;
   variant?: 'card' | 'modal';
   onClose?: () => void;
+  onEmailBlast?: () => void;
 }
 
 const EE_BASE = 'https://app.warubi-sports.com';
 
-const ShareToolkit: React.FC<ShareToolkitProps> = ({ scoutId, scoutName, variant = 'card', onClose }) => {
+const ShareToolkit: React.FC<ShareToolkitProps> = ({ scoutId, scoutName, variant = 'card', onClose, onEmailBlast }) => {
   const [copied, setCopied] = useState<string | null>(null);
   const [showQR, setShowQR] = useState(false);
 
@@ -87,19 +88,20 @@ const ShareToolkit: React.FC<ShareToolkitProps> = ({ scoutId, scoutName, variant
       {/* Channel templates */}
       {Object.entries(templates).filter(([k]) => k !== 'generic').map(([key, t]) => {
         const Icon = t.icon;
+        const isEmail = key === 'email' && onEmailBlast;
         return (
           <button
             key={key}
-            onClick={() => copyTemplate(key, t.message)}
+            onClick={() => isEmail ? onEmailBlast() : copyTemplate(key, t.message)}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border ${t.bg} hover:opacity-80 transition-all active:scale-[0.98] text-left`}
           >
             <Icon size={18} className={t.color} />
             <div className="flex-1 min-w-0">
-              <p className={`text-sm font-bold ${t.color}`}>{t.label}</p>
-              <p className="text-[10px] text-gray-500 truncate">{t.message.split('\n')[0]}</p>
+              <p className={`text-sm font-bold ${t.color}`}>{isEmail ? 'Bulk Email' : t.label}</p>
+              <p className="text-[10px] text-gray-500 truncate">{isEmail ? 'Send to your database or a custom list' : t.message.split('\n')[0]}</p>
             </div>
             <span className="text-[10px] font-bold text-gray-600 shrink-0">
-              {copied === key ? '✓ Copied' : 'Copy'}
+              {isEmail ? <Send size={12} /> : (copied === key ? '✓ Copied' : 'Copy')}
             </span>
           </button>
         );

@@ -11,6 +11,7 @@ import { Users, CalendarDays, Plus, LogOut, Lightbulb, BarChart3, Link2, Copy, C
 import ReportBugModal from './ReportBugModal';
 import { BulkOutreachFlow } from './BulkOutreachFlow';
 import ShareToolkit from './ShareToolkit';
+import NetworkOutreachModal from './NetworkOutreachModal';
 import { useScoutEarnings, EarningsBreakdown } from '../hooks/useScoutEarnings';
 
 // Context type for child routes
@@ -97,6 +98,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     const [showMobileProfile, setShowMobileProfile] = useState(false);
     const [linkCopied, setLinkCopied] = useState(false);
     const [isShareToolkitOpen, setIsShareToolkitOpen] = useState(false);
+    const [isNetworkModalOpen, setIsNetworkModalOpen] = useState(false);
 
     const submissionLink = user.scoutId ? `https://app.warubi-sports.com?ref=${user.scoutId}` : '';
     const handleCopyLink = () => {
@@ -335,7 +337,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 {isSubmissionOpen && <PlayerSubmission onClose={handleCloseSubmission} onAddPlayer={onAddPlayer} onUpdatePlayer={onUpdatePlayer} existingPlayers={players} editingPlayer={editingPlayer} initialMode={submissionInitialMode} />}
                 {isBulkOutreachOpen && <BulkOutreachFlow scoutId={user.scoutId} scoutName={user.name} scoutBio={user.bio} onClose={() => setIsBulkOutreachOpen(false)} />}
                 {isBugReportOpen && <ReportBugModal onClose={() => setIsBugReportOpen(false)} />}
-                {isShareToolkitOpen && user.scoutId && <ShareToolkit scoutId={user.scoutId} scoutName={user.name} variant="modal" onClose={() => setIsShareToolkitOpen(false)} />}
+                {isShareToolkitOpen && user.scoutId && <ShareToolkit scoutId={user.scoutId} scoutName={user.name} variant="modal" onClose={() => setIsShareToolkitOpen(false)} onEmailBlast={() => { setIsShareToolkitOpen(false); setIsNetworkModalOpen(true); }} />}
+                <NetworkOutreachModal open={isNetworkModalOpen} onClose={() => setIsNetworkModalOpen(false)} players={players} scoutName={user.name} scoutId={user.scoutId || ''} submissionLink={submissionLink} />
                 {pendingOfferedPlayer && <TrialRequestModal player={pendingOfferedPlayer} onSubmit={handleTrialSubmitted} onCancel={handleTrialCancelled} />}
                 {pendingPlacedPlayer && <PlacementModal player={pendingPlacedPlayer} onSubmit={handlePlacementSubmitted} onCancel={handlePlacementCancelled} />}
             </main>
