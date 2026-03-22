@@ -472,6 +472,7 @@ export interface Database {
           agreement_end: string | null
           is_active: boolean
           notes: string | null
+          agreement_pdf_url: string | null
           created_at: string
           updated_at: string
         }
@@ -497,6 +498,7 @@ export interface Database {
           agreement_end?: string | null
           is_active?: boolean
           notes?: string | null
+          agreement_pdf_url?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -522,6 +524,7 @@ export interface Database {
           agreement_end?: string | null
           is_active?: boolean
           notes?: string | null
+          agreement_pdf_url?: string | null
           updated_at?: string
         }
       }

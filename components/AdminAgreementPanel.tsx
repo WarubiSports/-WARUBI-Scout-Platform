@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { DollarSign, Save, XCircle, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { DollarSign, Save, XCircle, Loader2, Upload, FileText, ExternalLink, Trash2 } from 'lucide-react';
 import { useAdminAgreements } from '../hooks/useAdminAgreements';
+import { supabase } from '../lib/supabase';
 
 interface AdminAgreementPanelProps {
     scoutId: string;
@@ -10,6 +11,9 @@ interface AdminAgreementPanelProps {
 const AdminAgreementPanel: React.FC<AdminAgreementPanelProps> = ({ scoutId, scoutName }) => {
     const { getAgreementForScout, upsertAgreement, deactivateAgreement, saving } = useAdminAgreements();
     const agreement = getAgreementForScout(scoutId);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [uploading, setUploading] = useState(false);
+    const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
     const [form, setForm] = useState({
         currency: 'EUR' as 'EUR' | 'USD',
@@ -34,8 +38,76 @@ const AdminAgreementPanel: React.FC<AdminAgreementPanelProps> = ({ scoutId, scou
                 agreement_start: agreement.agreement_start,
                 notes: agreement.notes || '',
             });
+            setPdfUrl(agreement.agreement_pdf_url || null);
         }
     }, [agreement]);
+
+    const handleUploadPdf = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (file.type !== 'application/pdf') {
+            alert('Please upload a PDF file.');
+            return;
+        }
+        if (file.size > 10 * 1024 * 1024) {
+            alert('File too large. Max 10MB.');
+            return;
+        }
+
+        setUploading(true);
+        try {
+            const fileName = `agreements/${scoutId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+            const { error: uploadError } = await supabase.storage
+                .from('uploads')
+                .upload(fileName, file, { cacheControl: '3600', upsert: false });
+
+            if (uploadError) throw uploadError;
+
+            const { data: urlData } = supabase.storage
+                .from('uploads')
+                .getPublicUrl(fileName);
+
+            const publicUrl = urlData?.publicUrl;
+            if (!publicUrl) throw new Error('Failed to get public URL');
+
+            // Save URL to agreement
+            await upsertAgreement({
+                scoutId,
+                data: {
+                    ...form,
+                    rate_1_month: form.rate_1_month === '' ? null : Number(form.rate_1_month),
+                    notes: form.notes || null,
+                    agreement_pdf_url: publicUrl,
+                    is_active: true,
+                },
+            });
+            setPdfUrl(publicUrl);
+        } catch (err) {
+            alert('Upload failed: ' + (err instanceof Error ? err.message : String(err)));
+        } finally {
+            setUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const handleRemovePdf = async () => {
+        if (!confirm('Remove agreement PDF?')) return;
+        try {
+            await upsertAgreement({
+                scoutId,
+                data: {
+                    ...form,
+                    rate_1_month: form.rate_1_month === '' ? null : Number(form.rate_1_month),
+                    notes: form.notes || null,
+                    agreement_pdf_url: null,
+                    is_active: true,
+                },
+            });
+            setPdfUrl(null);
+        } catch (err) {
+            alert('Failed to remove: ' + (err instanceof Error ? err.message : String(err)));
+        }
+    };
 
     const handleSave = async () => {
         try {
@@ -152,6 +224,47 @@ const AdminAgreementPanel: React.FC<AdminAgreementPanelProps> = ({ scoutId, scou
                         className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-blue-500"
                     />
                 </div>
+            </div>
+
+            {/* PDF Upload */}
+            <div className="mt-3">
+                <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Agreement PDF</label>
+                {pdfUrl ? (
+                    <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
+                        <FileText size={14} className="text-blue-600 shrink-0" />
+                        <a
+                            href={pdfUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:underline truncate flex-1"
+                        >
+                            View Agreement PDF <ExternalLink size={10} className="inline ml-0.5" />
+                        </a>
+                        <button
+                            onClick={handleRemovePdf}
+                            className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                            title="Remove PDF"
+                        >
+                            <Trash2 size={14} />
+                        </button>
+                    </div>
+                ) : (
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading}
+                        className="w-full flex items-center justify-center gap-2 py-2 bg-white border-2 border-dashed border-gray-300 rounded-lg text-xs font-bold text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors disabled:opacity-50"
+                    >
+                        {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                        {uploading ? 'Uploading...' : 'Upload Agreement PDF'}
+                    </button>
+                )}
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf"
+                    onChange={handleUploadPdf}
+                    className="hidden"
+                />
             </div>
 
             <div className="flex gap-2 mt-3">

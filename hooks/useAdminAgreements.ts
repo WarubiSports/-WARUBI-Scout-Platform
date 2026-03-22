@@ -47,6 +47,7 @@ export function useAdminAgreements() {
           min_placements_per_year: data.min_placements_per_year ?? 4,
           is_active: data.is_active ?? true,
           notes: data.notes,
+          agreement_pdf_url: data.agreement_pdf_url,
         }
         const { error } = await supabaseRest.insert('scout_agreements', insertData)
         if (error) throw new Error(error.message)
