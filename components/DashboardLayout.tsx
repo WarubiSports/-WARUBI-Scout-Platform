@@ -7,9 +7,10 @@ import GlobalSearch from './GlobalSearch';
 import TrialRequestModal, { TrialDates } from './TrialRequestModal';
 import PlacementModal, { PlacementData } from './PlacementModal';
 import { haptic } from '../hooks/useMobileFeatures';
-import { Users, CalendarDays, Plus, LogOut, Lightbulb, BarChart3, Link2, Copy, CheckCircle } from 'lucide-react';
+import { Users, CalendarDays, Plus, LogOut, Lightbulb, BarChart3, Link2, Copy, CheckCircle, DollarSign } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
 import { BulkOutreachFlow } from './BulkOutreachFlow';
+import { useScoutEarnings, EarningsBreakdown } from '../hooks/useScoutEarnings';
 
 // Context type for child routes
 export interface DashboardContext {
@@ -36,6 +37,7 @@ export interface DashboardContext {
     submissionLink: string;
     handleCopyLink: () => void;
     linkCopied: boolean;
+    earnings: EarningsBreakdown;
 }
 
 // Hook for child routes to access dashboard context
@@ -103,6 +105,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         setTimeout(() => setLinkCopied(false), 2000);
     };
     const activePlayers = players.filter(p => p.status !== 'Archived');
+    const earnings = useScoutEarnings(user.scoutId, players);
 
     // Determine active tab from URL
     const activeTab = location.pathname.split('/').pop() || 'players';
@@ -237,6 +240,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         submissionLink,
         handleCopyLink,
         linkCopied,
+        earnings,
     };
 
     const isOutreachTab = activeTab === 'outreach';
@@ -273,6 +277,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                         {linkCopied ? 'Link Copied!' : 'Copy Submission Link'}
                     </button>
                 </div>
+                {/* Earnings ticker */}
+                {earnings.hasAgreement && (
+                    <div className="mx-4 p-4 bg-scout-900/50 border border-scout-700 rounded-2xl">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-gray-500 mb-2">Pipeline Value</p>
+                        <p className="text-2xl font-black text-white tracking-tight">
+                            {earnings.currency === 'USD' ? '$' : '€'}{earnings.total.toLocaleString()}
+                        </p>
+                        <div className="flex gap-3 mt-2 text-[10px]">
+                            <span className="text-scout-accent font-bold">{earnings.currency === 'USD' ? '$' : '€'}{earnings.placed.toLocaleString()} earned</span>
+                            <span className="text-gray-500">·</span>
+                            <span className="text-gray-400">{earnings.currency === 'USD' ? '$' : '€'}{earnings.pipeline.toLocaleString()} projected</span>
+                        </div>
+                    </div>
+                )}
                 <nav className="flex-1 p-4 space-y-2">
                     <button onClick={() => navigate('/dashboard/players')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'players' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:bg-scout-900/50'}`}>
                         <Users size={20} /> Players

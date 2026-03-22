@@ -24,6 +24,7 @@ const PlayersContent: React.FC = () => {
         submissionLink,
         handleCopyLink,
         linkCopied,
+        earnings,
     } = useDashboardContext();
 
     const handleUpdateNotes = useCallback((id: string, notes: string) => {
@@ -167,8 +168,14 @@ const PlayersContent: React.FC = () => {
                 <div className="w-20 h-20 bg-scout-accent/10 rounded-3xl flex items-center justify-center mb-6 border-2 border-scout-accent/30">
                     <Zap size={36} className="text-scout-accent" />
                 </div>
-                <p className="text-2xl font-black uppercase italic text-white mb-2">Build Your Pipeline</p>
-                <p className="text-sm text-gray-400 mb-8 max-w-sm">The more players you add, the more placements you close. Start now.</p>
+                <p className="text-2xl font-black uppercase italic text-white mb-2">
+                    {earnings.hasAgreement ? `${earnings.currency === 'USD' ? '$' : '€'}0 Pipeline` : 'Build Your Pipeline'}
+                </p>
+                <p className="text-sm text-gray-400 mb-8 max-w-sm">
+                    {earnings.hasAgreement
+                        ? `Each placement earns you ${earnings.currency === 'USD' ? '$' : '€'}${earnings.perPlayerRate.toLocaleString()}. Add players to start earning.`
+                        : 'The more players you add, the more placements you close. Start now.'}
+                </p>
                 <div className="grid grid-cols-1 gap-3 w-full max-w-sm">
                     <button onClick={() => setIsSubmissionOpen(true)} className="w-full bg-scout-accent hover:bg-emerald-400 text-scout-900 px-6 py-4 rounded-2xl font-black flex items-center gap-3 transition-all active:scale-95 shadow-glow">
                         <PlusCircle size={22} /> Add Player Manually
@@ -345,8 +352,12 @@ const PlayersContent: React.FC = () => {
                 } else if (players.filter(p => p.status !== PlayerStatus.ARCHIVED).length === 0) {
                     priority = {
                         type: 'GET STARTED',
-                        title: 'Your pipeline is empty',
-                        subtitle: 'Add players manually, bulk import a roster, or share your link so players submit themselves',
+                        title: earnings.hasAgreement
+                            ? `${earnings.currency === 'USD' ? '$' : '€'}0 earned — start adding players`
+                            : 'Your pipeline is empty',
+                        subtitle: earnings.hasAgreement
+                            ? `Each placement = ${earnings.currency === 'USD' ? '$' : '€'}${earnings.perPlayerRate.toLocaleString()}. Add players, share your link, or bulk import.`
+                            : 'Add players manually, bulk import a roster, or share your link so players submit themselves',
                         action: () => setIsSubmissionOpen(true),
                         actionLabel: 'Add Player',
                         icon: <Zap className="text-scout-accent" size={24} />
@@ -435,7 +446,14 @@ const PlayersContent: React.FC = () => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
                 <div>
                     <h2 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter italic">My Players</h2>
-                    <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mt-1 flex items-center gap-2">Your Player Portfolio</p>
+                    <div className="flex items-center gap-3 mt-1">
+                        <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-2">Your Player Portfolio</p>
+                        {earnings.hasAgreement && (
+                            <span className="md:hidden bg-scout-accent/10 border border-scout-accent/30 text-scout-accent text-[10px] font-black px-2.5 py-1 rounded-lg">
+                                {earnings.currency === 'USD' ? '$' : '€'}{earnings.total.toLocaleString()} pipeline
+                            </span>
+                        )}
+                    </div>
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">
                     <div className="bg-scout-800 p-1 rounded-xl border border-scout-700 flex shadow-inner">
