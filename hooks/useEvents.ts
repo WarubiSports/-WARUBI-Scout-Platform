@@ -200,7 +200,7 @@ export function useEvents(scoutId: string | undefined) {
   // Sync a scouting event to showcase_events for public registration
   const syncToShowcase = async (event: ScoutingEvent): Promise<string | null> => {
     const slug = slugify(event.title + (event.date ? `-${event.date.slice(0, 4)}` : ''))
-    const showcaseData = {
+    const showcaseData: Record<string, any> = {
       name: event.title,
       slug,
       location: event.location,
@@ -212,6 +212,20 @@ export function useEvents(scoutId: string | undefined) {
       currency: 'EUR',
       registration_open: true,
       registration_details: event.marketingCopy || null,
+    }
+    // Sync additional fields when available
+    if (event.time) {
+      const [start, end] = event.time.includes('-') ? event.time.split('-').map(s => s.trim()) : [event.time.trim(), null]
+      showcaseData.start_time = start || null
+      showcaseData.end_time = end || null
+    }
+    if (event.agenda && event.agenda.length > 0) {
+      showcaseData.description = [
+        event.notes || event.marketingCopy || '',
+        '',
+        'Schedule:',
+        ...event.agenda.map((item, i) => `${i + 1}. ${item}`),
+      ].join('\n').trim()
     }
 
     try {

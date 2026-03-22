@@ -38,37 +38,96 @@ const StatusPill = ({ status }: { status: EventStatus }) => {
     );
 };
 
-// Shows player registration count from showcase_players for linked events
+// Pre-written share messages for WhatsApp, Instagram, Email
+const ShareMessages = ({ event, scoutId, copyToClipboard, copied }: { event: ScoutingEvent; scoutId?: string; copyToClipboard: (text: string, key: string) => void; copied: string | null }) => {
+    const [expanded, setExpanded] = useState(false)
+    const link = `https://showcase-coordinator.vercel.app/event/${event.showcaseSlug}${scoutId ? `?ref=${scoutId}` : ''}`
+    const dateStr = event.date ? new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : ''
+
+    const whatsapp = `Hey! 👋 There's a ${event.type} coming up — *${event.title}* on ${dateStr} in ${event.location}. College coaches will be there scouting players. Register here: ${link}`
+    const instagram = `🔥 ${event.title}\n📍 ${event.location}\n📅 ${dateStr}\n\nCollege coaches scouting live. Limited spots.\n\nRegister → link in bio or DM me\n${link}`
+    const email = `Hi,\n\nI wanted to share an upcoming event that could be a great opportunity: ${event.title} on ${dateStr} in ${event.location}.\n\nCollege coaches will be attending to scout players. You can register here:\n${link}\n\nLet me know if you have questions!`
+
+    const messages = [
+        { key: 'wa', label: 'WhatsApp', text: whatsapp },
+        { key: 'ig', label: 'Instagram', text: instagram },
+        { key: 'em', label: 'Email', text: email },
+    ]
+
+    return (
+        <div className="bg-scout-900 rounded-lg border border-scout-700 overflow-hidden">
+            <button onClick={() => setExpanded(!expanded)} className="w-full p-3 flex items-center justify-between hover:bg-scout-800/50 transition-colors">
+                <div className="flex items-center gap-2">
+                    <FileText size={14} className="text-purple-400" />
+                    <span className="text-xs font-bold text-gray-400 uppercase">Share Templates</span>
+                </div>
+                <ChevronRight size={14} className={`text-gray-500 transition-transform ${expanded ? 'rotate-90' : ''}`} />
+            </button>
+            {expanded && (
+                <div className="border-t border-scout-700 divide-y divide-scout-800">
+                    {messages.map(m => (
+                        <div key={m.key} className="p-3">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-bold text-gray-400">{m.label}</span>
+                                <button onClick={() => copyToClipboard(m.text, m.key)} className="text-xs text-scout-accent hover:text-white transition-colors flex items-center gap-1">
+                                    {copied === m.key ? <><CheckCircle size={12}/> Copied</> : <><Copy size={12}/> Copy</>}
+                                </button>
+                            </div>
+                            <p className="text-[11px] text-gray-500 whitespace-pre-line line-clamp-3">{m.text}</p>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    )
+}
+
+// Shows player registration count + expandable list from showcase_players
+interface RegPlayer { id: string; name: string; position: string | null; club: string | null; registered_at: string | null; referred_by_scout_id: string | null }
 const RegistrationCount = ({ showcaseEventId, scoutId }: { showcaseEventId: string; scoutId?: string }) => {
-    const [total, setTotal] = useState<number | null>(null)
-    const [myReferrals, setMyReferrals] = useState<number | null>(null)
+    const [players, setPlayers] = useState<RegPlayer[]>([])
+    const [loading, setLoading] = useState(true)
+    const [expanded, setExpanded] = useState(false)
+    const myReferrals = scoutId ? players.filter(r => r.referred_by_scout_id === scoutId).length : 0
+
     useEffect(() => {
-        supabaseRest.select('showcase_players', `event_id=eq.${showcaseEventId}&select=id,referred_by_scout_id`).then(
-            (res: { data: { id: string; referred_by_scout_id: string | null }[] | null }) => {
-                const rows = res.data || []
-                setTotal(rows.length)
-                if (scoutId) {
-                    setMyReferrals(rows.filter(r => r.referred_by_scout_id === scoutId).length)
-                }
+        supabaseRest.select<RegPlayer>('showcase_players', `event_id=eq.${showcaseEventId}&select=id,name,position,club,registered_at,referred_by_scout_id&order=registered_at.desc`).then(
+            (res: { data: RegPlayer[] | null }) => {
+                setPlayers(res.data || [])
+                setLoading(false)
             }
         )
-    }, [showcaseEventId, scoutId])
+    }, [showcaseEventId])
 
-    if (total === null) return null
+    if (loading) return null
     return (
-        <div className="bg-scout-900 p-3 rounded-lg border border-scout-700 space-y-2">
-            <div className="flex items-center justify-between">
+        <div className="bg-scout-900 rounded-lg border border-scout-700 overflow-hidden">
+            <button onClick={() => setExpanded(!expanded)} className="w-full p-3 flex items-center justify-between hover:bg-scout-800/50 transition-colors">
                 <div className="flex items-center gap-2">
                     <Users size={14} className="text-scout-accent" />
                     <span className="text-xs font-bold text-gray-400 uppercase">Registrations</span>
                 </div>
-                <span className="text-lg font-bold text-white">{total}</span>
-            </div>
-            {myReferrals != null && myReferrals > 0 && (
-                <div className="flex items-center justify-between text-xs">
-                    <span className="text-scout-accent font-medium">Your referrals</span>
-                    <span className="text-scout-accent font-bold">{myReferrals}</span>
+                <div className="flex items-center gap-2">
+                    {myReferrals > 0 && <span className="text-[10px] font-bold text-scout-accent bg-scout-accent/10 px-2 py-0.5 rounded-full">{myReferrals} yours</span>}
+                    <span className="text-lg font-bold text-white">{players.length}</span>
+                    <ChevronRight size={14} className={`text-gray-500 transition-transform ${expanded ? 'rotate-90' : ''}`} />
                 </div>
+            </button>
+            {expanded && players.length > 0 && (
+                <div className="border-t border-scout-700 max-h-48 overflow-y-auto">
+                    {players.map(p => (
+                        <div key={p.id} className={`px-3 py-2 flex items-center justify-between text-sm border-b border-scout-800 last:border-0 ${p.referred_by_scout_id === scoutId ? 'bg-scout-accent/5' : ''}`}>
+                            <div>
+                                <span className="text-white font-medium">{p.name}</span>
+                                {p.position && <span className="text-gray-500 ml-2 text-xs">{p.position}</span>}
+                            </div>
+                            <span className="text-gray-500 text-xs">{p.club || ''}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+            {expanded && players.length === 0 && (
+                <div className="border-t border-scout-700 p-4 text-center text-xs text-gray-500">No registrations yet</div>
             )}
         </div>
     )
@@ -572,13 +631,19 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                               <div className="space-y-4">
                                   {event.status === 'Draft' && (
                                       <div className="bg-scout-900/50 p-4 rounded-lg border border-scout-700">
-                                          <h4 className="text-white font-bold text-sm mb-2">Step 1: Planning</h4>
-                                          <p className="text-xs text-gray-400 mb-4">Review the AI generated plan. When ready, submit for approval.</p>
-                                          <button 
-                                              onClick={() => onSubmitForApproval(event)}
-                                              className="w-full bg-scout-700 hover:bg-scout-600 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all border border-scout-600"
+                                          <h4 className="text-white font-bold text-sm mb-2">Ready to go?</h4>
+                                          <p className="text-xs text-gray-400 mb-4">Publish your event to create a registration page and start sharing it with players.</p>
+                                          <button
+                                              onClick={() => onPublishEvent(event)}
+                                              className="w-full bg-scout-accent hover:bg-emerald-600 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all shadow-lg mb-2"
                                           >
-                                              <ShieldCheck size={18} /> Submit for Approval
+                                              <Share2 size={18} /> Publish Event
+                                          </button>
+                                          <button
+                                              onClick={() => onSubmitForApproval(event)}
+                                              className="w-full bg-scout-700/50 hover:bg-scout-700 text-gray-400 text-sm py-2 rounded-lg flex items-center justify-center gap-2 transition-all"
+                                          >
+                                              <ShieldCheck size={14} /> Or submit for admin review first
                                           </button>
                                       </div>
                                   )}
@@ -603,6 +668,9 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                               <button onClick={() => event.showcaseSlug && copyToClipboard(`https://showcase-coordinator.vercel.app/event/${event.showcaseSlug}${currentScoutId ? `?ref=${currentScoutId}` : ''}`, 'link')} className="p-2 bg-scout-700 hover:bg-scout-600 rounded text-white">{copied === 'link' ? <CheckCircle size={16}/> : <Copy size={16}/>}</button>
                                           </div>
                                       </div>
+                                  )}
+                                  {event.status === 'Published' && event.showcaseSlug && (
+                                      <ShareMessages event={event} scoutId={currentScoutId} copyToClipboard={copyToClipboard} copied={copied} />
                                   )}
                                   {event.showcaseEventId && <RegistrationCount showcaseEventId={event.showcaseEventId} scoutId={currentScoutId} />}
                               </div>
