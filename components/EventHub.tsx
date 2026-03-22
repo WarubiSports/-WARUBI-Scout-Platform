@@ -693,7 +693,7 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                   )}
                                   {event.showcaseSlug && (
                                       <a
-                                        href={`https://showcase-coordinator.vercel.app/event/${event.showcaseSlug}/manage?name=${encodeURIComponent(user?.name || '')}`}
+                                        href={`https://showcase-coordinator.vercel.app/event/${event.showcaseSlug}/manage?name=${encodeURIComponent(event.hostName || '')}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="w-full py-3 bg-scout-700 border border-scout-600 text-white rounded-lg font-bold text-sm flex items-center justify-center gap-2 hover:bg-scout-600 transition-all"
