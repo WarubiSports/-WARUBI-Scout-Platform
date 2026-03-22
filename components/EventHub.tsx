@@ -449,7 +449,7 @@ const CreateEventForm = ({ formData, setFormData, loading, handleCreate, onCance
     </div>
 );
 
-const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateAttendance, copyToClipboard, copied, onSubmitForApproval, onPublishEvent, attendees, attendeeCount, isUserAttending, onRegisterAttendance, onCancelAttendance, currentScoutId }: any) => {
+const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateAttendance, copyToClipboard, copied, onSubmitForApproval, onPublishEvent, attendees, attendeeCount, isUserAttending, onRegisterAttendance, onCancelAttendance, currentScoutId, onNetworkOutreach }: any) => {
     const isMine = event.role === 'HOST' || event.isMine;
     const isAttending = isUserAttending || isMine || events.some((e: any) => e.id === event.id || (e.title === event.title && e.date === event.date));
     const [mobileTab, setMobileTab] = useState<'overview' | 'agenda' | 'tasks'>('overview');
@@ -683,9 +683,9 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                   {event.status === 'Published' && event.showcaseSlug && (
                                       <ShareMessages event={event} scoutId={currentScoutId} copyToClipboard={copyToClipboard} copied={copied} />
                                   )}
-                                  {event.status === 'Published' && event.showcaseSlug && (
+                                  {event.status === 'Published' && event.showcaseSlug && onNetworkOutreach && (
                                       <button
-                                        onClick={() => setNetworkOutreachEvent(event)}
+                                        onClick={() => onNetworkOutreach(event)}
                                         className="w-full py-3 bg-scout-accent/10 border border-scout-accent/20 text-scout-accent rounded-lg font-black uppercase text-xs flex items-center justify-center gap-2 hover:bg-scout-accent/20 transition-all"
                                       >
                                         <Megaphone size={16} /> Let Your Network Know
@@ -1348,6 +1348,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
                 onRegisterAttendance={() => registerAttendance(selectedEvent.id)}
                 onCancelAttendance={() => cancelAttendance(selectedEvent.id)}
                 currentScoutId={user.scoutId}
+                onNetworkOutreach={(e: ScoutingEvent) => setNetworkOutreachEvent(e)}
             />
         ) : (
             <div className="h-full flex flex-col animate-fade-in">
