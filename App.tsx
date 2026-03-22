@@ -112,11 +112,15 @@ const App: React.FC = () => {
       setUserProfile(profile);
 
       if (!initialRouteSet) {
-        // Only auto-navigate if on login/onboarding/root
-        if (['/', '/login', '/onboarding'].includes(location.pathname)) {
+        // Don't redirect away from public routes
+        if (location.pathname.startsWith('/submit/')) {
+          setInitialRouteSet(true);
+        } else if (['/', '/login', '/onboarding'].includes(location.pathname)) {
           navigate(scout.is_admin ? '/admin' : '/dashboard/players', { replace: true });
+          setInitialRouteSet(true);
+        } else {
+          setInitialRouteSet(true);
         }
-        setInitialRouteSet(true);
       }
     } else {
       if (location.pathname !== '/onboarding') {
