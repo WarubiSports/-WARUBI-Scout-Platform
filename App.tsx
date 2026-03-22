@@ -399,7 +399,7 @@ const App: React.FC = () => {
         }
     },
     onLogout: handleLogout,
-    onReturnToAdmin: userProfile?.isAdmin ? () => { setImpersonatedScoutId(null); navigate('/admin'); } : undefined,
+    onReturnToAdmin: (impersonatedScoutId || userProfile?.isAdmin) ? () => { setImpersonatedScoutId(null); navigate('/admin'); } : undefined,
   };
 
   return (
