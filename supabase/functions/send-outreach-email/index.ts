@@ -37,9 +37,12 @@ serve(async (req) => {
     // Cap at 50 recipients per request
     const batch = recipients.slice(0, 50)
 
-    const fromEmail = fromDomain === 'warubi'
+    // Use warubi-sports.com once domain is verified in Resend
+    // Falls back to Resend test address until then
+    const DOMAIN_VERIFIED = Deno.env.get('RESEND_DOMAIN_VERIFIED') === 'true'
+    const fromEmail = DOMAIN_VERIFIED
       ? `${fromName.toLowerCase().replace(/\s+/g, '.')}@warubi-sports.com`
-      : `noreply@warubi-sports.com`
+      : `onboarding@resend.dev`
 
     // Send emails via Resend batch API
     const results: { email: string; success: boolean; error?: string }[] = []
