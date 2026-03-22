@@ -449,7 +449,7 @@ const CreateEventForm = ({ formData, setFormData, loading, handleCreate, onCance
     </div>
 );
 
-const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateAttendance, copyToClipboard, copied, onSubmitForApproval, onPublishEvent, attendees, attendeeCount, isUserAttending, onRegisterAttendance, onCancelAttendance, currentScoutId, onNetworkOutreach }: any) => {
+const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateAttendance, copyToClipboard, copied, onSubmitForApproval, onPublishEvent, attendees, attendeeCount, isUserAttending, onRegisterAttendance, onCancelAttendance, currentScoutId, scoutName, onNetworkOutreach }: any) => {
     const isMine = event.role === 'HOST' || event.isMine;
     const isAttending = isUserAttending || isMine || events.some((e: any) => e.id === event.id || (e.title === event.title && e.date === event.date));
     const [mobileTab, setMobileTab] = useState<'overview' | 'agenda' | 'tasks'>('overview');
@@ -693,7 +693,7 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                   )}
                                   {event.showcaseSlug && (
                                       <a
-                                        href={`https://showcase-coordinator.vercel.app/event/${event.showcaseSlug}/manage?name=${encodeURIComponent(event.hostName || '')}`}
+                                        href={`https://showcase-coordinator.vercel.app/event/${event.showcaseSlug}/manage?name=${encodeURIComponent(scoutName || event.hostName || '')}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="w-full py-3 bg-scout-700 border border-scout-600 text-white rounded-lg font-bold text-sm flex items-center justify-center gap-2 hover:bg-scout-600 transition-all"
@@ -1370,6 +1370,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
                 onRegisterAttendance={() => registerAttendance(selectedEvent.id)}
                 onCancelAttendance={() => cancelAttendance(selectedEvent.id)}
                 currentScoutId={user.scoutId}
+                scoutName={user.name}
                 onNetworkOutreach={(e: ScoutingEvent) => setNetworkOutreachEvent(e)}
             />
         ) : (
