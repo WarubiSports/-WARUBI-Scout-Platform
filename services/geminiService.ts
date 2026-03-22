@@ -268,6 +268,36 @@ const generateFallbackMessage = (
     const name = player.name || 'there';
     const lang = options?.language || 'en';
     const hasCollege = hasCollegeExperience(options?.scoutBio);
+    const eval_ = player.evaluation as any;
+    const isEE = eval_?.source === 'exposure_engine';
+    const bestFit = isEE ? eval_?.best_fit : null;
+    const strengths = isEE && eval_?.key_strengths?.length ? eval_.key_strengths.slice(0, 2).join(' and ') : null;
+
+    // WARM INTRO — for players who came through ExposureEngine
+    if (isEE && bestFit && templateType === 'First Spark') {
+        if (lang === 'de') {
+            return `Hey ${name},
+
+ich hab gesehen, dass du den ExposureEngine-Check gemacht hast — dein Ergebnis zeigt ${bestFit} als beste Passung.${strengths ? ` Besonders stark: ${strengths}.` : ''}
+
+Ich bin ${scoutName} und arbeite mit Warubi Sports zusammen. Ich arbeite direkt mit Programmen auf diesem Level und denke, dass es da echte Möglichkeiten für dich gibt.
+
+Hast du Lust, kurz zu quatschen, was die nächsten Schritte wären?
+
+Beste Grüße,
+${scoutName}`;
+        }
+        return `Hey ${name},
+
+I saw you completed the ExposureEngine analysis — your results show ${bestFit} as your best fit.${strengths ? ` Key strengths: ${strengths}.` : ''}
+
+I'm ${scoutName} with Warubi Sports. I work directly with programs at that level and think there are real opportunities for you.
+
+Want to hop on a quick call to talk next steps?
+
+Best,
+${scoutName}`;
+    }
 
     // GERMAN TEMPLATES
     if (lang === 'de') {

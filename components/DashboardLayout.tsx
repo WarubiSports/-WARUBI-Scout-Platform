@@ -7,9 +7,10 @@ import GlobalSearch from './GlobalSearch';
 import TrialRequestModal, { TrialDates } from './TrialRequestModal';
 import PlacementModal, { PlacementData } from './PlacementModal';
 import { haptic } from '../hooks/useMobileFeatures';
-import { Users, CalendarDays, Plus, LogOut, Lightbulb, BarChart3, Link2, Copy, CheckCircle, DollarSign } from 'lucide-react';
+import { Users, CalendarDays, Plus, LogOut, Lightbulb, BarChart3, Link2, Copy, CheckCircle, DollarSign, Share2 } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
 import { BulkOutreachFlow } from './BulkOutreachFlow';
+import ShareToolkit from './ShareToolkit';
 import { useScoutEarnings, EarningsBreakdown } from '../hooks/useScoutEarnings';
 
 // Context type for child routes
@@ -95,8 +96,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     const [pendingPlacedPlayer, setPendingPlacedPlayer] = useState<Player | null>(null);
     const [showMobileProfile, setShowMobileProfile] = useState(false);
     const [linkCopied, setLinkCopied] = useState(false);
+    const [isShareToolkitOpen, setIsShareToolkitOpen] = useState(false);
 
-    const submissionLink = user.scoutId ? `https://warubi-scout-platform.vercel.app/submit/${user.scoutId}` : '';
+    const submissionLink = user.scoutId ? `https://app.warubi-sports.com?ref=${user.scoutId}` : '';
     const handleCopyLink = () => {
         if (!submissionLink) return;
         navigator.clipboard.writeText(submissionLink);
@@ -272,9 +274,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                     <button onClick={() => { haptic.medium(); setEditingPlayer(null); setIsSubmissionOpen(true); }} className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-scout-accent text-scout-900 font-black text-sm shadow-glow hover:bg-emerald-400 transition-all active:scale-[0.98]">
                         <Plus size={20} /> Add Player
                     </button>
-                    <button onClick={handleCopyLink} className="w-full flex items-center gap-3 px-5 py-3 rounded-2xl bg-scout-accent/10 border border-scout-accent/30 text-scout-accent font-bold text-xs hover:bg-scout-accent/20 transition-all active:scale-[0.98]">
-                        {linkCopied ? <CheckCircle size={16} /> : <Link2 size={16} />}
-                        {linkCopied ? 'Link Copied!' : 'Copy Submission Link'}
+                    <button onClick={() => setIsShareToolkitOpen(true)} className="w-full flex items-center gap-3 px-5 py-3 rounded-2xl bg-scout-accent/10 border border-scout-accent/30 text-scout-accent font-bold text-xs hover:bg-scout-accent/20 transition-all active:scale-[0.98]">
+                        <Share2 size={16} />
+                        Share ExposureEngine Link
                     </button>
                 </div>
                 {/* Earnings ticker */}
@@ -333,6 +335,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 {isSubmissionOpen && <PlayerSubmission onClose={handleCloseSubmission} onAddPlayer={onAddPlayer} onUpdatePlayer={onUpdatePlayer} existingPlayers={players} editingPlayer={editingPlayer} initialMode={submissionInitialMode} />}
                 {isBulkOutreachOpen && <BulkOutreachFlow scoutId={user.scoutId} scoutName={user.name} scoutBio={user.bio} onClose={() => setIsBulkOutreachOpen(false)} />}
                 {isBugReportOpen && <ReportBugModal onClose={() => setIsBugReportOpen(false)} />}
+                {isShareToolkitOpen && user.scoutId && <ShareToolkit scoutId={user.scoutId} scoutName={user.name} variant="modal" onClose={() => setIsShareToolkitOpen(false)} />}
                 {pendingOfferedPlayer && <TrialRequestModal player={pendingOfferedPlayer} onSubmit={handleTrialSubmitted} onCancel={handleTrialCancelled} />}
                 {pendingPlacedPlayer && <PlacementModal player={pendingPlacedPlayer} onSubmit={handlePlacementSubmitted} onCancel={handlePlacementCancelled} />}
             </main>

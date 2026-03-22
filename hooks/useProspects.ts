@@ -223,6 +223,10 @@ async function fetchProspects(
         player.trialFeedback = trialFeedback[p.trial_prospect_id]
       }
     }
+    // Use trial_feedback from scout_prospects as fallback when trial_prospects join isn't available
+    if (p.trial_prospect_id && !player.trialStatus && (p as any).trial_feedback) {
+      player.trialStatus = (p as any).trial_feedback
+    }
     return player
   })
 

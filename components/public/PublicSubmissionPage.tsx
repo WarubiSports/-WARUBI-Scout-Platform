@@ -120,9 +120,9 @@ const PublicSubmissionPage: React.FC = () => {
           <div className="w-16 h-16 bg-scout-accent/20 rounded-full flex items-center justify-center mx-auto border-2 border-scout-accent/30">
             <CheckCircle size={32} className="text-scout-accent" />
           </div>
-          <h1 className="text-2xl font-black text-white uppercase">Player Submitted</h1>
+          <h1 className="text-2xl font-black text-white uppercase">You're In</h1>
           <p className="text-gray-400 text-sm">
-            <strong className="text-white">{form.name}</strong> has been added to {scoutName}'s pipeline. They'll be in touch.
+            <strong className="text-white">{form.name}</strong> is now in {scoutName}'s scouting pipeline. Expect a follow-up within a few days if there's a match.
           </p>
           <button
             onClick={handleAddAnother}
@@ -140,13 +140,47 @@ const PublicSubmissionPage: React.FC = () => {
     <div className="min-h-screen bg-[#05080f] flex flex-col items-center p-4 py-8">
       <div className="max-w-lg w-full">
         {/* Header */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">
             Scout<span className="text-scout-accent">Buddy</span>
           </h1>
-          <p className="text-gray-400 text-sm mt-2">
-            Submit a player to <strong className="text-white">{scoutName}</strong>
+          <p className="text-white font-bold text-lg mt-3">
+            Get on {scoutName}'s radar
           </p>
+          <p className="text-gray-400 text-sm mt-1">
+            US college soccer recruiting pipeline
+          </p>
+        </div>
+
+        {/* Value Proposition */}
+        <div className="bg-scout-800/50 border border-scout-700/50 rounded-2xl p-5 mb-6 space-y-3">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 bg-scout-accent/15 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+              <CheckCircle size={16} className="text-scout-accent" />
+            </div>
+            <div>
+              <p className="text-white text-sm font-semibold">Direct scout evaluation</p>
+              <p className="text-gray-500 text-xs">Your profile goes straight to an active recruiter — no algorithms, no waiting.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 bg-scout-accent/15 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+              <CheckCircle size={16} className="text-scout-accent" />
+            </div>
+            <div>
+              <p className="text-white text-sm font-semibold">College program matching</p>
+              <p className="text-gray-500 text-xs">Get matched to D1, D2, NAIA, or NJCAA programs that fit your level and goals.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 bg-scout-accent/15 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+              <CheckCircle size={16} className="text-scout-accent" />
+            </div>
+            <div>
+              <p className="text-white text-sm font-semibold">Trial & showcase invitations</p>
+              <p className="text-gray-500 text-xs">Qualified players get invited to ID camps, showcases, and trial sessions with college coaches.</p>
+            </div>
+          </div>
         </div>
 
         {/* Form */}

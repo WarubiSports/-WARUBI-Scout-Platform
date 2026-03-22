@@ -18,15 +18,16 @@ type Audience = 'database' | 'custom';
 function buildEmailBody(scoutName: string, submissionLink: string): string {
   return `Hi,
 
-I'm actively looking for talented players who could benefit from professional development opportunities in Germany.
+I wanted to share a free tool that might help you or a player you know.
 
-If you know someone — or are a player yourself — you can submit a profile directly through my personal link. It only takes 60 seconds:
+The ExposureEngine analyzes a player's stats, league level, and academics to show where they'd realistically fit in US college soccer — D1, D2, D3, NAIA, or JUCO. It also gives a personalized 90-day action plan.
 
+Takes about 3 minutes:
 ${submissionLink}
 
-Any player submitted goes straight into my pipeline. I'll personally review every submission.
+If the results look promising, I'd be happy to discuss next steps.
 
-Best regards,
+Best,
 ${scoutName}`;
 }
 
@@ -43,7 +44,7 @@ const NetworkOutreachModal: React.FC<NetworkOutreachModalProps> = ({
   const [step, setStep] = useState<Step>('audience');
   const [audience, setAudience] = useState<Audience | null>(null);
   const [customEmails, setCustomEmails] = useState('');
-  const [subject, setSubject] = useState(`Know a talented player?`);
+  const [subject, setSubject] = useState(`Free tool: What's your US college soccer level?`);
   const [bodyCopied, setBodyCopied] = useState(false);
   const [batchesSent, setBatchesSent] = useState(0);
 
@@ -114,7 +115,7 @@ const NetworkOutreachModal: React.FC<NetworkOutreachModalProps> = ({
           {/* Step 1: Audience */}
           {step === 'audience' && (
             <div className="space-y-4">
-              <p className="text-sm text-gray-400">Choose who to email your submission link to. Opens in your mail app so it sends from your own email.</p>
+              <p className="text-sm text-gray-400">Email your ExposureEngine link to players, parents, and coaches. Opens in your mail app.</p>
 
               {/* My Database */}
               <button

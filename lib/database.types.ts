@@ -148,6 +148,7 @@ export interface Database {
           interested_program: string | null
           placed_location: string | null
           trial_prospect_id: string | null
+          trial_feedback: string | null
           program_duration: 'full_season' | '6_months' | '3_months' | '1_month' | null
           enrollment_confirmed: boolean
           enrollment_confirmed_at: string | null
@@ -192,6 +193,7 @@ export interface Database {
           interested_program?: string | null
           placed_location?: string | null
           trial_prospect_id?: string | null
+          trial_feedback?: string | null
           program_duration?: 'full_season' | '6_months' | '3_months' | '1_month' | null
           enrollment_confirmed?: boolean
           enrollment_confirmed_at?: string | null
@@ -236,6 +238,7 @@ export interface Database {
           interested_program?: string | null
           placed_location?: string | null
           trial_prospect_id?: string | null
+          trial_feedback?: string | null
           program_duration?: 'full_season' | '6_months' | '3_months' | '1_month' | null
           enrollment_confirmed?: boolean
           enrollment_confirmed_at?: string | null

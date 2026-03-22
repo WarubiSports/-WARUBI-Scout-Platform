@@ -21,7 +21,14 @@ import { useProspects } from './hooks/useProspects';
 import { useEvents } from './hooks/useEvents';
 import { useOutreach } from './hooks/useOutreach';
 import { LazyAdminDashboard, LazyFallback } from './router';
-import PublicSubmissionPage from './components/public/PublicSubmissionPage';
+// Redirect old /submit/:scoutId links to ExposureEngine
+const SubmitRedirect: React.FC = () => {
+  const scoutId = window.location.pathname.split('/submit/')[1];
+  React.useEffect(() => {
+    window.location.href = `https://app.warubi-sports.com${scoutId ? `?ref=${scoutId}` : ''}`;
+  }, [scoutId]);
+  return null;
+};
 
 const App: React.FC = () => {
   const navigate = useNavigate();
@@ -413,7 +420,7 @@ const App: React.FC = () => {
             window.location.href = '/';
           }} />
         } />
-        <Route path="/submit/:scoutId" element={<PublicSubmissionPage />} />
+        <Route path="/submit/:scoutId" element={<SubmitRedirect />} />
         <Route path="/onboarding" element={
           <Onboarding
             onComplete={handleOnboardingComplete}

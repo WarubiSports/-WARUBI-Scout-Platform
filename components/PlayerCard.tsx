@@ -278,8 +278,8 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                     </div>
                 )}
 
-                {/* TRIAL/SIGN PROGRESS - Shows ITP status for Europe pathway players */}
-                {player.trialProspectId && player.trialStatus && (player.status === PlayerStatus.OFFERED || player.status === PlayerStatus.PLACED) && (
+                {/* TRIAL/SIGN PROGRESS - Shows ITP status for all linked trial prospects */}
+                {player.trialProspectId && player.trialStatus && (
                     <div className="mt-2 bg-scout-900/50 p-2 rounded-lg border border-scout-700/50 text-[10px]">
                         <div className="flex items-center gap-1 text-gray-400 mb-1.5">
                             <ClipboardCheck size={10} />

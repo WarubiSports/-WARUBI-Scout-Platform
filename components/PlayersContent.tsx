@@ -185,7 +185,7 @@ const PlayersContent: React.FC = () => {
                     </button>
                     <button onClick={handleCopyLink} className="w-full bg-scout-accent/10 hover:bg-scout-accent/20 text-scout-accent px-6 py-4 rounded-2xl font-bold flex items-center gap-3 transition-all active:scale-95 border border-scout-accent/30">
                         {linkCopied ? <CheckCircle size={22} /> : <Link2 size={22} />}
-                        {linkCopied ? 'Link Copied!' : 'Share Your Submission Link'}
+                        {linkCopied ? 'Link Copied!' : 'Share Your ExposureEngine Link'}
                     </button>
                 </div>
                 <p className="text-[10px] text-gray-600 mt-6 max-w-xs">Put the link in your Instagram bio, send it to coaches, or share it on WhatsApp. Players submit themselves.</p>
@@ -316,6 +316,25 @@ const PlayersContent: React.FC = () => {
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* SHARE NUDGE — shown when scout has few players */}
+            {players.length < 10 && user.scoutId && (
+                <div className="bg-scout-800 border border-scout-700 rounded-2xl p-4 flex items-center gap-4">
+                    <div className="p-2.5 bg-scout-accent/10 rounded-xl border border-scout-accent/20 shrink-0">
+                        <Share2 size={18} className="text-scout-accent" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-white">Let players find you</p>
+                        <p className="text-[10px] text-gray-500">Share your ExposureEngine link — players get a free analysis, you get leads.</p>
+                    </div>
+                    <button
+                        onClick={handleCopyLink}
+                        className="shrink-0 px-4 py-2.5 bg-scout-accent/10 border border-scout-accent/30 text-scout-accent rounded-xl font-bold text-xs hover:bg-scout-accent/20 transition-all active:scale-[0.98]"
+                    >
+                        {linkCopied ? 'Copied!' : 'Copy Link'}
+                    </button>
                 </div>
             )}
 

@@ -56,11 +56,20 @@ const OutreachComposer: React.FC<OutreachComposerProps> = ({ player, user, onMes
 
     const intent = INTENTS.find(i => i.id === intentId);
     const smartLink = includeSmartLink ? `app.warubi-sports.com/audit?sid=${user.scoutId || 'demo'}&pid=${player.id}` : undefined;
+    const eeLink = user.scoutId ? `app.warubi-sports.com?ref=${user.scoutId}` : undefined;
     const outreachOptions: OutreachOptions = { scoutBio: user.bio, language: outreachLang };
+
+    const appendEELink = (msg: string) => {
+      if (!eeLink || msg.includes('warubi-sports.com?ref=')) return msg;
+      const psLine = outreachLang === 'de'
+        ? `\n\nPS: Hier kannst du kostenlos checken, auf welchem US-College-Level du stehst:\n${eeLink}`
+        : `\n\nPS: Check where you'd fit in US college soccer for free:\n${eeLink}`;
+      return msg + psLine;
+    };
 
     try {
       const message = await generateOutreachMessage(user.name, player, intent?.title || 'Intro', smartLink, outreachOptions);
-      setDraftedMessage(message);
+      setDraftedMessage(appendEELink(message));
     } catch (e) {
       if (e instanceof AIUsageLimitError) {
         setAiError(e.message);
@@ -69,17 +78,28 @@ const OutreachComposer: React.FC<OutreachComposerProps> = ({ player, user, onMes
       const position = player.position || 'player';
       const name = player.name;
       const hasCollege = user.bio?.toLowerCase().includes('college') || user.bio?.toLowerCase().includes('university');
+      const eval_ = player.evaluation as any;
+      const isEE = eval_?.source === 'exposure_engine';
+      const bestFit = isEE ? eval_?.best_fit : null;
+      const strengths = isEE && eval_?.key_strengths?.length ? eval_.key_strengths.slice(0, 2).join(' and ') : null;
 
-      if (outreachLang === 'de') {
-        setDraftedMessage(hasCollege
+      // Warm intro for ExposureEngine leads — reference their actual results
+      if (isEE && bestFit) {
+        if (outreachLang === 'de') {
+          setDraftedMessage(appendEELink(`Hey ${name},\n\nich hab gesehen, dass du den ExposureEngine-Check gemacht hast — dein Ergebnis zeigt ${bestFit} als beste Passung. ${strengths ? `Besonders stark: ${strengths}.` : ''}\n\nIch bin ${scoutName} und arbeite mit Warubi Sports zusammen. Ich arbeite direkt mit Programmen auf diesem Level und denke, dass es da echte Möglichkeiten für dich gibt.\n\nHast du Lust, kurz zu quatschen, was die nächsten Schritte wären?\n\nBeste Grüße,\n${scoutName}`));
+        } else {
+          setDraftedMessage(appendEELink(`Hey ${name},\n\nI saw you completed the ExposureEngine analysis — your results show ${bestFit} as your best fit. ${strengths ? `Key strengths: ${strengths}.` : ''}\n\nI'm ${scoutName} with Warubi Sports. I work directly with programs at that level and think there are real opportunities for you.\n\nWant to hop on a quick call to talk next steps?\n\nBest,\n${scoutName}`));
+        }
+      } else if (outreachLang === 'de') {
+        setDraftedMessage(appendEELink(hasCollege
           ? `Hey ${name},\n\nich bin ${user.name} und arbeite mit Warubi Sports zusammen. Ich hab selbst College-Fußball in den USA gespielt und helfe jetzt Spielern wie dir, den richtigen Weg dorthin zu finden.\n\nDein Profil ist mir aufgefallen und ich denke, du hast echtes Potenzial als ${position}. Falls dich ein Wechsel in die USA interessiert, würde ich mich gerne mal mit dir unterhalten, wie das aussehen könnte.\n\n${smartLink ? `Hier kannst du deine kostenlose Talent-Einschätzung machen:\n${smartLink}\n` : ''}Kein Druck - will nur schauen, ob es passt.\n\nBeste Grüße,\n${user.name}`
           : `Hey ${name},\n\nich bin ${user.name} von Warubi Sports. Ich arbeite mit College-Trainern in den USA und dem International Talent Program von FC Köln zusammen, um Spielern die richtige Möglichkeit zu finden.\n\nDein Profil ist mir aufgefallen und ich denke, du hast echtes Potenzial als ${position}. Falls dich ein Wechsel in die USA interessiert, würde ich mich gerne mal mit dir unterhalten, wie das aussehen könnte.\n\n${smartLink ? `Hier kannst du deine kostenlose Talent-Einschätzung machen:\n${smartLink}\n` : ''}Kein Druck - will nur schauen, ob es passt.\n\nBeste Grüße,\n${user.name}`
-        );
+        ));
       } else {
-        setDraftedMessage(hasCollege
+        setDraftedMessage(appendEELink(hasCollege
           ? `Hey ${name},\n\nI'm ${user.name} and I work with Warubi Sports. I played college soccer in the US and now help players like you find the right path there.\n\nI came across your profile and think you've got real potential as a ${position}. If playing in the US is something you're interested in, I'd love to chat about what that could look like for you.\n\n${smartLink ? `Take 2 minutes to complete your free talent assessment:\n${smartLink}\n` : ''}No pressure - just want to see if it's a good fit.\n\nBest,\n${user.name}`
           : `Hey ${name},\n\nI'm ${user.name} with Warubi Sports. I work with college coaches across the US and FC Köln's International Talent Program to help players find the right opportunity.\n\nI came across your profile and think you've got real potential as a ${position}. If playing in the US is something you're interested in, I'd love to chat about what that could look like for you.\n\n${smartLink ? `Take 2 minutes to complete your free talent assessment:\n${smartLink}\n` : ''}No pressure - just want to see if it's a good fit.\n\nBest,\n${user.name}`
-        );
+        ));
       }
     } finally {
       setIsLoading(false);
