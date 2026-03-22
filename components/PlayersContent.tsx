@@ -4,7 +4,7 @@ import { Player, PlayerStatus, AppNotification } from '../types';
 import PlayerCard from './PlayerCard';
 import { ErrorBoundary } from './ErrorBoundary';
 import { haptic } from '../hooks/useMobileFeatures';
-import { Users, CalendarDays, Plus, PlusCircle, Flame, List, LayoutGrid, Search, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, LogOut, Mail, UserPlus, Filter, FileUp, BarChart3 } from 'lucide-react';
+import { Users, CalendarDays, Plus, PlusCircle, Flame, List, LayoutGrid, Search, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, LogOut, Mail, UserPlus, Filter, FileUp, BarChart3, Link2, Copy, CheckCircle, Share2, Zap } from 'lucide-react';
 import { useDashboardContext } from './DashboardLayout';
 import OutreachComposer from './OutreachComposer';
 
@@ -21,6 +21,9 @@ const PlayersContent: React.FC = () => {
         setSubmissionInitialMode,
         openBulkOutreach,
         onMessageSent,
+        submissionLink,
+        handleCopyLink,
+        linkCopied,
     } = useDashboardContext();
 
     const handleUpdateNotes = useCallback((id: string, notes: string) => {
@@ -160,15 +163,25 @@ const PlayersContent: React.FC = () => {
         const currentPlayer = activePlayers[stackIdx];
 
         if (activePlayers.length === 0) return (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="w-20 h-20 bg-scout-800 rounded-3xl flex items-center justify-center mb-6 border border-scout-700">
-                    <Users size={40} className="text-scout-accent" />
+            <div className="flex flex-col items-center py-10 text-center">
+                <div className="w-20 h-20 bg-scout-accent/10 rounded-3xl flex items-center justify-center mb-6 border-2 border-scout-accent/30">
+                    <Zap size={36} className="text-scout-accent" />
                 </div>
-                <p className="text-xl font-black uppercase italic text-white mb-2">No Players Yet</p>
-                <p className="text-sm text-gray-400 mb-6 max-w-xs">Add your first player to start building your pipeline.</p>
-                <button onClick={() => setIsSubmissionOpen(true)} className="bg-scout-accent hover:bg-emerald-600 text-scout-900 px-6 py-3 rounded-xl font-black flex items-center gap-2 transition-all active:scale-95">
-                    <PlusCircle size={20} /> Add Player
-                </button>
+                <p className="text-2xl font-black uppercase italic text-white mb-2">Build Your Pipeline</p>
+                <p className="text-sm text-gray-400 mb-8 max-w-sm">The more players you add, the more placements you close. Start now.</p>
+                <div className="grid grid-cols-1 gap-3 w-full max-w-sm">
+                    <button onClick={() => setIsSubmissionOpen(true)} className="w-full bg-scout-accent hover:bg-emerald-400 text-scout-900 px-6 py-4 rounded-2xl font-black flex items-center gap-3 transition-all active:scale-95 shadow-glow">
+                        <PlusCircle size={22} /> Add Player Manually
+                    </button>
+                    <button onClick={() => { setSubmissionInitialMode('BULK'); setIsSubmissionOpen(true); }} className="w-full bg-scout-800 hover:bg-scout-700 text-white px-6 py-4 rounded-2xl font-black flex items-center gap-3 transition-all active:scale-95 border border-scout-700">
+                        <FileUp size={22} /> Bulk Import Roster
+                    </button>
+                    <button onClick={handleCopyLink} className="w-full bg-scout-accent/10 hover:bg-scout-accent/20 text-scout-accent px-6 py-4 rounded-2xl font-bold flex items-center gap-3 transition-all active:scale-95 border border-scout-accent/30">
+                        {linkCopied ? <CheckCircle size={22} /> : <Link2 size={22} />}
+                        {linkCopied ? 'Link Copied!' : 'Share Your Submission Link'}
+                    </button>
+                </div>
+                <p className="text-[10px] text-gray-600 mt-6 max-w-xs">Put the link in your Instagram bio, send it to coaches, or share it on WhatsApp. Players submit themselves.</p>
             </div>
         );
 
@@ -332,11 +345,11 @@ const PlayersContent: React.FC = () => {
                 } else if (players.filter(p => p.status !== PlayerStatus.ARCHIVED).length === 0) {
                     priority = {
                         type: 'GET STARTED',
-                        title: 'Add your first prospect',
-                        subtitle: 'Build your pipeline by logging players you discover',
+                        title: 'Your pipeline is empty',
+                        subtitle: 'Add players manually, bulk import a roster, or share your link so players submit themselves',
                         action: () => setIsSubmissionOpen(true),
                         actionLabel: 'Add Player',
-                        icon: <PlusCircle className="text-blue-400" size={24} />
+                        icon: <Zap className="text-scout-accent" size={24} />
                     };
                 }
 
@@ -363,6 +376,36 @@ const PlayersContent: React.FC = () => {
                         </div>
                     </div>
                 );
+            })()}
+
+            {/* GROWTH NUDGE — show when pipeline is small */}
+            {(() => {
+                const nonArchived = players.filter(p => p.status !== PlayerStatus.ARCHIVED);
+                if (nonArchived.length > 0 && nonArchived.length < 5) {
+                    return (
+                        <div className="bg-scout-800/50 border border-scout-700 rounded-2xl p-5 flex flex-col md:flex-row items-center gap-4">
+                            <div className="flex items-center gap-4 flex-1 min-w-0">
+                                <div className="w-11 h-11 bg-scout-accent/10 rounded-xl flex items-center justify-center border border-scout-accent/20 shrink-0">
+                                    <Share2 size={20} className="text-scout-accent" />
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-sm font-black text-white">Grow faster — share your link</p>
+                                    <p className="text-xs text-gray-500 mt-0.5 truncate">Players submit themselves. Put it in your bio, send to coaches, share on WhatsApp.</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-2 w-full md:w-auto shrink-0">
+                                <button onClick={handleCopyLink} className="flex-1 md:flex-none px-5 py-2.5 bg-scout-accent/10 border border-scout-accent/30 text-scout-accent rounded-xl text-xs font-black flex items-center justify-center gap-2 hover:bg-scout-accent/20 transition-all active:scale-95">
+                                    {linkCopied ? <CheckCircle size={14} /> : <Copy size={14} />}
+                                    {linkCopied ? 'Copied!' : 'Copy Link'}
+                                </button>
+                                <button onClick={() => { setSubmissionInitialMode('BULK'); setIsSubmissionOpen(true); }} className="flex-1 md:flex-none px-5 py-2.5 bg-scout-800 border border-scout-700 text-gray-300 rounded-xl text-xs font-black flex items-center justify-center gap-2 hover:bg-scout-700 transition-all active:scale-95">
+                                    <FileUp size={14} /> Bulk Add
+                                </button>
+                            </div>
+                        </div>
+                    );
+                }
+                return null;
             })()}
 
             {/* SPOTLIGHT BANNER */}
@@ -436,13 +479,23 @@ const PlayersContent: React.FC = () => {
                                             {status === PlayerStatus.OFFERED && <Target size={18} className="text-scout-highlight/50" />}
                                             {status === PlayerStatus.PLACED && <Trophy size={18} className="text-scout-accent/50" />}
                                         </div>
-                                        <p className="text-[9px] font-bold text-gray-600 uppercase">
+                                        <p className="text-[9px] font-bold text-gray-600 uppercase mb-3">
                                             {status === PlayerStatus.LEAD && 'New players you discover'}
                                             {status === PlayerStatus.REQUEST_TRIAL && 'Players requesting a trial'}
                                             {status === PlayerStatus.SEND_CONTRACT && 'Players ready for contracts'}
                                             {status === PlayerStatus.OFFERED && 'Players with active offers'}
                                             {status === PlayerStatus.PLACED && 'Successfully placed'}
                                         </p>
+                                        {status === PlayerStatus.LEAD && (
+                                            <div className="space-y-2">
+                                                <button onClick={() => setIsSubmissionOpen(true)} className="w-full py-2 bg-scout-accent/10 text-scout-accent rounded-lg text-[10px] font-black uppercase hover:bg-scout-accent/20 transition-all">
+                                                    <Plus size={12} className="inline mr-1" /> Add Player
+                                                </button>
+                                                <button onClick={handleCopyLink} className="w-full py-2 bg-scout-800 text-gray-400 rounded-lg text-[10px] font-bold hover:text-gray-300 transition-all">
+                                                    {linkCopied ? 'Copied!' : 'Share Link'}
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 ) : (
                                     players.filter(p => p.status === status).map(p => <PlayerCard key={p.id} player={p} onStatusChange={handleStatusChange} onOutreach={jumpToOutreach} onUpdateNotes={handleUpdateNotes} onEdit={handleEditPlayer} onDelete={onDeletePlayer} />)

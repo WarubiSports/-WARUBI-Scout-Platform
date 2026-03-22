@@ -7,7 +7,7 @@ import GlobalSearch from './GlobalSearch';
 import TrialRequestModal, { TrialDates } from './TrialRequestModal';
 import PlacementModal, { PlacementData } from './PlacementModal';
 import { haptic } from '../hooks/useMobileFeatures';
-import { Users, CalendarDays, Plus, LogOut, Lightbulb, BarChart3 } from 'lucide-react';
+import { Users, CalendarDays, Plus, LogOut, Lightbulb, BarChart3, Link2, Copy, CheckCircle } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
 import { BulkOutreachFlow } from './BulkOutreachFlow';
 
@@ -33,6 +33,9 @@ export interface DashboardContext {
     setIsSubmissionOpen: (open: boolean) => void;
     setSubmissionInitialMode: (mode: 'HUB' | 'BULK' | undefined) => void;
     openBulkOutreach: () => void;
+    submissionLink: string;
+    handleCopyLink: () => void;
+    linkCopied: boolean;
 }
 
 // Hook for child routes to access dashboard context
@@ -89,6 +92,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     const [pendingOfferedPlayer, setPendingOfferedPlayer] = useState<Player | null>(null);
     const [pendingPlacedPlayer, setPendingPlacedPlayer] = useState<Player | null>(null);
     const [showMobileProfile, setShowMobileProfile] = useState(false);
+    const [linkCopied, setLinkCopied] = useState(false);
+
+    const submissionLink = user.scoutId ? `https://warubi-scout-platform.vercel.app/submit/${user.scoutId}` : '';
+    const handleCopyLink = () => {
+        if (!submissionLink) return;
+        navigator.clipboard.writeText(submissionLink);
+        setLinkCopied(true);
+        haptic.success();
+        setTimeout(() => setLinkCopied(false), 2000);
+    };
+    const activePlayers = players.filter(p => p.status !== 'Archived');
 
     // Determine active tab from URL
     const activeTab = location.pathname.split('/').pop() || 'players';
@@ -220,6 +234,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         setIsSubmissionOpen,
         setSubmissionInitialMode,
         openBulkOutreach: () => setIsBulkOutreachOpen(true),
+        submissionLink,
+        handleCopyLink,
+        linkCopied,
     };
 
     const isOutreachTab = activeTab === 'outreach';
@@ -246,8 +263,21 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 <div className="p-8 border-b border-scout-700">
                     <h1 className="text-2xl font-black tracking-tighter text-white uppercase italic">Scout<span className="text-scout-accent">Buddy</span></h1>
                 </div>
-                <nav className="flex-1 p-4 space-y-2 mt-4">
-                    <button onClick={() => navigate('/dashboard/players')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'players' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:bg-scout-900/50'}`}><Users size={20} /> Players</button>
+                {/* Primary Actions */}
+                <div className="p-4 space-y-2">
+                    <button onClick={() => { haptic.medium(); setEditingPlayer(null); setIsSubmissionOpen(true); }} className="w-full flex items-center gap-3 px-5 py-3.5 rounded-2xl bg-scout-accent text-scout-900 font-black text-sm shadow-glow hover:bg-emerald-400 transition-all active:scale-[0.98]">
+                        <Plus size={20} /> Add Player
+                    </button>
+                    <button onClick={handleCopyLink} className="w-full flex items-center gap-3 px-5 py-3 rounded-2xl bg-scout-accent/10 border border-scout-accent/30 text-scout-accent font-bold text-xs hover:bg-scout-accent/20 transition-all active:scale-[0.98]">
+                        {linkCopied ? <CheckCircle size={16} /> : <Link2 size={16} />}
+                        {linkCopied ? 'Link Copied!' : 'Copy Submission Link'}
+                    </button>
+                </div>
+                <nav className="flex-1 p-4 space-y-2">
+                    <button onClick={() => navigate('/dashboard/players')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'players' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:bg-scout-900/50'}`}>
+                        <Users size={20} /> Players
+                        {activePlayers.length > 0 && <span className="ml-auto text-[10px] bg-scout-900 border border-scout-700 px-2 py-0.5 rounded-full text-gray-400">{activePlayers.length}</span>}
+                    </button>
                     <button onClick={() => navigate('/dashboard/events')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'events' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><CalendarDays size={20} /> Events</button>
                     <button onClick={() => navigate('/dashboard/my-business')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'my-business' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><BarChart3 size={20} /> My Business</button>
                 </nav>
