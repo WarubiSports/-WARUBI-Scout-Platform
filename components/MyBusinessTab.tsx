@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { DollarSign, CheckCircle, Clock, Target, AlertCircle, Calendar, TrendingUp, Users, Globe, BarChart3 } from 'lucide-react';
+import { DollarSign, CheckCircle, Clock, Target, AlertCircle, Calendar, TrendingUp, Users, Globe, BarChart3, Copy, Check, Link } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
     AreaChart, Area, CartesianGrid
@@ -53,6 +53,16 @@ type Section = 'earnings' | 'pipeline';
 const MyBusinessTab: React.FC<MyBusinessTabProps> = ({ players, scoutId }) => {
     const earnings = useEarnings(scoutId, players);
     const [section, setSection] = useState<Section>('earnings');
+    const [linkCopied, setLinkCopied] = useState(false);
+
+    const submissionLink = scoutId ? `https://warubi-scout-platform.vercel.app/submit/${scoutId}` : '';
+
+    const copySubmissionLink = () => {
+        if (!submissionLink) return;
+        navigator.clipboard.writeText(submissionLink);
+        setLinkCopied(true);
+        setTimeout(() => setLinkCopied(false), 2000);
+    };
 
     const activePlayers = useMemo(() =>
         players.filter(p => p.status !== PlayerStatus.ARCHIVED),
@@ -170,6 +180,29 @@ const MyBusinessTab: React.FC<MyBusinessTabProps> = ({ players, scoutId }) => {
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-black text-white uppercase tracking-tight">My Business</h1>
             </div>
+
+            {/* Submission Link */}
+            {scoutId && (
+                <div className="bg-scout-800 border border-scout-700 rounded-2xl p-4 flex items-center gap-4">
+                    <div className="p-2.5 bg-scout-accent/10 rounded-xl border border-scout-accent/20 shrink-0">
+                        <Link size={18} className="text-scout-accent" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1">Your Submission Link</p>
+                        <p className="text-xs text-gray-400 truncate">{submissionLink}</p>
+                    </div>
+                    <button
+                        onClick={copySubmissionLink}
+                        className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shrink-0 ${
+                            linkCopied
+                                ? 'bg-scout-accent/20 text-scout-accent border border-scout-accent/30'
+                                : 'bg-scout-700 text-white hover:bg-scout-600 border border-scout-600'
+                        }`}
+                    >
+                        {linkCopied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
+                    </button>
+                </div>
+            )}
 
             {/* Section Toggle */}
             <div className="flex gap-2">
