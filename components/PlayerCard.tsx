@@ -98,7 +98,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
             return `Matched to ${player.interestedProgram}. Ready for contract.`;
         }
         if (player.status === PlayerStatus.PLACED) {
-            return `Successfully placed at ${player.placedLocation || 'program'}.`;
+            return `Placed at ${player.placedLocation || 'program'}. You made this happen.`;
         }
         if (score >= 85) {
             return `Top-tier talent. ${college || 'D1 potential'}. Worth priority outreach.`;

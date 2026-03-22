@@ -257,7 +257,7 @@ const MyBusinessTab: React.FC<MyBusinessTabProps> = ({ players, scoutId, scoutNa
                             <AlertCircle size={48} className="mx-auto text-gray-500 mb-4" />
                             <h2 className="text-xl font-black text-white uppercase mb-2">No Active License Agreement</h2>
                             <p className="text-gray-400 text-sm">
-                                Contact HQ to set up your licensee agreement and start tracking your earnings.
+                                Contact HQ to activate your agreement. Once live, every player you place earns you compensation — and gives someone the opportunity they've been working toward.
                             </p>
                         </div>
                     ) : (
@@ -405,10 +405,10 @@ const MyBusinessTab: React.FC<MyBusinessTabProps> = ({ players, scoutId, scoutNa
                                             <div className="flex items-start gap-3">
                                                 <TrendingUp size={18} className="text-blue-400 mt-0.5 shrink-0" />
                                                 <div>
-                                                    <p className="text-sm text-gray-300 font-medium">How to start earning</p>
+                                                    <p className="text-sm text-gray-300 font-medium">Build your business by building careers</p>
                                                     <p className="text-xs text-gray-500 mt-1">
-                                                        Move players to <span className="text-white font-bold">PLACED</span> status to track placement compensation.
-                                                        {earnings.hasEventRights && ' Host showcases and events to earn participation fees.'}
+                                                        Every player you place earns you compensation — and gives a young athlete the opportunity of a lifetime.
+                                                        {earnings.hasEventRights && ' Host showcases and events to earn participation fees and create pathways.'}
                                                         {' '}Place {earnings.minPlacementsPerYear}+ players per year to maintain your license.
                                                     </p>
                                                 </div>
@@ -427,7 +427,7 @@ const MyBusinessTab: React.FC<MyBusinessTabProps> = ({ players, scoutId, scoutNa
                                     <div className="p-6 text-center">
                                         <Target size={28} className="mx-auto text-gray-600 mb-2" />
                                         <p className="text-gray-500 text-sm font-bold">No placements yet</p>
-                                        <p className="text-gray-600 text-xs mt-1">Move players to PLACED status to see them here</p>
+                                        <p className="text-gray-600 text-xs mt-1">Your first placement is someone's life-changing moment. Find them.</p>
                                     </div>
                                 ) : (
                                     <table className="w-full text-left">

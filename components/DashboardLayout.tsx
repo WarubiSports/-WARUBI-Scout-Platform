@@ -280,9 +280,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 {/* Earnings ticker */}
                 {earnings.hasAgreement && (
                     <div className="mx-4 p-4 bg-scout-900/50 border border-scout-700 rounded-2xl">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-gray-500 mb-2">Pipeline Value</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-gray-500 mb-2">Your Impact</p>
                         <p className="text-2xl font-black text-white tracking-tight">
-                            {earnings.currency === 'USD' ? '$' : '€'}{earnings.total.toLocaleString()}
+                            {earnings.placementsThisYear} <span className="text-sm text-gray-500 font-bold">lives changed</span>
                         </p>
                         <div className="flex gap-3 mt-2 text-[10px]">
                             <span className="text-scout-accent font-bold">{earnings.currency === 'USD' ? '$' : '€'}{earnings.placed.toLocaleString()} earned</span>

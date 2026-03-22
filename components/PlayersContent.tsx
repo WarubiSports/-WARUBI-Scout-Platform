@@ -334,8 +334,8 @@ const PlayersContent: React.FC = () => {
                 } else if (offeredPlayer) {
                     priority = {
                         type: 'CLOSE TO PLACEMENT',
-                        title: `Follow up on ${offeredPlayer.name}'s offer`,
-                        subtitle: `Score: ${offeredPlayer.evaluation?.score || '?'} • ${offeredPlayer.evaluation?.scholarshipTier || 'Untiered'}`,
+                        title: `${offeredPlayer.name} is one step away from a life-changing opportunity`,
+                        subtitle: `Score: ${offeredPlayer.evaluation?.score || '?'} • ${offeredPlayer.evaluation?.scholarshipTier || 'Untiered'} — close this.`,
                         action: () => handleEditPlayer(offeredPlayer),
                         actionLabel: 'Review & Close',
                         icon: <Trophy className="text-scout-highlight" size={24} />
@@ -353,10 +353,10 @@ const PlayersContent: React.FC = () => {
                     priority = {
                         type: 'GET STARTED',
                         title: earnings.hasAgreement
-                            ? `${earnings.currency === 'USD' ? '$' : '€'}0 earned — start adding players`
+                            ? 'Somewhere out there, a player needs you to find them'
                             : 'Your pipeline is empty',
                         subtitle: earnings.hasAgreement
-                            ? `Each placement = ${earnings.currency === 'USD' ? '$' : '€'}${earnings.perPlayerRate.toLocaleString()}. Add players, share your link, or bulk import.`
+                            ? `Every player you add is a potential career changed. Each placement earns you ${earnings.currency === 'USD' ? '$' : '€'}${earnings.perPlayerRate.toLocaleString()}.`
                             : 'Add players manually, bulk import a roster, or share your link so players submit themselves',
                         action: () => setIsSubmissionOpen(true),
                         actionLabel: 'Add Player',

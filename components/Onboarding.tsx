@@ -79,8 +79,8 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, approvedScoutInfo }
                                 The Scout Protocol
                             </h1>
                             <p className="text-gray-400 font-mono text-sm leading-relaxed text-left bg-scout-950/50 p-6 rounded-2xl border border-white/5">
-                                <span className="text-scout-accent font-bold block mb-2">Eliminating Information Asymmetry.</span>
-                                Scouting is a profession of evidence, not promises. We provide the first verifiable data ledger for talent discovery, backed by UEFA instruction and FIFA licensing. Access is earned, not bought.
+                                <span className="text-scout-accent font-bold block mb-2">Every player you find is a life you change.</span>
+                                Behind every placement is a young athlete who gets the opportunity they wouldn't have had without you. We give you the tools to find them, verify their talent, and open doors — backed by UEFA methodology and FIFA licensing. This is how careers are built.
                             </p>
                         </div>
                         <div className="grid grid-cols-2 gap-4 text-left">

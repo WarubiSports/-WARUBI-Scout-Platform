@@ -38,7 +38,7 @@ export const PlacementModal: React.FC<PlacementModalProps> = ({
                     <div>
                         <h2 className="text-xl font-black text-white uppercase tracking-tight">Confirm Placement</h2>
                         <p className="text-gray-400 text-sm mt-1">
-                            <span className="text-white font-bold">{player.name}</span> is being placed
+                            <span className="text-white font-bold">{player.name}</span> is getting an opportunity that changes their career
                         </p>
                     </div>
                     <button
@@ -106,7 +106,7 @@ export const PlacementModal: React.FC<PlacementModalProps> = ({
                 {/* Footer */}
                 <div className="px-6 py-4 border-t border-scout-700 bg-scout-800/50">
                     <p className="text-gray-500 text-xs text-center">
-                        Program duration determines TDRF payout for the referring scout
+                        You found them. You opened the door. That matters.
                     </p>
                 </div>
             </div>
