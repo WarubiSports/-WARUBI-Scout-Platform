@@ -8,7 +8,7 @@ const MyBusinessRoute: React.FC = () => {
     return (
         <ErrorBoundary name="My Business">
             <Suspense fallback={<LazyFallback />}>
-                <LazyMyBusinessTab players={players} scoutId={user.scoutId} />
+                <LazyMyBusinessTab players={players} scoutId={user.scoutId} scoutName={user.name} />
             </Suspense>
         </ErrorBoundary>
     );
