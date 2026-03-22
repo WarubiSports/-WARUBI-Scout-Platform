@@ -213,7 +213,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       <div className="max-w-md w-full bg-scout-800 border border-scout-700 rounded-[2rem] shadow-2xl p-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">
-            Warubi<span className="text-scout-accent">Scout</span>
+            Scout<span className="text-scout-accent">Buddy</span>
           </h1>
           <p className="text-gray-400 mt-2">Sign in to access your scouting dashboard</p>
         </div>
@@ -380,7 +380,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
         )}
 
         <p className="text-center text-gray-600 text-xs mt-8">
-          Powered by Warubi Sports
+          Powered by Scout Buddy
         </p>
       </div>
     </div>

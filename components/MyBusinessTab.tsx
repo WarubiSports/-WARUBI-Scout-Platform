@@ -203,7 +203,7 @@ const MyBusinessTab: React.FC<MyBusinessTabProps> = ({ players, scoutId }) => {
                             <AlertCircle size={48} className="mx-auto text-gray-500 mb-4" />
                             <h2 className="text-xl font-black text-white uppercase mb-2">No Active License Agreement</h2>
                             <p className="text-gray-400 text-sm">
-                                Contact Warubi HQ to set up your licensee agreement and start tracking your earnings.
+                                Contact HQ to set up your licensee agreement and start tracking your earnings.
                             </p>
                         </div>
                     ) : (

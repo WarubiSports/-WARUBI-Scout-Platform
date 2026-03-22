@@ -26,7 +26,7 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({ children, requireAdmin = f
             }}>
                 <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>Loading...</div>
-                    <div style={{ opacity: 0.7 }}>Connecting to Warubi Scout</div>
+                    <div style={{ opacity: 0.7 }}>Connecting to Scout Buddy</div>
                 </div>
             </div>
         );

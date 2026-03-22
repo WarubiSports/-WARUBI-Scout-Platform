@@ -46,7 +46,7 @@ const App: React.FC = () => {
       {
           id: 'welcome-msg',
           type: 'INFO',
-          title: 'Welcome to Warubi Scout',
+          title: 'Welcome to Scout Buddy',
           message: 'Your account is active. Add players to start tracking your pipeline.',
           timestamp: new Date().toISOString(),
           read: false
@@ -346,7 +346,7 @@ const App: React.FC = () => {
       }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>Loading...</div>
-          <div style={{ opacity: 0.7 }}>Connecting to Warubi Scout</div>
+          <div style={{ opacity: 0.7 }}>Connecting to Scout Buddy</div>
         </div>
       </div>
     );

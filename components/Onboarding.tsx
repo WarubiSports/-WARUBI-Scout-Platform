@@ -76,7 +76,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, approvedScoutInfo }
                     <div className="space-y-8 animate-fade-in text-center">
                         <div className="space-y-4">
                             <h1 className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter italic border-b border-scout-accent/30 pb-4">
-                                The Warubi Protocol
+                                The Scout Protocol
                             </h1>
                             <p className="text-gray-400 font-mono text-sm leading-relaxed text-left bg-scout-950/50 p-6 rounded-2xl border border-white/5">
                                 <span className="text-scout-accent font-bold block mb-2">Eliminating Information Asymmetry.</span>
@@ -115,7 +115,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, approvedScoutInfo }
                 {step === 1 && (
                     <div className="space-y-8 animate-fade-in">
                         <div className="text-center">
-                            <h1 className="text-4xl font-black text-white mb-2 uppercase tracking-tighter italic">Warubi<span className="text-scout-accent">Scout</span></h1>
+                            <h1 className="text-4xl font-black text-white mb-2 uppercase tracking-tighter italic">Scout<span className="text-scout-accent">Buddy</span></h1>
                             <p className="text-gray-400 font-medium">
                                 {isAdmin ? 'Define your unified scouting identity.' : 'Confirm your scouting profile.'}
                             </p>

@@ -42,7 +42,7 @@ function getSupabaseClient(): SupabaseClient<Database> {
       },
       global: {
         headers: {
-          'x-client-info': 'warubi-scout-platform',
+          'x-client-info': 'scout-buddy',
         },
       },
     }

@@ -117,7 +117,7 @@ const ApprovedScoutsManager: React.FC = () => {
     const appUrl = 'https://warubi-scout-platform.vercel.app';
     const message = `Hi${scout.name ? ` ${scout.name.split(' ')[0]}` : ''}! 👋
 
-You've been approved to join WARUBI Scout Platform.
+You've been approved to join Scout Buddy.
 
 Sign up here: ${appUrl}
 

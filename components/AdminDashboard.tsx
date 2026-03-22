@@ -269,7 +269,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
             agenda: [],
             checklist: [
                 { task: "Get the Roster", completed: false },
-                { task: "Prepare Warubi QR Code", completed: false }
+                { task: "Prepare QR Code", completed: false }
             ],
             isGlobal: true // Mark as global event
         };

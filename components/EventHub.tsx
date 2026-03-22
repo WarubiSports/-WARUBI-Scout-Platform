@@ -65,7 +65,7 @@ const AttendancePrepModal = ({ event, onCancel, onConfirm }: { event: ScoutingEv
                     </div>
                     <div>
                         <h4 className="font-bold text-white text-sm">Prepare Assessment Tool</h4>
-                        <p className="text-xs text-gray-400 leading-snug">Have your Warubi QR code ready for players to scan instantly.</p>
+                        <p className="text-xs text-gray-400 leading-snug">Have your QR code ready for players to scan instantly.</p>
                     </div>
                 </div>
             </div>
@@ -536,7 +536,7 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                   {event.status === 'Draft' && (
                                       <div className="bg-scout-900/50 p-4 rounded-lg border border-scout-700">
                                           <h4 className="text-white font-bold text-sm mb-2">Step 1: Planning</h4>
-                                          <p className="text-xs text-gray-400 mb-4">Review the AI generated plan. When ready, submit to Warubi HQ for approval.</p>
+                                          <p className="text-xs text-gray-400 mb-4">Review the AI generated plan. When ready, submit for approval.</p>
                                           <button 
                                               onClick={() => onSubmitForApproval(event)}
                                               className="w-full bg-scout-700 hover:bg-scout-600 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all border border-scout-600"
@@ -548,7 +548,7 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                   {event.status === 'Pending Approval' && (
                                       <div className="bg-yellow-500/10 p-4 rounded-lg border border-yellow-500/30">
                                           <h4 className="text-yellow-500 font-bold text-sm mb-2 flex items-center gap-2"><Loader2 size={14} className="animate-spin"/> Under Review</h4>
-                                          <p className="text-xs text-yellow-200/70">Warubi HQ is reviewing your event proposal. You'll be notified when approved.</p>
+                                          <p className="text-xs text-yellow-200/70">Your event proposal is under review. You'll be notified when approved.</p>
                                       </div>
                                   )}
                                   {event.status === 'Approved' && (
@@ -947,7 +947,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
                 agenda: ["Arrival", "Match Observation", "Coach Networking", "Assessment"],
                 checklist: [
                     { task: "Get the Roster", completed: false },
-                    { task: "Prepare Warubi QR Code", completed: false }
+                    { task: "Prepare QR Code", completed: false }
                 ]
             };
             onAddEvent(attendeeEvent);
@@ -994,7 +994,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
           agenda: [],
           checklist: [
               { task: "Get the Roster", completed: false },
-              { task: "Prepare Warubi QR Code", completed: false }
+              { task: "Prepare QR Code", completed: false }
           ]
       };
 

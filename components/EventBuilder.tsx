@@ -87,7 +87,7 @@ const EventBuilder: React.FC<EventBuilderProps> = ({ events, onAddEvent }) => {
                 <PlayCircle size={24} />
             </div>
             <h3 className="text-2xl font-bold text-white">How to Host a Scouting Event</h3>
-            <p className="text-gray-400 mt-2 max-w-lg mx-auto">Follow this simple process to organize a professional Warubi Talent ID day in your region.</p>
+            <p className="text-gray-400 mt-2 max-w-lg mx-auto">Follow this simple process to organize a professional Talent ID day in your region.</p>
         </div>
 
         <div className="grid md:grid-cols-4 gap-6 mb-8 relative">

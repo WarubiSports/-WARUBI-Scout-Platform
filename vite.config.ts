@@ -21,9 +21,9 @@ export default defineConfig(({ mode }) => {
         },
         includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
         manifest: {
-          name: 'Warubi Scout',
-          short_name: 'Scout',
-          description: 'Scouting CRM for Warubi Sports',
+          name: 'Scout Buddy',
+          short_name: 'Scout Buddy',
+          description: 'Your scouting companion for finding and developing talent',
           theme_color: '#10b981',
           background_color: '#05080f',
           display: 'standalone',

@@ -240,7 +240,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             />
             <aside className="w-72 bg-scout-800 border-r border-scout-700 hidden md:flex flex-col shrink-0 overflow-y-auto">
                 <div className="p-8 border-b border-scout-700">
-                    <h1 className="text-2xl font-black tracking-tighter text-white uppercase italic">Warubi<span className="text-scout-accent">Scout</span></h1>
+                    <h1 className="text-2xl font-black tracking-tighter text-white uppercase italic">Scout<span className="text-scout-accent">Buddy</span></h1>
                 </div>
                 <nav className="flex-1 p-4 space-y-2 mt-4">
                     <button onClick={() => navigate('/dashboard/players')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'players' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:bg-scout-900/50'}`}><Users size={20} /> Players</button>

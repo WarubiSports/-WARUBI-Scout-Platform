@@ -110,7 +110,7 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ onComplete }) => {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">
-            Warubi<span className="text-scout-accent">Scout</span>
+            Scout<span className="text-scout-accent">Buddy</span>
           </h1>
           <p className="text-gray-500 text-sm mt-2">Set your new password</p>
         </div>
@@ -179,7 +179,7 @@ const ResetPassword: React.FC<ResetPasswordProps> = ({ onComplete }) => {
       </div>
 
       {/* Footer */}
-      <p className="mt-6 text-gray-600 text-xs">Powered by Warubi Sports</p>
+      <p className="mt-6 text-gray-600 text-xs">Powered by Scout Buddy</p>
     </div>
   );
 };
