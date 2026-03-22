@@ -664,8 +664,16 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                       <div className="bg-scout-900 p-4 rounded-lg border border-scout-700">
                                           <label className="text-xs text-gray-500 font-bold uppercase mb-2 block">Registration Link</label>
                                           <div className="flex gap-2">
-                                              <input readOnly value={event.showcaseSlug ? `showcase-coordinator.vercel.app/event/${event.showcaseSlug}${currentScoutId ? `?ref=${currentScoutId}` : ''}` : 'Syncing...'} className="bg-scout-800 text-scout-accent text-sm px-2 rounded border border-scout-600 w-full"/>
-                                              <button onClick={() => event.showcaseSlug && copyToClipboard(`https://showcase-coordinator.vercel.app/event/${event.showcaseSlug}${currentScoutId ? `?ref=${currentScoutId}` : ''}`, 'link')} className="p-2 bg-scout-700 hover:bg-scout-600 rounded text-white">{copied === 'link' ? <CheckCircle size={16}/> : <Copy size={16}/>}</button>
+                                              {event.showcaseSlug ? (
+                                                <>
+                                                  <input readOnly value={`showcase-coordinator.vercel.app/event/${event.showcaseSlug}${currentScoutId ? `?ref=${currentScoutId}` : ''}`} className="bg-scout-800 text-scout-accent text-sm px-2 rounded border border-scout-600 w-full"/>
+                                                  <button onClick={() => copyToClipboard(`https://showcase-coordinator.vercel.app/event/${event.showcaseSlug}${currentScoutId ? `?ref=${currentScoutId}` : ''}`, 'link')} className="p-2 bg-scout-700 hover:bg-scout-600 rounded text-white">{copied === 'link' ? <CheckCircle size={16}/> : <Copy size={16}/>}</button>
+                                                </>
+                                              ) : (
+                                                <button onClick={() => onUpdateEvent({ ...event, status: 'Published' })} className="w-full bg-scout-accent/20 text-scout-accent text-sm font-bold py-2 px-3 rounded border border-scout-accent/30 hover:bg-scout-accent/30 transition-colors">
+                                                  Retry Sync
+                                                </button>
+                                              )}
                                           </div>
                                       </div>
                                   )}
