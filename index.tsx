@@ -1,6 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import './app.css';
 import App from './App';
 import { AuthProvider, useAuthContext } from './contexts/AuthContext';
@@ -30,6 +32,8 @@ function AppWithProviders() {
   return (
     <ScoutProvider userId={userId}>
       <App />
+      <Analytics />
+      <SpeedInsights />
     </ScoutProvider>
   );
 }
