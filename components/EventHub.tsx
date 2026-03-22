@@ -977,6 +977,16 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, onAddEvent, onUpdateE
     }
   };
 
+  // Keep selectedEvent in sync with the events prop (e.g. after showcase sync adds showcaseSlug)
+  useEffect(() => {
+    if (selectedEvent) {
+      const updated = events.find(e => e.id === selectedEvent.id);
+      if (updated && (updated.showcaseSlug !== selectedEvent.showcaseSlug || updated.showcaseEventId !== selectedEvent.showcaseEventId || updated.status !== selectedEvent.status)) {
+        setSelectedEvent(updated);
+      }
+    }
+  }, [events, selectedEvent]);
+
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
