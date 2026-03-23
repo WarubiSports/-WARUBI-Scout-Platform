@@ -76,19 +76,19 @@ const HomeContent: React.FC = () => {
 
           {/* EE Link banner (hidden during first-run) */}
           {players.length > 0 && assessmentLink && (
-            <div className="bg-gradient-to-r from-scout-accent/10 to-transparent border border-scout-accent/30 rounded-xl p-4 flex items-center justify-between gap-3">
+            <button
+              onClick={handleCopyLink}
+              className="w-full bg-gradient-to-r from-scout-accent/10 to-transparent border border-scout-accent/30 rounded-xl p-4 flex items-center justify-between gap-3 hover:border-scout-accent/60 active:scale-[0.99] transition-all cursor-pointer text-left"
+            >
               <div className="min-w-0">
                 <p className="text-xs font-black text-scout-accent uppercase tracking-wider mb-0.5">Your ExposureEngine Link</p>
                 <p className="text-[10px] text-gray-400 truncate">{assessmentLink}</p>
                 <p className="text-[10px] text-gray-500 mt-1">Auto-included in every email you send</p>
               </div>
-              <button
-                onClick={handleCopyLink}
-                className="shrink-0 px-4 py-2 bg-scout-accent/20 border border-scout-accent/40 rounded-lg text-scout-accent text-xs font-bold hover:bg-scout-accent/30 transition-colors flex items-center gap-1.5"
-              >
+              <div className="shrink-0 px-4 py-2 bg-scout-accent/20 border border-scout-accent/40 rounded-lg text-scout-accent text-xs font-bold flex items-center gap-1.5">
                 {linkCopied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
-              </button>
-            </div>
+              </div>
+            </button>
           )}
 
           {/* Inline bulk import + outreach flow */}
