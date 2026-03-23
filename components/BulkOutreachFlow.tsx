@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
-import { X, Upload, FileUp, Trash2, Loader2, Copy, Check, Send, ChevronRight, MessageSquare, ExternalLink } from 'lucide-react';
+import { X, Upload, FileUp, Trash2, Loader2, Copy, Check, Send, ChevronRight, MessageSquare, ExternalLink, Mail, CheckCircle } from 'lucide-react';
 import { Player, PlayerStatus } from '../types';
 import { extractPlayersFromBulkData, extractRosterFromPhoto, bulkGenerateOutreach, BulkOutreachResult } from '../services/geminiService';
 import { useProspects } from '../hooks/useProspects';
@@ -277,6 +277,55 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
     }
   };
 
+  // EMAIL ALL
+  const [emailSent, setEmailSent] = useState(false);
+  const BATCH_SIZE = 30;
+
+  const emailableMessages = outreachMessages.filter(m => {
+    const player = savedPlayers.find(p => p.id === m.playerId);
+    return player?.email;
+  });
+
+  const buildGroupEmailBody = (): string => {
+    // Use the first message as template — it's representative of the style
+    if (outreachMessages.length > 0) return outreachMessages[0].message;
+    return `Hi,\n\nI'm ${scoutName} with Warubi Sports. I came across your profile and think you've got real potential. If playing in the US or at a European academy is something you're interested in, I'd love to chat about what that could look like for you.\n\nBest,\n${scoutName}`;
+  };
+
+  const handleEmailAll = async () => {
+    const emails = emailableMessages.map(m => {
+      const player = savedPlayers.find(p => p.id === m.playerId);
+      return player?.email || '';
+    }).filter(Boolean);
+
+    if (emails.length === 0) return;
+
+    const subject = selectedTemplate === 'First Spark' ? 'Quick question about your soccer future'
+      : selectedTemplate === 'Invite to ID' ? 'You\'re invited — ID Day with college coaches'
+      : selectedTemplate === 'Follow-up' ? 'Following up — opportunities in the US & Europe'
+      : 'Quick request — game footage';
+
+    const body = buildGroupEmailBody();
+
+    // Batch into groups of 30 for mailto URL length limits
+    const batches: string[][] = [];
+    for (let i = 0; i < emails.length; i += BATCH_SIZE) {
+      batches.push(emails.slice(i, i + BATCH_SIZE));
+    }
+
+    for (const batch of batches) {
+      const mailto = `mailto:?bcc=${encodeURIComponent(batch.join(','))}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.open(mailto, '_blank');
+    }
+
+    // Log outreach for all emailed players
+    for (const m of emailableMessages) {
+      await logOutreach(m.playerId, 'Email', `Bulk: ${selectedTemplate}`, body);
+    }
+
+    setEmailSent(true);
+  };
+
   const templates: { value: OutreachTemplate; label: string; desc: string }[] = [
     { value: 'First Spark', label: 'First Spark', desc: 'Initial contact' },
     { value: 'Invite to ID', label: 'Invite to ID', desc: 'Event invitation' },
@@ -497,58 +546,106 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
 
               {/* Generated messages */}
               {outreachMessages.length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-                      {outreachMessages.length} Messages Ready
-                    </p>
-                    <button
-                      onClick={() => setOutreachMessages([])}
-                      className="text-xs text-gray-500 hover:text-white"
-                    >
-                      Regenerate
-                    </button>
-                  </div>
-
-                  {outreachMessages.map((msg, index) => (
-                    <div key={msg.playerId} className="bg-scout-800 border border-scout-700 rounded-xl overflow-hidden">
-                      <div className="flex items-center justify-between p-3 border-b border-scout-700/50 bg-scout-900/30">
-                        <span className="text-sm font-bold text-white">{msg.playerName}</span>
-                        <div className="flex items-center gap-1">
-                          {msg.phone && (
-                            <button
-                              onClick={() => handleWhatsApp(index)}
-                              className="p-2 text-green-400 hover:bg-green-500/10 rounded-lg transition-colors"
-                              title="Send via WhatsApp"
-                            >
-                              <ExternalLink size={14} />
-                            </button>
-                          )}
-                          {msg.parentPhone && (
-                            <button
-                              onClick={() => handleParentWhatsApp(index)}
-                              className="p-2 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors text-[10px] font-bold"
-                              title="Send to parent via WhatsApp"
-                            >
-                              Parent
-                            </button>
-                          )}
+                <div className="space-y-4">
+                  {/* EMAIL ALL — Hero CTA */}
+                  {emailableMessages.length > 0 && (
+                    <div className="bg-gradient-to-br from-scout-accent/20 to-scout-accent/5 border-2 border-scout-accent/40 rounded-2xl p-6 text-center">
+                      {!emailSent ? (
+                        <>
+                          <Mail size={36} className="mx-auto text-scout-accent mb-3" />
+                          <h3 className="text-white font-black text-lg uppercase tracking-tight mb-1">
+                            Email All {emailableMessages.length} Players
+                          </h3>
+                          <p className="text-gray-400 text-xs mb-4">
+                            Opens your mail app with all players in BCC. One click, done.
+                          </p>
                           <button
-                            onClick={() => handleCopyMessage(index)}
-                            className={`p-2 rounded-lg transition-colors ${msg.copied ? 'text-scout-accent bg-scout-accent/10' : 'text-gray-400 hover:bg-scout-700'}`}
+                            onClick={handleEmailAll}
+                            className="w-full py-4 bg-scout-accent text-scout-900 rounded-xl font-black uppercase text-sm flex items-center justify-center gap-3 shadow-glow hover:bg-emerald-400 transition-all"
                           >
-                            {msg.copied ? <Check size={14} /> : <Copy size={14} />}
+                            <Send size={20} />
+                            Send Email to {emailableMessages.length} Players
                           </button>
-                        </div>
-                      </div>
-                      <textarea
-                        value={msg.message}
-                        onChange={(e) => setOutreachMessages(prev => prev.map((m, i) => i === index ? { ...m, message: e.target.value } : m))}
-                        className="w-full bg-transparent p-3 text-gray-300 text-sm resize-none focus:outline-none min-h-[100px]"
-                        rows={4}
-                      />
+                          {emailableMessages.length < outreachMessages.length && (
+                            <p className="text-gray-600 text-[10px] mt-2">
+                              {outreachMessages.length - emailableMessages.length} player{outreachMessages.length - emailableMessages.length > 1 ? 's' : ''} without email — use WhatsApp below
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle size={36} className="mx-auto text-scout-accent mb-3" />
+                          <h3 className="text-scout-accent font-black text-lg uppercase tracking-tight mb-1">
+                            Email Opened!
+                          </h3>
+                          <p className="text-gray-400 text-xs">
+                            Check your mail app and hit send.{emailableMessages.length > BATCH_SIZE ? ` Opened in ${Math.ceil(emailableMessages.length / BATCH_SIZE)} batches.` : ''}
+                          </p>
+                        </>
+                      )}
                     </div>
-                  ))}
+                  )}
+
+                  {emailableMessages.length === 0 && outreachMessages.length > 0 && (
+                    <div className="bg-scout-800 border border-scout-700 rounded-xl p-4 text-center">
+                      <p className="text-gray-400 text-sm">No player emails found — use WhatsApp or copy messages below.</p>
+                    </div>
+                  )}
+
+                  {/* Individual messages — WhatsApp + Copy */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                        Individual Messages ({outreachMessages.length})
+                      </p>
+                      <button
+                        onClick={() => { setOutreachMessages([]); setEmailSent(false); }}
+                        className="text-xs text-gray-500 hover:text-white"
+                      >
+                        Regenerate
+                      </button>
+                    </div>
+
+                    {outreachMessages.map((msg, index) => (
+                      <div key={msg.playerId} className="bg-scout-800 border border-scout-700 rounded-xl overflow-hidden">
+                        <div className="flex items-center justify-between p-3 border-b border-scout-700/50 bg-scout-900/30">
+                          <span className="text-sm font-bold text-white">{msg.playerName}</span>
+                          <div className="flex items-center gap-1">
+                            {msg.phone && (
+                              <button
+                                onClick={() => handleWhatsApp(index)}
+                                className="p-2 text-green-400 hover:bg-green-500/10 rounded-lg transition-colors"
+                                title="Send via WhatsApp"
+                              >
+                                <ExternalLink size={14} />
+                              </button>
+                            )}
+                            {msg.parentPhone && (
+                              <button
+                                onClick={() => handleParentWhatsApp(index)}
+                                className="p-2 text-blue-400 hover:bg-blue-500/10 rounded-lg transition-colors text-[10px] font-bold"
+                                title="Send to parent via WhatsApp"
+                              >
+                                Parent
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleCopyMessage(index)}
+                              className={`p-2 rounded-lg transition-colors ${msg.copied ? 'text-scout-accent bg-scout-accent/10' : 'text-gray-400 hover:bg-scout-700'}`}
+                            >
+                              {msg.copied ? <Check size={14} /> : <Copy size={14} />}
+                            </button>
+                          </div>
+                        </div>
+                        <textarea
+                          value={msg.message}
+                          onChange={(e) => setOutreachMessages(prev => prev.map((m, i) => i === index ? { ...m, message: e.target.value } : m))}
+                          className="w-full bg-transparent p-3 text-gray-300 text-sm resize-none focus:outline-none min-h-[100px]"
+                          rows={4}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -573,9 +670,9 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
         {step === 'OUTREACH' && outreachMessages.length > 0 && (
           <div className="p-5 border-t border-scout-700 shrink-0 flex items-center justify-between">
             <p className="text-gray-500 text-xs">
-              {outreachMessages.filter(m => m.copied).length} of {outreachMessages.length} copied
+              {emailSent ? 'Email sent' : ''}{outreachMessages.filter(m => m.copied).length > 0 ? `${emailSent ? ' • ' : ''}${outreachMessages.filter(m => m.copied).length} copied` : ''}
             </p>
-            <button onClick={onClose} className="px-8 py-3 bg-scout-700 text-white rounded-xl font-black uppercase text-sm">
+            <button onClick={onClose} className="px-6 py-2.5 bg-scout-700 text-white rounded-xl font-bold text-sm hover:bg-scout-600 transition-colors">
               Done
             </button>
           </div>
