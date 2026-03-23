@@ -171,22 +171,22 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <h3 className="font-bold text-gray-900 mb-4">HQ Quick Actions</h3>
                 <div className="grid grid-cols-2 gap-3">
-                    <button className="p-4 rounded-lg border border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all text-left group">
+                    <a href="https://supabase.com/dashboard/project/umblyhwumtadlvgccdwg" target="_blank" rel="noopener noreferrer" className="p-4 rounded-lg border border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all text-left group">
                         <Globe size={24} className="text-gray-400 group-hover:text-blue-500 mb-2"/>
-                        <div className="text-sm font-bold text-gray-700 group-hover:text-blue-600">Create Global Event</div>
-                    </button>
-                    <button className="p-4 rounded-lg border border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all text-left group">
-                        <FileText size={24} className="text-gray-400 group-hover:text-green-500 mb-2"/>
-                        <div className="text-sm font-bold text-gray-700 group-hover:text-green-600">Export Annual Report</div>
-                    </button>
-                    <button className="p-4 rounded-lg border border-gray-200 hover:border-purple-500 hover:bg-purple-50 transition-all text-left group">
+                        <div className="text-sm font-bold text-gray-700 group-hover:text-blue-600">Supabase Dashboard</div>
+                    </a>
+                    <a href="https://vercel.com" target="_blank" rel="noopener noreferrer" className="p-4 rounded-lg border border-gray-200 hover:border-green-500 hover:bg-green-50 transition-all text-left group">
+                        <Activity size={24} className="text-gray-400 group-hover:text-green-500 mb-2"/>
+                        <div className="text-sm font-bold text-gray-700 group-hover:text-green-600">Vercel Deployments</div>
+                    </a>
+                    <a href="https://github.com/WarubiSports" target="_blank" rel="noopener noreferrer" className="p-4 rounded-lg border border-gray-200 hover:border-purple-500 hover:bg-purple-50 transition-all text-left group">
                         <Users size={24} className="text-gray-400 group-hover:text-purple-500 mb-2"/>
-                        <div className="text-sm font-bold text-gray-700 group-hover:text-purple-600">Invite New Scouts</div>
-                    </button>
-                    <button className="p-4 rounded-lg border border-gray-200 hover:border-red-500 hover:bg-red-50 transition-all text-left group">
-                        <AlertCircle size={24} className="text-gray-400 group-hover:text-red-500 mb-2"/>
-                        <div className="text-sm font-bold text-gray-700 group-hover:text-red-600">System Alerts</div>
-                    </button>
+                        <div className="text-sm font-bold text-gray-700 group-hover:text-purple-600">GitHub Repos</div>
+                    </a>
+                    <a href="https://app.warubi-sports.com" target="_blank" rel="noopener noreferrer" className="p-4 rounded-lg border border-gray-200 hover:border-orange-500 hover:bg-orange-50 transition-all text-left group">
+                        <TrendingUp size={24} className="text-gray-400 group-hover:text-orange-500 mb-2"/>
+                        <div className="text-sm font-bold text-gray-700 group-hover:text-orange-600">ExposureEngine</div>
+                    </a>
                 </div>
             </div>
         </div>

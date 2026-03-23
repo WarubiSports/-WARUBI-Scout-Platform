@@ -70,10 +70,19 @@ const ShareMessages = ({ event, scoutId, copyToClipboard, copied }: { event: Sco
     const instagram = `🔥 ${event.title}\n📍 ${event.location}\n📅 ${dateStr}\n\nCollege coaches scouting live. Limited spots.\n\nRegister → link in bio or DM me\n${link}`
     const email = `Hi,\n\nI wanted to share an upcoming event that could be a great opportunity: ${event.title} on ${dateStr} in ${event.location}.\n\nCollege coaches will be attending to scout players. You can register here:\n${link}\n\nLet me know if you have questions!`
 
-    const messages = [
-        { key: 'wa', label: 'WhatsApp', text: whatsapp },
-        { key: 'ig', label: 'Instagram', text: instagram },
-        { key: 'em', label: 'Email', text: email },
+    const sendWhatsApp = () => {
+        window.open(`https://wa.me/?text=${encodeURIComponent(whatsapp)}`, '_blank')
+    }
+    const sendEmail = () => {
+        const subject = encodeURIComponent(`${event.title} — ${dateStr}`)
+        const body = encodeURIComponent(email)
+        window.open(`mailto:?subject=${subject}&body=${body}`)
+    }
+
+    const channels = [
+        { key: 'wa', label: 'WhatsApp', text: whatsapp, action: sendWhatsApp, actionLabel: 'Send', color: 'text-green-400' },
+        { key: 'em', label: 'Email', text: email, action: sendEmail, actionLabel: 'Compose', color: 'text-blue-400' },
+        { key: 'ig', label: 'Instagram', text: instagram, action: () => copyToClipboard(instagram, 'ig'), actionLabel: 'Copy', color: 'text-pink-400' },
     ]
 
     return (
@@ -87,15 +96,17 @@ const ShareMessages = ({ event, scoutId, copyToClipboard, copied }: { event: Sco
             </button>
             {expanded && (
                 <div className="border-t border-scout-700 divide-y divide-scout-800">
-                    {messages.map(m => (
-                        <div key={m.key} className="p-3">
-                            <div className="flex items-center justify-between mb-2">
-                                <span className="text-xs font-bold text-gray-400">{m.label}</span>
-                                <button onClick={() => copyToClipboard(m.text, m.key)} className="text-xs text-scout-accent hover:text-white transition-colors flex items-center gap-1">
-                                    {copied === m.key ? <><CheckCircle size={12}/> Copied</> : <><Copy size={12}/> Copy</>}
+                    {channels.map(ch => (
+                        <div key={ch.key} className="p-3">
+                            <p className="text-[11px] text-gray-500 whitespace-pre-line line-clamp-3 mb-2">{ch.text}</p>
+                            <div className="flex gap-2">
+                                <button onClick={ch.action} className={`flex-1 py-2 rounded-lg text-xs font-bold bg-scout-800 border border-scout-700 hover:border-scout-accent transition-colors flex items-center justify-center gap-1.5 ${ch.color}`}>
+                                    <Send size={12} /> {ch.actionLabel}
+                                </button>
+                                <button onClick={() => copyToClipboard(ch.text, ch.key)} className="px-3 py-2 rounded-lg text-xs text-gray-500 bg-scout-800 border border-scout-700 hover:text-white transition-colors">
+                                    {copied === ch.key ? <CheckCircle size={12}/> : <Copy size={12}/>}
                                 </button>
                             </div>
-                            <p className="text-[11px] text-gray-500 whitespace-pre-line line-clamp-3">{m.text}</p>
                         </div>
                     ))}
                 </div>
@@ -995,12 +1006,18 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
 
             <div className="absolute bottom-0 w-full bg-scout-800 border-t border-scout-700 p-4 pb-safe flex gap-3">
                 {event.status === 'Published' && (() => { const pl = getPersonalLink(event, currentScoutId); return pl ? (
-                    <button onClick={() => copyToClipboard(pl.full, 'link')} className="flex-1 bg-scout-700 text-white font-bold py-3 rounded-xl">
-                        {copied === 'link' ? 'Copied!' : 'Share Link'}
+                    <button onClick={() => {
+                        if (navigator.share) {
+                            navigator.share({ title: event.title, text: `Register for ${event.title}`, url: pl.full }).catch(() => {});
+                        } else {
+                            copyToClipboard(pl.full, 'link');
+                        }
+                    }} className="flex-1 bg-scout-700 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2">
+                        <Share2 size={16} /> {copied === 'link' ? 'Copied!' : 'Share'}
                     </button>
                 ) : null; })()}
-                <button className="flex-1 bg-scout-accent text-scout-900 font-bold py-3 rounded-xl shadow-lg">
-                    Check In
+                <button onClick={initiateAttendance} className="flex-1 bg-scout-accent text-scout-900 font-bold py-3 rounded-xl shadow-lg flex items-center justify-center gap-2">
+                    <CheckCircle size={16} /> Check In
                 </button>
             </div>
         </div>
