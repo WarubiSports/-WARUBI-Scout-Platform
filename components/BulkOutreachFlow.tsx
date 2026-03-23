@@ -289,6 +289,7 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
   const [emailSent, setEmailSent] = useState(false);
   const [emailBody, setEmailBody] = useState('');
   const [emailSubject, setEmailSubject] = useState('');
+  const [emailPersona, setEmailPersona] = useState<'scout' | 'coach'>('scout');
   const BATCH_SIZE = 30;
 
   const emailableMessages = outreachMessages.filter(m => {
@@ -529,6 +530,41 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
                     <p className="text-gray-400 text-xs mb-1">
                       Opens your mail app with all players in BCC. One click, done.
                     </p>
+                  </div>
+
+                  {/* Persona toggle */}
+                  <div>
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1.5 block">Sending as</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => {
+                          setEmailPersona('scout');
+                          setEmailSubject('Quick question about your soccer future');
+                          setEmailBody(`Hi,\n\nI'm ${scoutName} with Warubi Sports. I work with European academies including FC Köln's ITP program, Bundesliga clubs, and 200+ college programs in the US to help players find the right opportunity.\n\nI came across your profile and think you've got real potential. If playing in the US or at a European academy is something you're interested in, I'd love to chat about what that could look like for you.\n\nNo pressure — just want to see if it's a good fit.\n\nBest,\n${scoutName}`);
+                        }}
+                        className={`p-3 rounded-xl border text-left transition-all ${emailPersona === 'scout'
+                          ? 'border-scout-accent bg-scout-accent/10 text-white'
+                          : 'border-scout-700 bg-scout-800 text-gray-400 hover:border-scout-600'
+                        }`}
+                      >
+                        <span className="text-sm font-bold block">Scout</span>
+                        <span className="text-[10px] text-gray-500">Warubi Sports recruiter</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEmailPersona('coach');
+                          setEmailSubject('Recruiting inquiry from ' + scoutName);
+                          setEmailBody(`Hi,\n\nI'm ${scoutName} and I'm reaching out because I like what I've seen from you as a player.\n\nWe're actively building our roster and looking for the right additions. I think you could be a great fit and I'd love to learn more about your goals and where you are in your recruiting process.\n\nWould you be open to a quick call this week?\n\nBest,\n${scoutName}`);
+                        }}
+                        className={`p-3 rounded-xl border text-left transition-all ${emailPersona === 'coach'
+                          ? 'border-scout-accent bg-scout-accent/10 text-white'
+                          : 'border-scout-700 bg-scout-800 text-gray-400 hover:border-scout-600'
+                        }`}
+                      >
+                        <span className="text-sm font-bold block">Coach</span>
+                        <span className="text-[10px] text-gray-500">College program recruiter</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Editable subject */}
