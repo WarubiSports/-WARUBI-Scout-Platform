@@ -66,6 +66,7 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
 
   const { addProspectsBatch } = useProspects(scoutId);
   const { logOutreach } = useOutreach(scoutId);
+  const assessmentLink = scoutId ? `https://app.warubi-sports.com?ref=${scoutId}` : '';
 
   const handleClose = () => {
     if (step !== 'UPLOAD' && extractedPlayers.length > 0) {
@@ -200,7 +201,7 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
         const hasEmails = saved.some(p => p.email);
         if (hasEmails) {
           setEmailSubject('Quick question about your soccer future');
-          setEmailBody(`Hi,\n\nI'm ${scoutName} with Warubi Sports. I work with European academies including FC Köln's ITP program, Bundesliga clubs, and 200+ college programs in the US to help players find the right opportunity.\n\nI came across your profile and think you've got real potential. If playing in the US or at a European academy is something you're interested in, I'd love to chat about what that could look like for you.\n\nNo pressure — just want to see if it's a good fit.\n\nBest,\n${scoutName}`);
+          setEmailBody(`Hi,\n\nI'm ${scoutName} with Warubi Sports. I work with European academies including FC Köln's ITP program, Bundesliga clubs, and 200+ college programs in the US to help players find the right opportunity.\n\nI came across your profile and think you've got real potential. If playing in the US or at a European academy is something you're interested in, I'd love to chat about what that could look like for you.${assessmentLink ? `\n\nTake 2 minutes to see where you'd fit — it's free:\n${assessmentLink}` : ''}\n\nNo pressure — just want to see if it's a good fit.\n\nBest,\n${scoutName}`);
           setStep('EMAIL');
         } else {
           setStep('OUTREACH');
@@ -540,7 +541,7 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
                         onClick={() => {
                           setEmailPersona('scout');
                           setEmailSubject('Quick question about your soccer future');
-                          setEmailBody(`Hi,\n\nI'm ${scoutName} with Warubi Sports. I work with European academies including FC Köln's ITP program, Bundesliga clubs, and 200+ college programs in the US to help players find the right opportunity.\n\nI came across your profile and think you've got real potential. If playing in the US or at a European academy is something you're interested in, I'd love to chat about what that could look like for you.\n\nNo pressure — just want to see if it's a good fit.\n\nBest,\n${scoutName}`);
+                          setEmailBody(`Hi,\n\nI'm ${scoutName} with Warubi Sports. I work with European academies including FC Köln's ITP program, Bundesliga clubs, and 200+ college programs in the US to help players find the right opportunity.\n\nI came across your profile and think you've got real potential. If playing in the US or at a European academy is something you're interested in, I'd love to chat about what that could look like for you.${assessmentLink ? `\n\nTake 2 minutes to see where you'd fit — it's free:\n${assessmentLink}` : ''}\n\nNo pressure — just want to see if it's a good fit.\n\nBest,\n${scoutName}`);
                         }}
                         className={`p-3 rounded-xl border text-left transition-all ${emailPersona === 'scout'
                           ? 'border-scout-accent bg-scout-accent/10 text-white'
@@ -554,7 +555,7 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
                         onClick={() => {
                           setEmailPersona('coach');
                           setEmailSubject('Recruiting inquiry from ' + scoutName);
-                          setEmailBody(`Hi,\n\nI'm ${scoutName} and I'm reaching out because I like what I've seen from you as a player.\n\nWe're actively building our roster and looking for the right additions. I think you could be a great fit and I'd love to learn more about your goals and where you are in your recruiting process.\n\nWould you be open to a quick call this week?\n\nBest,\n${scoutName}`);
+                          setEmailBody(`Hi,\n\nI'm ${scoutName} and I'm reaching out because I like what I've seen from you as a player.\n\nWe're actively building our roster and looking for the right additions. I think you could be a great fit and I'd love to learn more about your goals and where you are in your recruiting process.${assessmentLink ? `\n\nHere's a free tool to see where you'd fit — takes 2 minutes:\n${assessmentLink}` : ''}\n\nWould you be open to a quick call this week?\n\nBest,\n${scoutName}`);
                         }}
                         className={`p-3 rounded-xl border text-left transition-all ${emailPersona === 'coach'
                           ? 'border-scout-accent bg-scout-accent/10 text-white'
