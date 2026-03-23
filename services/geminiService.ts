@@ -36,10 +36,13 @@ const callGeminiProxy = async (operation: string, payload: Record<string, any>):
   }
 
   const attemptRequest = async (): Promise<any> => {
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     const response = await fetch(proxyUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'apikey': anonKey,
+        'Authorization': `Bearer ${anonKey}`,
       },
       body: JSON.stringify({ operation, payload }),
     });
