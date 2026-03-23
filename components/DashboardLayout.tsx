@@ -300,7 +300,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                         <Users size={20} /> Players
                         {activePlayers.length > 0 && <span className="ml-auto text-[10px] bg-scout-900 border border-scout-700 px-2 py-0.5 rounded-full text-gray-400">{activePlayers.length}</span>}
                     </button>
-                    <button onClick={() => navigate('/dashboard/outreach')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'outreach' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><Zap size={20} /> Outreach</button>
+                    <button onClick={() => navigate('/dashboard/outreach')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'outreach' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><Zap size={20} /> Messages</button>
                     <button onClick={() => navigate('/dashboard/events')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'events' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><CalendarDays size={20} /> Events</button>
                     <button onClick={() => navigate('/dashboard/my-business')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'my-business' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><BarChart3 size={20} /> My Business</button>
                 </nav>
@@ -411,7 +411,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                     </div>
                     <button onClick={() => { haptic.light(); navigate('/dashboard/outreach'); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === 'outreach' ? 'text-scout-accent' : 'text-gray-600'}`}>
                         <Zap size={20} />
-                        <span className="text-[8px] font-black uppercase">Outreach</span>
+                        <span className="text-[8px] font-black uppercase">Messages</span>
                     </button>
                     <button onClick={() => { haptic.light(); navigate('/dashboard/my-business'); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === 'my-business' ? 'text-scout-accent' : 'text-gray-600'}`}>
                         <BarChart3 size={20} />
