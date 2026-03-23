@@ -1,9 +1,10 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Zap, MapPin, Loader2, Copy, Check } from 'lucide-react';
 import { useDashboardContext } from './DashboardLayout';
 import { FunnelStrip } from './home/FunnelStrip';
 import { WarmLeadsStrip } from './home/WarmLeadsStrip';
 import { BulkOutreachFlow } from './BulkOutreachFlow';
+import { FirstRunGuide } from './home/FirstRunGuide';
 
 const PlayersContent = lazy(() => import('./PlayersContent'));
 
@@ -22,6 +23,9 @@ const HomeContent: React.FC = () => {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, mode);
   }, [mode]);
+
+  const importRef = useRef<HTMLDivElement>(null);
+  const scrollToImport = () => importRef.current?.scrollIntoView({ behavior: 'smooth' });
 
   const assessmentLink = user.scoutId ? `https://app.warubi-sports.com?ref=${user.scoutId}` : '';
 
@@ -59,8 +63,19 @@ const HomeContent: React.FC = () => {
       {/* Mode content */}
       {mode === 'blast' ? (
         <div className="space-y-4">
-          {/* EE Link banner */}
-          {assessmentLink && (
+          {/* First-run guide for new scouts */}
+          {players.length === 0 && assessmentLink && (
+            <FirstRunGuide
+              assessmentLink={assessmentLink}
+              onCopyLink={handleCopyLink}
+              linkCopied={linkCopied}
+              onStartImport={scrollToImport}
+              hasPlayers={false}
+            />
+          )}
+
+          {/* EE Link banner (hidden during first-run) */}
+          {players.length > 0 && assessmentLink && (
             <div className="bg-gradient-to-r from-scout-accent/10 to-transparent border border-scout-accent/30 rounded-xl p-4 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-xs font-black text-scout-accent uppercase tracking-wider mb-0.5">Your ExposureEngine Link</p>
@@ -77,13 +92,15 @@ const HomeContent: React.FC = () => {
           )}
 
           {/* Inline bulk import + outreach flow */}
-          <BulkOutreachFlow
-            scoutId={user.scoutId}
-            scoutName={user.name}
-            scoutBio={user.bio}
-            onClose={() => {}}
-            inline
-          />
+          <div ref={importRef}>
+            <BulkOutreachFlow
+              scoutId={user.scoutId}
+              scoutName={user.name}
+              scoutBio={user.bio}
+              onClose={() => {}}
+              inline
+            />
+          </div>
 
           {/* Warm leads */}
           <WarmLeadsStrip players={players} />

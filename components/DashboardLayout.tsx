@@ -100,6 +100,22 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     const [isShareToolkitOpen, setIsShareToolkitOpen] = useState(false);
     const [isNetworkModalOpen, setIsNetworkModalOpen] = useState(false);
 
+
+    // Auto-followup: trigger once per session to send pending follow-up emails
+    useEffect(() => {
+        const SESSION_KEY = 'scoutbuddy_followup_checked';
+        if (sessionStorage.getItem(SESSION_KEY)) return;
+        sessionStorage.setItem(SESSION_KEY, '1');
+        const proxyUrl = import.meta.env.VITE_SUPABASE_URL;
+        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        if (!proxyUrl || !anonKey) return;
+        fetch(`${proxyUrl}/functions/v1/auto-followup`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': anonKey, 'Authorization': `Bearer ${anonKey}` },
+            body: '{}',
+        }).catch(() => {}); // best-effort, never block UI
+    }, []);
+
     const submissionLink = user.scoutId ? `https://app.warubi-sports.com?ref=${user.scoutId}` : '';
     const handleCopyLink = () => {
         if (!submissionLink) return;
