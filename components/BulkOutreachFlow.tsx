@@ -36,6 +36,7 @@ interface BulkOutreachFlowProps {
   scoutName: string;
   scoutBio?: string;
   onClose: () => void;
+  inline?: boolean;
 }
 
 export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
@@ -43,6 +44,7 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
   scoutName,
   scoutBio,
   onClose,
+  inline = false,
 }) => {
   const [step, setStep] = useState<FlowStep>('UPLOAD');
   const [extractedPlayers, setExtractedPlayers] = useState<ExtractedPlayer[]>([]);
@@ -345,12 +347,22 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
     { value: 'Request Video', label: 'Request Video', desc: 'Ask for footage' },
   ];
 
+  const Wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    if (inline) {
+      return <div className="bg-scout-900 rounded-2xl border border-scout-700 overflow-hidden">{children}</div>;
+    }
+    return (
+      <div className="fixed inset-0 z-[120] flex items-end md:items-center justify-center">
+        <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={handleClose} />
+        <div className="relative w-full md:max-w-3xl md:mx-4 bg-scout-900 rounded-t-2xl md:rounded-2xl border border-scout-700 max-h-[90vh] flex flex-col overflow-hidden">{children}</div>
+      </div>
+    );
+  };
+
   return (
-    <div className="fixed inset-0 z-[120] flex items-end md:items-center justify-center">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={handleClose} />
-      <div className="relative w-full md:max-w-3xl md:mx-4 bg-scout-900 rounded-t-2xl md:rounded-2xl border border-scout-700 max-h-[90vh] flex flex-col overflow-hidden">
+    <Wrapper>
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-scout-700 shrink-0">
+        <div className={`flex items-center justify-between ${inline ? 'p-4' : 'p-5'} border-b border-scout-700 shrink-0`}>
           <div>
             <h2 className="text-lg font-black text-white uppercase tracking-tight">
               {step === 'UPLOAD' && 'Bulk Import'}
@@ -370,9 +382,16 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
               ))}
             </div>
           </div>
-          <button onClick={handleClose} className="p-2 hover:bg-scout-800 rounded-xl transition-colors">
-            <X size={20} className="text-gray-500" />
-          </button>
+          {inline ? (
+            step !== 'UPLOAD' ? (
+              <button onClick={() => { setStep('UPLOAD'); setExtractedPlayers([]); setSavedPlayers([]); setOutreachMessages([]); setEmailSent(false); }}
+                className="text-[10px] text-gray-500 hover:text-white transition-colors font-bold uppercase">Reset</button>
+            ) : null
+          ) : (
+            <button onClick={handleClose} className="p-2 hover:bg-scout-800 rounded-xl transition-colors">
+              <X size={20} className="text-gray-500" />
+            </button>
+          )}
         </div>
 
         {/* Content */}
@@ -817,7 +836,6 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
             </button>
           </div>
         )}
-      </div>
-    </div>
+    </Wrapper>
   );
 };

@@ -7,7 +7,7 @@ import GlobalSearch from './GlobalSearch';
 import TrialRequestModal, { TrialDates } from './TrialRequestModal';
 import PlacementModal, { PlacementData } from './PlacementModal';
 import { haptic } from '../hooks/useMobileFeatures';
-import { Users, CalendarDays, Plus, LogOut, Lightbulb, BarChart3, Link2, Copy, CheckCircle, DollarSign, Share2, Zap } from 'lucide-react';
+import { Home, Users, CalendarDays, Plus, LogOut, Lightbulb, BarChart3, Link2, Copy, CheckCircle, DollarSign, Share2, Zap } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
 import { BulkOutreachFlow } from './BulkOutreachFlow';
 import ShareToolkit from './ShareToolkit';
@@ -297,7 +297,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 )}
                 <nav className="flex-1 p-4 space-y-2">
                     <button onClick={() => navigate('/dashboard/players')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'players' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:bg-scout-900/50'}`}>
-                        <Users size={20} /> Players
+                        <Home size={20} /> Home
                         {activePlayers.length > 0 && <span className="ml-auto text-[10px] bg-scout-900 border border-scout-700 px-2 py-0.5 rounded-full text-gray-400">{activePlayers.length}</span>}
                     </button>
                     <button onClick={() => navigate('/dashboard/outreach')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'outreach' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><Zap size={20} /> Messages</button>
@@ -397,8 +397,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             <nav className="md:hidden fixed bottom-0 w-full bg-[#05080f]/95 backdrop-blur-2xl border-t border-scout-700 z-[110] px-2 pt-2 pb-6" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
                 <div className="flex justify-around items-end max-w-md mx-auto">
                     <button onClick={() => { haptic.light(); navigate('/dashboard/players'); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === 'players' ? 'text-scout-accent' : 'text-gray-600'}`}>
-                        <Users size={20} />
-                        <span className="text-[8px] font-black uppercase">Players</span>
+                        <Home size={20} />
+                        <span className="text-[8px] font-black uppercase">Home</span>
                     </button>
                     <button onClick={() => { haptic.light(); navigate('/dashboard/events'); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === 'events' ? 'text-scout-accent' : 'text-gray-600'}`}>
                         <CalendarDays size={20} />

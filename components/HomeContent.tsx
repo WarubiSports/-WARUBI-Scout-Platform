@@ -1,8 +1,9 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { Zap, MapPin, Loader2 } from 'lucide-react';
+import { Zap, MapPin, Loader2, Copy, Check } from 'lucide-react';
 import { useDashboardContext } from './DashboardLayout';
 import { FunnelStrip } from './home/FunnelStrip';
 import { WarmLeadsStrip } from './home/WarmLeadsStrip';
+import { BulkOutreachFlow } from './BulkOutreachFlow';
 
 const PlayersContent = lazy(() => import('./PlayersContent'));
 
@@ -11,7 +12,7 @@ type HomeMode = 'blast' | 'field';
 const STORAGE_KEY = 'scoutbuddy_home_mode';
 
 const HomeContent: React.FC = () => {
-  const { user, players, openBulkOutreach, submissionLink, handleCopyLink, linkCopied } = useDashboardContext();
+  const { user, players, submissionLink, handleCopyLink, linkCopied } = useDashboardContext();
 
   const [mode, setMode] = useState<HomeMode>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -26,7 +27,7 @@ const HomeContent: React.FC = () => {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* Funnel metrics — always visible */}
+      {/* Funnel metrics */}
       <FunnelStrip players={players} />
 
       {/* Mode toggle */}
@@ -68,24 +69,21 @@ const HomeContent: React.FC = () => {
               </div>
               <button
                 onClick={handleCopyLink}
-                className="shrink-0 px-4 py-2 bg-scout-accent/20 border border-scout-accent/40 rounded-lg text-scout-accent text-xs font-bold hover:bg-scout-accent/30 transition-colors"
+                className="shrink-0 px-4 py-2 bg-scout-accent/20 border border-scout-accent/40 rounded-lg text-scout-accent text-xs font-bold hover:bg-scout-accent/30 transition-colors flex items-center gap-1.5"
               >
-                {linkCopied ? 'Copied!' : 'Copy'}
+                {linkCopied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
               </button>
             </div>
           )}
 
-          {/* Big blast CTA */}
-          <button
-            onClick={openBulkOutreach}
-            className="w-full py-6 bg-gradient-to-br from-scout-accent to-emerald-500 text-scout-900 rounded-2xl font-black uppercase text-lg flex items-center justify-center gap-3 shadow-glow hover:scale-[1.01] active:scale-[0.99] transition-all"
-          >
-            <Zap size={24} />
-            Import Roster & Blast Outreach
-          </button>
-          <p className="text-center text-gray-500 text-[10px]">
-            Upload a roster, review, and email all players in under 30 seconds
-          </p>
+          {/* Inline bulk import + outreach flow */}
+          <BulkOutreachFlow
+            scoutId={user.scoutId}
+            scoutName={user.name}
+            scoutBio={user.bio}
+            onClose={() => {}}
+            inline
+          />
 
           {/* Warm leads */}
           <WarmLeadsStrip players={players} />
