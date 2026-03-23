@@ -433,7 +433,7 @@ ${user.name}`);
                                             )}
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
-                                                className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
+                                                className="md:opacity-0 md:group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
                                                 title="Move to Send Contract"
                                             >
                                                 <span>→ Send Contract</span>
@@ -469,7 +469,7 @@ ${user.name}`);
                                             )}
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
-                                                className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
+                                                className="md:opacity-0 md:group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
                                                 title="Move to Send Contract"
                                             >
                                                 <span>→ Send Contract</span>
@@ -505,7 +505,7 @@ ${user.name}`);
                                             )}
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
-                                                className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
+                                                className="md:opacity-0 md:group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
                                                 title="Move to Send Contract"
                                             >
                                                 <span>→ Send Contract</span>
@@ -523,7 +523,7 @@ ${user.name}`);
                         </div>
                         <div className="divide-y divide-scout-700/30">
                             {filteredUndiscovered.map(p => (
-                                <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all hover:bg-scout-700/50 flex items-center opacity-60 grayscale border-l-4 group ${selectedPlayerId === p.id ? 'border-white/20 bg-white/5 grayscale-0 opacity-100' : 'border-transparent'}`}>
+                                <div key={p.id} onClick={() => setSelectedPlayerId(p.id)} className={`p-5 cursor-pointer transition-all hover:bg-scout-700/50 flex items-center opacity-80 border-l-4 group ${selectedPlayerId === p.id ? 'border-white/20 bg-white/5 opacity-100' : 'border-transparent'}`}>
                                     <div className="min-w-0 flex-1">
                                         <h4 className="text-sm font-bold truncate text-white">{p.name}</h4>
                                         <p className="text-[9px] text-gray-500 font-black uppercase">{p.position} • {p.age}yo</p>
@@ -540,7 +540,7 @@ ${user.name}`);
                                         )}
                                         <button
                                             onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
-                                            className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
+                                            className="md:opacity-0 md:group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
                                             title="Move to Send Contract"
                                         >
                                             <span>→ Send Contract</span>
@@ -576,7 +576,7 @@ ${user.name}`);
                                                 )}
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
-                                                    className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
+                                                    className="md:opacity-0 md:group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
                                                     title="Move to Send Contract"
                                                 >
                                                     <span>→ Send Contract</span>

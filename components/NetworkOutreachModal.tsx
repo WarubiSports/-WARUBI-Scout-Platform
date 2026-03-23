@@ -129,7 +129,9 @@ const NetworkOutreachModal: React.FC<NetworkOutreachModalProps> = ({
                   <div className="flex-1">
                     <p className="font-bold text-white text-sm">My Players Database</p>
                     <p className="text-xs text-gray-500 mt-1">
-                      {dbRecipients.length} players with email addresses
+                      {dbRecipients.length > 0
+                        ? `${dbRecipients.length} players with email addresses`
+                        : `0 of ${players.length} players have emails — add via Edit Player`}
                     </p>
                   </div>
                   <ChevronRight size={18} className="text-gray-600 group-hover:text-scout-accent transition-colors" />
