@@ -369,12 +369,18 @@ const PlayersContent: React.FC = () => {
                                     </button>
                                 </div>
                             </div>
-                            {/* Step 3: Where to share */}
+                            {/* Step 3: Message your pipeline */}
                             <div className="flex items-start gap-3">
                                 <div className="w-7 h-7 bg-scout-accent text-scout-900 rounded-lg flex items-center justify-center font-black text-xs shrink-0 mt-0.5">3</div>
                                 <div className="flex-1">
-                                    <p className="text-sm font-bold text-white">Put it where players are</p>
-                                    <p className="text-[10px] text-gray-500">Instagram bio, WhatsApp status, send to coaches, post in parent groups. Every click is a potential lead.</p>
+                                    <p className="text-sm font-bold text-white">Message your players</p>
+                                    <p className="text-[10px] text-gray-500 mb-2">Send personalized outreach to everyone in your pipeline at once.</p>
+                                    <button
+                                        onClick={() => { openBulkOutreach(); setShareGuideOpen(false); }}
+                                        className="px-4 py-2 bg-scout-900 border border-scout-700 text-white rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-scout-700 transition-all active:scale-[0.98]"
+                                    >
+                                        <Send size={14} /> Bulk Outreach
+                                    </button>
                                 </div>
                             </div>
                         </div>
