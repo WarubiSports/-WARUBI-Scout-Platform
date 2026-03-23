@@ -502,7 +502,7 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                   <span className="text-gray-300 font-medium">{event.title}</span>
               </div>
 
-              <div className="bg-scout-800 border border-scout-700 rounded-xl overflow-hidden flex flex-col md:flex-row shadow-2xl">
+              <div className="bg-scout-800 border border-scout-700 rounded-xl overflow-hidden flex flex-col md:flex-row shadow-2xl max-h-[85vh] md:max-h-none">
                   <div className="md:w-1/3 p-6 border-b md:border-b-0 md:border-r border-scout-700 bg-scout-800/50 flex flex-col justify-between">
                       <div>
                           <div className="mb-6">
@@ -775,7 +775,7 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                       )}
                   </div>
 
-                  <div className="md:w-2/3 p-6 bg-scout-900 flex flex-col gap-6 overflow-y-auto max-h-[80vh] custom-scrollbar">
+                  <div className="md:w-2/3 p-6 bg-scout-900 flex flex-col gap-6 overflow-y-auto max-h-[60vh] md:max-h-[80vh] custom-scrollbar">
                       {isMine || isAttending ? (
                           <>
                               <div className="flex items-center justify-between">
