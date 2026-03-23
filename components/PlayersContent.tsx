@@ -7,6 +7,7 @@ import { haptic } from '../hooks/useMobileFeatures';
 import { Users, CalendarDays, Plus, PlusCircle, Flame, List, LayoutGrid, Search, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, LogOut, Mail, UserPlus, Filter, FileUp, BarChart3, Link2, Copy, CheckCircle, Share2, Zap, Phone } from 'lucide-react';
 import { useDashboardContext } from './DashboardLayout';
 import OutreachComposer from './OutreachComposer';
+import { PlayerDetailSheet } from './home/PlayerDetailSheet';
 
 const PlayersContent: React.FC = () => {
     const {
@@ -40,6 +41,7 @@ const PlayersContent: React.FC = () => {
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [pipelineFilter, setPipelineFilter] = useState<'all' | 'active'>('all');
     const [outreachTargetId, setOutreachTargetId] = useState<string | null>(null);
+    const [detailPlayer, setDetailPlayer] = useState<Player | null>(null);
     const [shareGuideOpen, setShareGuideOpen] = useState(false);
 
     useEffect(() => {
@@ -265,7 +267,7 @@ const PlayersContent: React.FC = () => {
                         </thead>
                         <tbody className="divide-y divide-scout-700/30">
                             {filteredPlayers.map((p, i) => (
-                                <tr key={p.id} className={`${i % 2 === 0 ? 'bg-transparent' : 'bg-white/[0.02]'} hover:bg-scout-accent/5 transition-colors group`}>
+                                <tr key={p.id} onClick={() => setDetailPlayer(p)} className={`${i % 2 === 0 ? 'bg-transparent' : 'bg-white/[0.02]'} hover:bg-scout-accent/5 transition-colors group cursor-pointer`}>
                                     <td className="px-6 py-4">
                                         <div className="font-bold text-white text-sm">{p.name}</div>
                                         <div className="text-[10px] text-gray-500 uppercase font-black">{p.position} • {p.age}yo</div>

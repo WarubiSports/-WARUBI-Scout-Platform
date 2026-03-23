@@ -1,12 +1,16 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Flame, ArrowRight, MessageSquare, Share2 } from 'lucide-react';
 import { Player } from '../../types';
+import { PlayerDetailSheet } from './PlayerDetailSheet';
+import { useDashboardContext } from '../DashboardLayout';
 
 interface WarmLeadsStripProps {
   players: Player[];
 }
 
 export const WarmLeadsStrip: React.FC<WarmLeadsStripProps> = ({ players }) => {
+  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const { handleEditPlayer } = useDashboardContext();
   const warmLeads = useMemo(() => {
     return players
       .filter(p => p.activityStatus && p.activityStatus !== 'undiscovered')
@@ -36,7 +40,8 @@ export const WarmLeadsStrip: React.FC<WarmLeadsStripProps> = ({ players }) => {
         {warmLeads.map((player) => (
           <div
             key={player.id}
-            className="shrink-0 w-48 bg-scout-800 border border-scout-700 rounded-xl p-3 hover:border-scout-accent/40 transition-colors"
+            onClick={() => setSelectedPlayer(player)}
+            className="shrink-0 w-48 bg-scout-800 border border-scout-700 rounded-xl p-3 hover:border-scout-accent/40 transition-colors cursor-pointer active:scale-[0.98]"
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2 min-w-0">
@@ -86,6 +91,13 @@ export const WarmLeadsStrip: React.FC<WarmLeadsStripProps> = ({ players }) => {
           </div>
         ))}
       </div>
+      {selectedPlayer && (
+        <PlayerDetailSheet
+          player={selectedPlayer}
+          onClose={() => setSelectedPlayer(null)}
+          onEdit={(p) => { setSelectedPlayer(null); handleEditPlayer(p); }}
+        />
+      )}
     </div>
   );
 };
