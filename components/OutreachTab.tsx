@@ -359,15 +359,16 @@ ${user.name}`);
               </div>
               <div>
                   <h3 className="text-sm font-black text-white uppercase tracking-tighter italic">Scouting Funnel</h3>
-                  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">From Discovery to Send Contract</p>
+                  <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">From Discovery to Placement</p>
               </div>
           </div>
-          <div className="flex gap-4 md:gap-12">
+          <div className="flex gap-3 md:gap-8">
               {[
                   { i: <Ghost size={16}/>, l: '1. Lead', s: 'New Lead', c: 'text-gray-500' },
                   { i: <Send size={16}/>, l: '2. Request Trial', s: 'Outreach Sent', c: 'text-blue-500' },
-                  { i: <Flame size={16} className="animate-pulse"/>, l: '3. Signal', s: 'Engaged', c: 'text-orange-500' },
-                  { i: <Trophy size={16} className="text-scout-accent"/>, l: '4. Send Contract', s: 'Ready', c: 'text-scout-accent' }
+                  { i: <Flame size={16} className="animate-pulse"/>, l: '3. Send Contract', s: 'Ready', c: 'text-orange-500' },
+                  { i: <Trophy size={16}/>, l: '4. Offered', s: 'Deal Pending', c: 'text-amber-400' },
+                  { i: <Trophy size={16} className="text-scout-accent"/>, l: '5. Placed', s: 'Done', c: 'text-scout-accent' }
               ].map((step, idx) => (
                   <div key={idx} className="flex flex-col items-center text-center">
                       <div className={`flex items-center gap-1.5 font-black uppercase text-[10px] mb-1 ${step.c}`}>

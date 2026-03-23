@@ -20,7 +20,7 @@ function buildEmailBody(scoutName: string, submissionLink: string): string {
 
 I wanted to share a free tool that might help you or a player you know.
 
-The ExposureEngine analyzes a player's stats, league level, and academics to show where they'd realistically fit in US college soccer — D1, D2, D3, NAIA, or JUCO. It also gives a personalized 90-day action plan.
+The ExposureEngine analyzes a player's stats, league level, and academics to show where they'd realistically fit — US college soccer (D1, D2, NAIA, JUCO) or European academy pathways including Bundesliga programs. It also gives a personalized action plan.
 
 Takes about 3 minutes:
 ${submissionLink}
