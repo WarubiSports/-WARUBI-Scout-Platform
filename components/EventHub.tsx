@@ -14,6 +14,24 @@ import {
 
 import type { Player } from '../types';
 
+
+// Build personal registration link: prefer showcaseSlug, fall back to event_link
+const getPersonalLink = (event: ScoutingEvent, scoutId?: string): { full: string; display: string } | null => {
+  const ref = scoutId ? `?ref=${scoutId}` : '';
+  if (event.showcaseSlug) {
+    return {
+      full: `https://showcase-coordinator.vercel.app/event/${event.showcaseSlug}${ref}`,
+      display: `showcase-coordinator.vercel.app/event/${event.showcaseSlug}${ref}`,
+    };
+  }
+  if (event.link) {
+    const url = event.link.replace(/\/$/, '');
+    const fullUrl = url.startsWith('http') ? `${url}${ref}` : `https://${url}${ref}`;
+    const displayUrl = url.replace(/^https?:\/\//, '') + ref;
+    return { full: fullUrl, display: displayUrl };
+  }
+  return null;
+};
 interface EventHubProps {
   events: ScoutingEvent[];
   user: UserProfile;
@@ -44,7 +62,8 @@ const StatusPill = ({ status }: { status: EventStatus }) => {
 // Pre-written share messages for WhatsApp, Instagram, Email
 const ShareMessages = ({ event, scoutId, copyToClipboard, copied }: { event: ScoutingEvent; scoutId?: string; copyToClipboard: (text: string, key: string) => void; copied: string | null }) => {
     const [expanded, setExpanded] = useState(false)
-    const link = `https://showcase-coordinator.vercel.app/event/${event.showcaseSlug}${scoutId ? `?ref=${scoutId}` : ''}`
+    const personalLink = getPersonalLink(event, scoutId);
+    const link = personalLink?.full || ''
     const dateStr = event.date ? new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : ''
 
     const whatsapp = `Hey! 👋 There's a ${event.type} coming up — *${event.title}* on ${dateStr} in ${event.location}. College coaches will be there scouting players. Register here: ${link}`
@@ -667,23 +686,23 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                       <div className="bg-scout-900 p-4 rounded-lg border border-scout-700">
                                           <label className="text-xs text-gray-500 font-bold uppercase mb-2 block">Registration Link</label>
                                           <div className="flex gap-2">
-                                              {event.showcaseSlug ? (
+                                              {(() => { const pl = getPersonalLink(event, currentScoutId); return pl ? (
                                                 <>
-                                                  <input readOnly value={`showcase-coordinator.vercel.app/event/${event.showcaseSlug}${currentScoutId ? `?ref=${currentScoutId}` : ''}`} className="bg-scout-800 text-scout-accent text-sm px-2 rounded border border-scout-600 w-full"/>
-                                                  <button onClick={() => copyToClipboard(`https://showcase-coordinator.vercel.app/event/${event.showcaseSlug}${currentScoutId ? `?ref=${currentScoutId}` : ''}`, 'link')} className="p-2 bg-scout-700 hover:bg-scout-600 rounded text-white">{copied === 'link' ? <CheckCircle size={16}/> : <Copy size={16}/>}</button>
+                                                  <input readOnly value={pl.display} className="bg-scout-800 text-scout-accent text-sm px-2 rounded border border-scout-600 w-full"/>
+                                                  <button onClick={() => copyToClipboard(pl.full, 'link')} className="p-2 bg-scout-700 hover:bg-scout-600 rounded text-white">{copied === 'link' ? <CheckCircle size={16}/> : <Copy size={16}/>}</button>
                                                 </>
                                               ) : (
                                                 <button onClick={() => onUpdateEvent({ ...event, status: 'Published' })} className="w-full bg-scout-accent/20 text-scout-accent text-sm font-bold py-2 px-3 rounded border border-scout-accent/30 hover:bg-scout-accent/30 transition-colors">
                                                   Retry Sync
                                                 </button>
-                                              )}
+                                              ); })()}
                                           </div>
                                       </div>
                                   )}
-                                  {event.status === 'Published' && event.showcaseSlug && (
+                                  {event.status === 'Published' && (event.showcaseSlug || event.link) && (
                                       <ShareMessages event={event} scoutId={currentScoutId} copyToClipboard={copyToClipboard} copied={copied} />
                                   )}
-                                  {event.status === 'Published' && event.showcaseSlug && onNetworkOutreach && (
+                                  {event.status === 'Published' && (event.showcaseSlug || event.link) && onNetworkOutreach && (
                                       <button
                                         onClick={() => onNetworkOutreach(event)}
                                         className="w-full py-3 bg-scout-accent/10 border border-scout-accent/20 text-scout-accent rounded-lg font-black uppercase text-xs flex items-center justify-center gap-2 hover:bg-scout-accent/20 transition-all"
@@ -719,16 +738,16 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                       </div>
                                   )}
                               </div>
-                              {event.status === 'Published' && event.showcaseSlug && (
+                              {event.status === 'Published' && (() => { const pl = getPersonalLink(event, currentScoutId); return pl ? (
                                   <div className="bg-scout-900 p-4 rounded-lg border border-scout-700 mt-4 space-y-3">
                                       <label className="text-xs text-gray-500 font-bold uppercase block">Your Registration Link</label>
                                       <div className="flex gap-2">
-                                          <input readOnly value={`showcase-coordinator.vercel.app/event/${event.showcaseSlug}${currentScoutId ? `?ref=${currentScoutId}` : ''}`} className="bg-scout-800 text-scout-accent text-sm px-2 rounded border border-scout-600 w-full"/>
-                                          <button onClick={() => copyToClipboard(`https://showcase-coordinator.vercel.app/event/${event.showcaseSlug}${currentScoutId ? `?ref=${currentScoutId}` : ''}`, 'link')} className="p-2 bg-scout-700 hover:bg-scout-600 rounded text-white">{copied === 'link' ? <CheckCircle size={16}/> : <Copy size={16}/>}</button>
+                                          <input readOnly value={pl.display} className="bg-scout-800 text-scout-accent text-sm px-2 rounded border border-scout-600 w-full"/>
+                                          <button onClick={() => copyToClipboard(pl.full, 'link')} className="p-2 bg-scout-700 hover:bg-scout-600 rounded text-white">{copied === 'link' ? <CheckCircle size={16}/> : <Copy size={16}/>}</button>
                                       </div>
                                       <ShareMessages event={event} scoutId={currentScoutId} copyToClipboard={copyToClipboard} copied={copied} />
                                   </div>
-                              )}
+                              ) : null; })()}
                               </>
                           )}
 
@@ -975,11 +994,11 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
             </div>
 
             <div className="absolute bottom-0 w-full bg-scout-800 border-t border-scout-700 p-4 pb-safe flex gap-3">
-                {event.status === 'Published' && event.showcaseSlug && (
-                    <button onClick={() => copyToClipboard(`https://showcase-coordinator.vercel.app/event/${event.showcaseSlug}${currentScoutId ? `?ref=${currentScoutId}` : ''}`, 'link')} className="flex-1 bg-scout-700 text-white font-bold py-3 rounded-xl">
+                {event.status === 'Published' && (() => { const pl = getPersonalLink(event, currentScoutId); return pl ? (
+                    <button onClick={() => copyToClipboard(pl.full, 'link')} className="flex-1 bg-scout-700 text-white font-bold py-3 rounded-xl">
                         {copied === 'link' ? 'Copied!' : 'Share Link'}
                     </button>
-                )}
+                ) : null; })()}
                 <button className="flex-1 bg-scout-accent text-scout-900 font-bold py-3 rounded-xl shadow-lg">
                     Check In
                 </button>
@@ -1004,7 +1023,7 @@ const EventNetworkOutreach = ({ event, scoutName, scoutId, players, onClose }: {
   const [bodyCopied, setBodyCopied] = useState(false);
   const [batchesSent, setBatchesSent] = useState(0);
 
-  const regLink = `https://showcase-coordinator.vercel.app/event/${event.showcaseSlug}${scoutId ? `?ref=${scoutId}` : ''}`;
+  const regLink = getPersonalLink(event, scoutId)?.full || '';
   const dateStr = event.date ? new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
 
   const subject = `${event.title} — ${dateStr}`;
