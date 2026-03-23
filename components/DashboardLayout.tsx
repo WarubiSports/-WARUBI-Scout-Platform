@@ -334,7 +334,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                         className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 text-amber-400 hover:text-amber-300 hover:border-amber-400/50 transition-all group"
                     >
                         <Lightbulb size={18} className="group-hover:rotate-12 transition-transform" />
-                        <span className="text-sm font-bold">Feedback & Ideas</span>
+                        <span className="text-sm font-bold">Report a Bug</span>
                     </button>
                 </div>
                 <div className="flex-1" />
