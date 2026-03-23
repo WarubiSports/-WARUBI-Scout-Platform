@@ -233,9 +233,11 @@ export function useEvents(scoutId: string | undefined) {
       if (event.showcaseEventId) {
         // Update existing showcase event
         await supabaseRest.update('showcase_events', `id=eq.${event.showcaseEventId}`, showcaseData)
-        // Keep slug in sync
+        // Fetch the real slug from showcase (may differ from computed slug)
+        const { data: scEvt } = await supabaseRest.select<{ slug: string }>('showcase_events', `id=eq.${event.showcaseEventId}&select=slug`)
+        const realSlug = scEvt?.[0]?.slug || slug
         await supabaseRest.update('scouting_events', `id=eq.${event.id}`, {
-          showcase_slug: slug,
+          showcase_slug: realSlug,
         })
         return event.showcaseEventId
       } else {
@@ -244,10 +246,13 @@ export function useEvents(scoutId: string | undefined) {
         if (error) throw new Error(error.message)
         if (!data) throw new Error('No data returned from showcase insert')
 
+        // Fetch the real slug from showcase (DB may transform it)
+        const { data: newScEvt } = await supabaseRest.select<{ slug: string }>('showcase_events', `id=eq.${data.id}&select=slug`)
+        const realSlug = newScEvt?.[0]?.slug || slug
         // Link back to scouting event with slug
         await supabaseRest.update('scouting_events', `id=eq.${event.id}`, {
           showcase_event_id: data.id,
-          showcase_slug: slug,
+          showcase_slug: realSlug,
         })
 
         // Auto-add hosting scout to the public event page
@@ -318,9 +323,10 @@ export function useEvents(scoutId: string | undefined) {
           if (isBecomingPublished || isAlreadyPublished) {
             const showcaseEventId = await syncToShowcase(mergedEvent)
             if (showcaseEventId) {
-              const slug = slugify(mergedEvent.title + (mergedEvent.date ? `-${mergedEvent.date.slice(0, 4)}` : ''))
+              // Read the real slug back from the scouting event (syncToShowcase already updated it)
+              const { data: updatedSE } = await supabaseRest.select<{ showcase_slug: string }>('scouting_events', `id=eq.${eventId}&select=showcase_slug`)
               updates.showcaseEventId = showcaseEventId
-              updates.showcaseSlug = slug
+              updates.showcaseSlug = updatedSE?.[0]?.showcase_slug || mergedEvent.showcaseSlug
             }
           }
 
