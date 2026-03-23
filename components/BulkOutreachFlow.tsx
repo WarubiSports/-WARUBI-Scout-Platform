@@ -52,8 +52,17 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
   const [isExtracting, setIsExtracting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [extractionFailed, setExtractionFailed] = useState(false);
+  const [lastFile, setLastFile] = useState<File | null>(null);
   const [pasteText, setPasteText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Timeout wrapper — rejects after ms
+  const withTimeout = <T,>(promise: Promise<T>, ms: number, label: string): Promise<T> =>
+    Promise.race([
+      promise,
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s. Please try again.`)), ms)),
+    ]);
 
   const { addProspectsBatch } = useProspects(scoutId);
   const { logOutreach } = useOutreach(scoutId);
@@ -68,25 +77,34 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
   // UPLOAD handlers
   const handleFileUpload = async (file: File) => {
     setIsExtracting(true);
+    setExtractionFailed(false);
+    setLastFile(file);
     try {
       const isImage = file.type.startsWith('image/');
       const isPdf = file.type === 'application/pdf';
+      let players: Partial<Player>[];
       if (isImage) {
         const base64 = await fileToBase64(file);
-        const players = await extractRosterFromPhoto(base64, file.type);
-        setExtractedPlayers(normalizeExtracted(players));
+        players = await withTimeout(extractRosterFromPhoto(base64, file.type), 30000, 'Extraction');
       } else if (isPdf) {
         const base64 = await fileToBase64(file);
-        const players = await extractPlayersFromBulkData(base64, true, 'application/pdf');
-        setExtractedPlayers(normalizeExtracted(players));
+        players = await withTimeout(extractPlayersFromBulkData(base64, true, 'application/pdf'), 30000, 'Extraction');
       } else {
         const text = await file.text();
-        const players = await extractPlayersFromBulkData(text);
-        setExtractedPlayers(normalizeExtracted(players));
+        players = await withTimeout(extractPlayersFromBulkData(text), 30000, 'Extraction');
       }
-      setStep('REVIEW');
+      const normalized = normalizeExtracted(players);
+      if (normalized.length === 0) {
+        setExtractionFailed(true);
+        toast.error('No players found', { description: 'The AI couldn\'t find player data. Try a clearer file or paste the data instead.' });
+      } else {
+        setExtractedPlayers(normalized);
+        setStep('REVIEW');
+      }
     } catch (err) {
-      toast.error('Failed to extract players', { description: err instanceof Error ? err.message : 'Try a different format' });
+      setExtractionFailed(true);
+      const msg = err instanceof Error ? err.message : 'Something went wrong';
+      toast.error('Extraction failed', { description: msg.includes('timed out') ? 'The AI took too long. Tap Retry.' : msg });
     } finally {
       setIsExtracting(false);
     }
@@ -95,12 +113,21 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
   const handlePasteSubmit = async () => {
     if (!pasteText.trim()) return;
     setIsExtracting(true);
+    setExtractionFailed(false);
     try {
-      const players = await extractPlayersFromBulkData(pasteText);
-      setExtractedPlayers(normalizeExtracted(players));
-      setStep('REVIEW');
+      const players = await withTimeout(extractPlayersFromBulkData(pasteText), 30000, 'Extraction');
+      const normalized = normalizeExtracted(players);
+      if (normalized.length === 0) {
+        setExtractionFailed(true);
+        toast.error('No players found', { description: 'The AI couldn\'t find player data in the text you pasted.' });
+      } else {
+        setExtractedPlayers(normalized);
+        setStep('REVIEW');
+      }
     } catch (err) {
-      toast.error('Failed to extract players', { description: err instanceof Error ? err.message : 'Try a different format' });
+      setExtractionFailed(true);
+      const msg = err instanceof Error ? err.message : 'Something went wrong';
+      toast.error('Extraction failed', { description: msg.includes('timed out') ? 'The AI took too long. Tap Retry.' : msg });
     } finally {
       setIsExtracting(false);
     }
@@ -164,7 +191,7 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
         isRecalibrating: false,
       }));
 
-      const saved = await addProspectsBatch(playersToSave);
+      const saved = await withTimeout(addProspectsBatch(playersToSave), 20000, 'Saving players');
       setSavedPlayers(saved);
 
       if (saved.length > 0) {
@@ -194,10 +221,10 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
         club: p.club || '',
       }));
 
-      const results = await bulkGenerateOutreach(scoutName, playerData, selectedTemplate, {
+      const results = await withTimeout(bulkGenerateOutreach(scoutName, playerData, selectedTemplate, {
         scoutBio,
         language: 'en',
-      });
+      }), 45000, 'Message generation');
 
       const messages: OutreachMessage[] = savedPlayers.map(p => {
         const match = results.find(r => r.id === p.id);
@@ -309,6 +336,21 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 size={32} className="text-scout-accent animate-spin" />
                     <p className="text-gray-400 text-sm">Extracting players with AI...</p>
+                    <p className="text-gray-600 text-xs">This usually takes 5-15 seconds</p>
+                  </div>
+                ) : extractionFailed ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <Upload size={32} className="mx-auto text-red-400 mb-1" />
+                    <p className="text-white font-bold">Extraction failed</p>
+                    <p className="text-gray-500 text-xs">The AI couldn't read the file. Try a different format or paste the data below.</p>
+                    {lastFile && (
+                      <button
+                        onClick={() => handleFileUpload(lastFile)}
+                        className="mt-1 px-5 py-2 bg-scout-accent text-scout-900 rounded-lg font-bold text-sm"
+                      >
+                        Retry
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <>
