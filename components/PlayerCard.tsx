@@ -393,7 +393,7 @@ const PlayerCard: React.FC<PlayerCardProps> = ({
                         className="appearance-none bg-scout-900/50 text-[9px] font-bold uppercase pl-2 pr-5 py-1.5 rounded-lg border border-scout-700/50 text-gray-400 focus:border-scout-accent focus:outline-none cursor-pointer hover:bg-scout-700/50"
                     >
                         <option value={PlayerStatus.LEAD}>Lead</option>
-                        <option value={PlayerStatus.CONTACT_REQUESTED}>Contact Requested</option>
+                        <option value={PlayerStatus.CONTACT_REQUESTED}>Request Contact</option>
                         <option value={PlayerStatus.REQUEST_TRIAL}>Request Trial</option>
                         <option value={PlayerStatus.OFFERED}>Offered</option>
                         <option value={PlayerStatus.PLACED}>Placed</option>

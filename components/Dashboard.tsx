@@ -347,7 +347,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
         const handlePromote = () => {
             if (currentPlayer) {
-                // Move to next stage: Lead → Contact Requested → Request Trial → Offered → Placed
+                // Move to next stage: Lead → Request Contact → Request Trial → Offered → Placed
                 const stages = [PlayerStatus.LEAD, PlayerStatus.CONTACT_REQUESTED, PlayerStatus.REQUEST_TRIAL, PlayerStatus.OFFERED, PlayerStatus.PLACED];
                 const currentIndex = stages.indexOf(currentPlayer.status);
                 if (currentIndex < stages.length - 1) {

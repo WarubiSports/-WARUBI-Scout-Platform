@@ -10,8 +10,8 @@ interface InsightsTabProps {
 }
 
 export const InsightsTab: React.FC<InsightsTabProps> = ({ scouts, allProspects }) => {
-    const stages = ['Lead', 'Contact Requested', 'Request Trial', 'Offered', 'Placed'] as const;
-    const stageColors: Record<string, string> = { Lead: '#6b7280', 'Contact Requested': '#06b6d4', 'Request Trial': '#3b82f6', Offered: '#a855f7', Placed: '#10b981' };
+    const stages = ['Lead', 'Request Contact', 'Request Trial', 'Offered', 'Placed'] as const;
+    const stageColors: Record<string, string> = { Lead: '#6b7280', 'Request Contact': '#06b6d4', 'Request Trial': '#3b82f6', Offered: '#a855f7', Placed: '#10b981' };
 
     // Build per-scout funnel data
     type ScoutFunnel = { id: string; name: string; region: string; total: number; lead: number; contacted: number; trial: number; offered: number; placed: number; archived: number; convRate: number; trialRate: number; avgScore: number };

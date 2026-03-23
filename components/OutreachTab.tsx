@@ -258,7 +258,7 @@ ${user.name}`);
     });
   };
 
-  // Move player to "Contact Requested" stage with rewarding feedback
+  // Move player to "Request Contact" stage with rewarding feedback
   const promoteToMyPlayers = (playerId?: string, playerName?: string) => {
       const targetId = playerId || selectedPlayer?.id;
       const targetName = playerName || selectedPlayer?.name || 'Player';
@@ -268,7 +268,7 @@ ${user.name}`);
           haptic.success();
 
           // Show rewarding toast notification
-          toast.success(`${targetName} moved to Contact Requested! 🎯`, {
+          toast.success(`${targetName} moved to Request Contact! 🎯`, {
               description: 'Player is ready for contract',
               duration: 3000,
           });
@@ -408,9 +408,9 @@ ${user.name}`);
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
                                                 className="md:opacity-0 md:group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
-                                                title="Move to Contact Requested"
+                                                title="Move to Request Contact"
                                             >
-                                                <span>→ Contact Requested</span>
+                                                <span>→ Request Contact</span>
                                             </button>
                                         </div>
                                     </div>
@@ -444,9 +444,9 @@ ${user.name}`);
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
                                                 className="md:opacity-0 md:group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
-                                                title="Move to Contact Requested"
+                                                title="Move to Request Contact"
                                             >
-                                                <span>→ Contact Requested</span>
+                                                <span>→ Request Contact</span>
                                             </button>
                                         </div>
                                     </div>
@@ -480,9 +480,9 @@ ${user.name}`);
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
                                                 className="md:opacity-0 md:group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
-                                                title="Move to Contact Requested"
+                                                title="Move to Request Contact"
                                             >
-                                                <span>→ Contact Requested</span>
+                                                <span>→ Request Contact</span>
                                             </button>
                                         </div>
                                     </div>
@@ -515,9 +515,9 @@ ${user.name}`);
                                         <button
                                             onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
                                             className="md:opacity-0 md:group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
-                                            title="Move to Contact Requested"
+                                            title="Move to Request Contact"
                                         >
-                                            <span>→ Contact Requested</span>
+                                            <span>→ Request Contact</span>
                                         </button>
                                     </div>
                                 </div>
@@ -551,9 +551,9 @@ ${user.name}`);
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); promoteToMyPlayers(p.id, p.name); }}
                                                     className="md:opacity-0 md:group-hover:opacity-100 px-3 py-1.5 bg-scout-accent text-scout-900 rounded-lg transition-all hover:scale-105 hover:shadow-glow flex items-center gap-1.5 font-black text-[10px] uppercase tracking-tight"
-                                                    title="Move to Contact Requested"
+                                                    title="Move to Request Contact"
                                                 >
-                                                    <span>→ Contact Requested</span>
+                                                    <span>→ Request Contact</span>
                                                 </button>
                                             </div>
                                         </div>
@@ -729,7 +729,7 @@ ${user.name}`);
                                 onClick={() => promoteToMyPlayers()}
                                 className="px-6 py-2 bg-scout-accent hover:bg-emerald-600 text-scout-900 font-black rounded-xl shadow-glow relative z-10 transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest hover:scale-105"
                              >
-                                <Trophy size={14}/> → Contact Requested
+                                <Trophy size={14}/> → Request Contact
                              </button>
                         </div>
                     )}

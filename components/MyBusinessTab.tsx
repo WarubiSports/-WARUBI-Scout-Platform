@@ -33,13 +33,13 @@ const getDurationLabel = (duration: string | undefined): string => {
 
 const STAGE_COLORS: Record<string, string> = {
     Lead: '#6b7280',
-    'Contact Requested': '#06b6d4',
+    'Request Contact': '#06b6d4',
     'Request Trial': '#3b82f6',
     Offered: '#a855f7',
     Placed: '#10b981',
 };
 
-const STAGE_ORDER = ['Lead', 'Contact Requested', 'Request Trial', 'Offered', 'Placed'];
+const STAGE_ORDER = ['Lead', 'Request Contact', 'Request Trial', 'Offered', 'Placed'];
 
 const ChartTooltip = ({ active, payload, label }: any) => {
     if (!active || !payload?.length) return null;

@@ -23,7 +23,7 @@ interface OverviewTabProps {
 
 const STATUS_LABELS: Record<string, string> = {
     lead: 'Lead',
-    contact_requested: 'Contact Requested',
+    contact_requested: 'Request Contact',
     request_trial: 'Request Trial',
     send_contract: 'Offered',
     interested: 'Request Trial',
