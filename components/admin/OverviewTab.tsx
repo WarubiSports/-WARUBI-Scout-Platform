@@ -23,9 +23,10 @@ interface OverviewTabProps {
 
 const STATUS_LABELS: Record<string, string> = {
     lead: 'Lead',
+    contact_requested: 'Contact Requested',
     request_trial: 'Request Trial',
-    send_contract: 'Send Contract',
-    interested: 'Send Contract',
+    send_contract: 'Offered',
+    interested: 'Request Trial',
     offered: 'Offered',
     placed: 'Placed',
     archived: 'Archived',
@@ -33,9 +34,10 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_COLORS: Record<string, string> = {
     lead: 'text-gray-500',
+    contact_requested: 'text-cyan-600',
     request_trial: 'text-blue-600',
-    send_contract: 'text-orange-600',
-    interested: 'text-orange-600',
+    send_contract: 'text-amber-600',
+    interested: 'text-blue-600',
     offered: 'text-amber-600',
     placed: 'text-green-600',
     archived: 'text-gray-400',

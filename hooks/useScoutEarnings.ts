@@ -32,8 +32,8 @@ function getPlayerRate(player: Player, agreement: ScoutAgreement): number {
 function getStageWeight(status: PlayerStatus): number {
   switch (status) {
     case PlayerStatus.LEAD: return 0.1
-    case PlayerStatus.REQUEST_TRIAL: return 0.3
-    case PlayerStatus.SEND_CONTRACT: return 0.6
+    case PlayerStatus.CONTACT_REQUESTED: return 0.2
+    case PlayerStatus.REQUEST_TRIAL: return 0.4
     case PlayerStatus.OFFERED: return 0.85
     case PlayerStatus.PLACED: return 1
     default: return 0

@@ -13,7 +13,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import GlobalSearch from './GlobalSearch';
 import TrialRequestModal, { TrialDates } from './TrialRequestModal';
 import { haptic, useSwipeGesture } from '../hooks/useMobileFeatures';
-import { Users, CalendarDays, MessageSquare, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, LogOut, BookOpen, Mail, UserPlus, Filter, Lightbulb, FileUp, BarChart3 } from 'lucide-react';
+import { Users, CalendarDays, MessageSquare, Plus, Sparkles, X, Check, PlusCircle, Flame, List, LayoutGrid, Search, MessageCircle, MoreHorizontal, ChevronDown, Ghost, Edit2, Trophy, ArrowRight, ArrowLeft, Target, Bell, Send, Archive, TrendingUp, LogOut, BookOpen, Mail, UserPlus, Filter, Lightbulb, FileUp, BarChart3, Phone } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
 import PathwaysTab from './PathwaysTab';
 import InsightsTab from './InsightsTab';
@@ -160,7 +160,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             return; // Don't proceed until trial dates are submitted
         }
 
-        // Moving to SEND_CONTRACT from Lead (no trial) → direct sign, handled in App.tsx
+        // Status change handled in App.tsx
         if (newStatus === PlayerStatus.PLACED) {
             setShowCelebration(true);
             haptic.success();
@@ -307,8 +307,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     const PipelineStack = () => {
         const allowedStatuses = pipelineFilter === 'all'
-            ? [PlayerStatus.LEAD, PlayerStatus.REQUEST_TRIAL, PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED]
-            : [PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED];
+            ? [PlayerStatus.LEAD, PlayerStatus.CONTACT_REQUESTED, PlayerStatus.REQUEST_TRIAL, PlayerStatus.OFFERED, PlayerStatus.PLACED]
+            : [PlayerStatus.CONTACT_REQUESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED];
 
         const activePlayers = players.filter(p => allowedStatuses.includes(p.status));
         const [stackIdx, setStackIdx] = useState(0);
@@ -347,8 +347,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
         const handlePromote = () => {
             if (currentPlayer) {
-                // Move to next stage: Lead → Request Trial → Send Contract → Offered → Placed
-                const stages = [PlayerStatus.LEAD, PlayerStatus.REQUEST_TRIAL, PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED];
+                // Move to next stage: Lead → Contact Requested → Request Trial → Offered → Placed
+                const stages = [PlayerStatus.LEAD, PlayerStatus.CONTACT_REQUESTED, PlayerStatus.REQUEST_TRIAL, PlayerStatus.OFFERED, PlayerStatus.PLACED];
                 const currentIndex = stages.indexOf(currentPlayer.status);
                 if (currentIndex < stages.length - 1) {
                     handleStatusChange(currentPlayer.id, stages[currentIndex + 1]);
@@ -397,8 +397,8 @@ const Dashboard: React.FC<DashboardProps> = ({
 
     const ListView = () => {
         const allowedStatuses = pipelineFilter === 'all'
-            ? [PlayerStatus.LEAD, PlayerStatus.REQUEST_TRIAL, PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED]
-            : [PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED];
+            ? [PlayerStatus.LEAD, PlayerStatus.CONTACT_REQUESTED, PlayerStatus.REQUEST_TRIAL, PlayerStatus.OFFERED, PlayerStatus.PLACED]
+            : [PlayerStatus.CONTACT_REQUESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED];
 
         const filteredPlayers = players.filter(p =>
             allowedStatuses.includes(p.status) &&
@@ -427,7 +427,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                                     </td>
                                     <td className="px-6 py-4">
                                         <select value={p.status} onChange={(e) => handleStatusChange(p.id, e.target.value as PlayerStatus)} className="bg-scout-900/50 border border-scout-700/50 rounded-lg px-2 py-1 text-[10px] font-black uppercase text-gray-300 outline-none">
-                                            {[PlayerStatus.LEAD, PlayerStatus.REQUEST_TRIAL, PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED, PlayerStatus.ARCHIVED].map(status => <option key={status} value={status}>{status}</option>)}
+                                            {[PlayerStatus.LEAD, PlayerStatus.CONTACT_REQUESTED, PlayerStatus.REQUEST_TRIAL, PlayerStatus.OFFERED, PlayerStatus.PLACED, PlayerStatus.ARCHIVED].map(status => <option key={status} value={status}>{status}</option>)}
                                         </select>
                                     </td>
                                     <td className="px-6 py-4 font-black text-scout-accent">{p.evaluation?.score || '?'}</td>
@@ -544,7 +544,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                             // Determine the top priority action
                             const hotSignal = spotlights.find(p => p.activityStatus === 'signal' || p.activityStatus === 'spotlight');
                             const topLead = players
-                                .filter(p => p.status === PlayerStatus.LEAD || p.status === PlayerStatus.REQUEST_TRIAL || p.status === PlayerStatus.SEND_CONTRACT)
+                                .filter(p => p.status === PlayerStatus.LEAD || p.status === PlayerStatus.CONTACT_REQUESTED || p.status === PlayerStatus.REQUEST_TRIAL)
                                 .sort((a, b) => (b.evaluation?.score || 0) - (a.evaluation?.score || 0))[0];
                             const offeredPlayer = players.find(p => p.status === PlayerStatus.OFFERED);
 
@@ -659,15 +659,15 @@ const Dashboard: React.FC<DashboardProps> = ({
                         {viewMode === 'board' ? (
                             <div className="flex gap-4 overflow-x-auto pb-8 custom-scrollbar min-h-[500px]">
                                 {(pipelineFilter === 'all'
-                                    ? [PlayerStatus.LEAD, PlayerStatus.REQUEST_TRIAL, PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED]
-                                    : [PlayerStatus.SEND_CONTRACT, PlayerStatus.OFFERED, PlayerStatus.PLACED]
+                                    ? [PlayerStatus.LEAD, PlayerStatus.CONTACT_REQUESTED, PlayerStatus.REQUEST_TRIAL, PlayerStatus.OFFERED, PlayerStatus.PLACED]
+                                    : [PlayerStatus.CONTACT_REQUESTED, PlayerStatus.OFFERED, PlayerStatus.PLACED]
                                 ).map(status => (
                                     <div key={status} onDragOver={(e) => onDragOver(e, status)} onDrop={(e) => onDrop(e, status)} className={`flex-1 min-w-[280px] flex flex-col bg-scout-800/20 rounded-[2rem] border ${draggedOverStatus === status ? 'border-scout-accent bg-scout-accent/5 shadow-glow' : 'border-scout-700/50'}`}>
                                         <div className="p-6 border-b border-scout-700/50 bg-scout-900/20 backdrop-blur-md flex justify-between items-center rounded-t-[2rem]">
                                             <h3 className={`font-black uppercase text-[10px] tracking-[0.2em] ${
                                                 status === PlayerStatus.PLACED ? 'text-scout-accent' :
                                                 status === PlayerStatus.OFFERED ? 'text-scout-highlight' :
-                                                status === PlayerStatus.SEND_CONTRACT ? 'text-orange-400' :
+                                                status === PlayerStatus.CONTACT_REQUESTED ? 'text-cyan-400' :
                                                 status === PlayerStatus.REQUEST_TRIAL ? 'text-blue-400' :
                                                 'text-gray-400'
                                             }`}>{status}</h3>
@@ -679,14 +679,14 @@ const Dashboard: React.FC<DashboardProps> = ({
                                                     <div className="w-10 h-10 bg-scout-800 rounded-xl mx-auto mb-3 flex items-center justify-center">
                                                         {status === PlayerStatus.LEAD && <UserPlus size={18} className="text-gray-400/50" />}
                                                         {status === PlayerStatus.REQUEST_TRIAL && <CalendarDays size={18} className="text-blue-400/50" />}
-                                                        {status === PlayerStatus.SEND_CONTRACT && <Send size={18} className="text-orange-400/50" />}
+                                                        {status === PlayerStatus.CONTACT_REQUESTED && <Phone size={18} className="text-cyan-400/50" />}
                                                         {status === PlayerStatus.OFFERED && <Target size={18} className="text-scout-highlight/50" />}
                                                         {status === PlayerStatus.PLACED && <Trophy size={18} className="text-scout-accent/50" />}
                                                     </div>
                                                     <p className="text-[9px] font-bold text-gray-600 uppercase">
                                                         {status === PlayerStatus.LEAD && 'New players you discover'}
                                                         {status === PlayerStatus.REQUEST_TRIAL && 'Players requesting a trial'}
-                                                        {status === PlayerStatus.SEND_CONTRACT && 'Players ready for contracts'}
+                                                        {status === PlayerStatus.CONTACT_REQUESTED && 'Flagged for HQ outreach'}
                                                         {status === PlayerStatus.OFFERED && 'Players with active offers'}
                                                         {status === PlayerStatus.PLACED && 'Successfully placed'}
                                                     </p>

@@ -143,7 +143,7 @@ export interface Database {
           tactical: number | null
           coachable: number | null
           evaluation: Json | null
-          status: 'lead' | 'request_trial' | 'send_contract' | 'offered' | 'placed' | 'archived'
+          status: 'lead' | 'contact_requested' | 'request_trial' | 'offered' | 'placed' | 'archived'
           activity_status: 'undiscovered' | 'spark' | 'signal' | 'spotlight'
           interested_program: string | null
           placed_location: string | null
@@ -188,7 +188,7 @@ export interface Database {
           tactical?: number | null
           coachable?: number | null
           evaluation?: Json | null
-          status?: 'lead' | 'request_trial' | 'send_contract' | 'offered' | 'placed' | 'archived'
+          status?: 'lead' | 'contact_requested' | 'request_trial' | 'offered' | 'placed' | 'archived'
           activity_status?: 'undiscovered' | 'spark' | 'signal' | 'spotlight'
           interested_program?: string | null
           placed_location?: string | null
@@ -233,7 +233,7 @@ export interface Database {
           tactical?: number | null
           coachable?: number | null
           evaluation?: Json | null
-          status?: 'lead' | 'request_trial' | 'send_contract' | 'offered' | 'placed' | 'archived'
+          status?: 'lead' | 'contact_requested' | 'request_trial' | 'offered' | 'placed' | 'archived'
           activity_status?: 'undiscovered' | 'spark' | 'signal' | 'spotlight'
           interested_program?: string | null
           placed_location?: string | null

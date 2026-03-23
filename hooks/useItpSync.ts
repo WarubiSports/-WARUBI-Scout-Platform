@@ -22,7 +22,7 @@ export function useItpSync({
 
   /**
    * Handles all ITP sync logic when a player's status changes.
-   * Covers: contract stamp, placement celebration, trial request, direct sign.
+   * Covers: placement celebration, trial request.
    *
    * Returns the trialProspectId if one was created, or undefined.
    */
@@ -34,14 +34,7 @@ export function useItpSync({
   ): Promise<string | undefined> => {
     let trialProspectId: string | undefined;
 
-    // 1. Contract stamp: REQUEST_TRIAL → SEND_CONTRACT
-    if (oldStatus === PlayerStatus.REQUEST_TRIAL && newStatus === PlayerStatus.SEND_CONTRACT) {
-      if (player.trialProspectId) {
-        await markContractRequested(player.trialProspectId, scoutName);
-      }
-    }
-
-    // 2. Placement celebration
+    // 1. Placement celebration
     if (oldStatus !== PlayerStatus.PLACED && newStatus === PlayerStatus.PLACED) {
       await incrementPlacements();
       addNotification({
@@ -78,39 +71,6 @@ export function useItpSync({
       }
     }
 
-    // 4. Direct sign: Lead → SEND_CONTRACT with no existing trial
-    if (
-      oldStatus === PlayerStatus.LEAD &&
-      newStatus === PlayerStatus.SEND_CONTRACT &&
-      !player.trialProspectId
-    ) {
-      const result = await sendProspectToTrial(
-        player,
-        scoutId,
-        scoutName,
-        true,
-      );
-
-      if (result.success && result.trialProspectId) {
-        trialProspectId = result.trialProspectId;
-        addNotification({
-          type: 'SUCCESS',
-          title: 'Direct Sign Sent',
-          message: `${player.name} has been added to ITP system.`,
-        });
-        const onboardingUrl = `https://itp-trial-onboarding.vercel.app/${result.trialProspectId}/onboarding`;
-        toast.success('Player added to ITP system (Direct Sign)', {
-          duration: 10000,
-          action: {
-            label: 'Copy Onboarding Link',
-            onClick: () => {
-              navigator.clipboard.writeText(onboardingUrl);
-              toast.success('Onboarding link copied!', { duration: 2000 });
-            },
-          },
-        });
-      }
-    }
 
     return trialProspectId;
   }, [scoutId, scoutName, updateProspect, incrementPlacements, addNotification]);

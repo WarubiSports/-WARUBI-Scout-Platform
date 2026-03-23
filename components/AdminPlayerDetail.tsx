@@ -22,7 +22,7 @@ const tierColor = (tier: string | undefined) => {
 const statusColor = (status: PlayerStatus) => {
     if (status === PlayerStatus.PLACED) return 'bg-green-100 text-green-700';
     if (status === PlayerStatus.OFFERED) return 'bg-amber-100 text-amber-700';
-    if (status === PlayerStatus.SEND_CONTRACT) return 'bg-blue-100 text-blue-700';
+    if (status === PlayerStatus.CONTACT_REQUESTED) return 'bg-cyan-100 text-cyan-700';
     if (status === PlayerStatus.REQUEST_TRIAL) return 'bg-cyan-100 text-cyan-700';
     return 'bg-gray-100 text-gray-600';
 };

@@ -10,24 +10,24 @@ interface InsightsTabProps {
 }
 
 export const InsightsTab: React.FC<InsightsTabProps> = ({ scouts, allProspects }) => {
-    const stages = ['Lead', 'Request Trial', 'Send Contract', 'Offered', 'Placed'] as const;
-    const stageColors: Record<string, string> = { Lead: '#6b7280', 'Request Trial': '#3b82f6', 'Send Contract': '#f59e0b', Offered: '#a855f7', Placed: '#10b981' };
+    const stages = ['Lead', 'Contact Requested', 'Request Trial', 'Offered', 'Placed'] as const;
+    const stageColors: Record<string, string> = { Lead: '#6b7280', 'Contact Requested': '#06b6d4', 'Request Trial': '#3b82f6', Offered: '#a855f7', Placed: '#10b981' };
 
     // Build per-scout funnel data
-    type ScoutFunnel = { id: string; name: string; region: string; total: number; lead: number; trial: number; contract: number; offered: number; placed: number; archived: number; convRate: number; trialRate: number; avgScore: number };
+    type ScoutFunnel = { id: string; name: string; region: string; total: number; lead: number; contacted: number; trial: number; offered: number; placed: number; archived: number; convRate: number; trialRate: number; avgScore: number };
     const scoutFunnels: ScoutFunnel[] = (() => {
         const map: Record<string, ScoutFunnel> = {};
         scouts.forEach(s => {
-            map[s.id] = { id: s.id, name: s.name, region: s.region || '—', total: 0, lead: 0, trial: 0, contract: 0, offered: 0, placed: 0, archived: 0, convRate: 0, trialRate: 0, avgScore: 0 };
+            map[s.id] = { id: s.id, name: s.name, region: s.region || '—', total: 0, lead: 0, contacted: 0, trial: 0, offered: 0, placed: 0, archived: 0, convRate: 0, trialRate: 0, avgScore: 0 };
         });
         const scoreAccum: Record<string, { sum: number; count: number }> = {};
         allProspects.forEach(p => {
-            if (!map[p.scoutId]) map[p.scoutId] = { id: p.scoutId, name: p.scoutName, region: '—', total: 0, lead: 0, trial: 0, contract: 0, offered: 0, placed: 0, archived: 0, convRate: 0, trialRate: 0, avgScore: 0 };
+            if (!map[p.scoutId]) map[p.scoutId] = { id: p.scoutId, name: p.scoutName, region: '—', total: 0, lead: 0, contacted: 0, trial: 0, offered: 0, placed: 0, archived: 0, convRate: 0, trialRate: 0, avgScore: 0 };
             const f = map[p.scoutId];
             f.total++;
             if (p.status === PlayerStatus.LEAD) f.lead++;
+            else if (p.status === PlayerStatus.CONTACT_REQUESTED) f.contacted++;
             else if (p.status === PlayerStatus.REQUEST_TRIAL) f.trial++;
-            else if (p.status === PlayerStatus.SEND_CONTRACT) f.contract++;
             else if (p.status === PlayerStatus.OFFERED) f.offered++;
             else if (p.status === PlayerStatus.PLACED) f.placed++;
             else if (p.status === PlayerStatus.ARCHIVED) f.archived++;
@@ -40,7 +40,7 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({ scouts, allProspects }
         return Object.values(map).map(f => {
             const nonLead = f.total - f.lead - f.archived;
             f.convRate = f.total > 0 ? Math.round((f.placed / f.total) * 100) : 0;
-            f.trialRate = f.total > 0 ? Math.round(((f.trial + f.contract + f.offered + f.placed) / f.total) * 100) : 0;
+            f.trialRate = f.total > 0 ? Math.round(((f.contacted + f.trial + f.offered + f.placed) / f.total) * 100) : 0;
             const sc = scoreAccum[f.id];
             f.avgScore = sc ? Math.round(sc.sum / sc.count) : 0;
             return f;
@@ -157,7 +157,7 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({ scouts, allProspects }
                                 <th className="text-right py-2 font-semibold">Total</th>
                                 <th className="text-right py-2 font-semibold">Lead</th>
                                 <th className="text-right py-2 font-semibold">Trial</th>
-                                <th className="text-right py-2 font-semibold">Contract</th>
+                                <th className="text-right py-2 font-semibold">Contact</th>
                                 <th className="text-right py-2 font-semibold">Offered</th>
                                 <th className="text-right py-2 font-semibold text-emerald-700">Placed</th>
                                 <th className="text-right py-2 font-semibold">Trial %</th>
@@ -174,7 +174,7 @@ export const InsightsTab: React.FC<InsightsTabProps> = ({ scouts, allProspects }
                                     <td className="py-2.5 text-sm text-right text-gray-700 font-medium">{s.total}</td>
                                     <td className="py-2.5 text-sm text-right text-gray-500">{s.lead}</td>
                                     <td className="py-2.5 text-sm text-right text-blue-600">{s.trial}</td>
-                                    <td className="py-2.5 text-sm text-right text-amber-600">{s.contract}</td>
+                                    <td className="py-2.5 text-sm text-right text-cyan-600">{s.contacted}</td>
                                     <td className="py-2.5 text-sm text-right text-purple-600">{s.offered}</td>
                                     <td className="py-2.5 text-sm text-right font-bold text-emerald-600">{s.placed}</td>
                                     <td className="py-2.5 text-sm text-right">

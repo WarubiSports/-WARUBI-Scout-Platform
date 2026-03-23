@@ -15,11 +15,11 @@ export enum DashboardTab {
   INSIGHTS = 'INSIGHTS'
 }
 
-// Pipeline: Lead → Request Trial → Send Contract → Offered → Placed
+// Pipeline: Lead → Contact Requested → Request Trial → Offered → Placed
 export enum PlayerStatus {
   LEAD = 'Lead',
+  CONTACT_REQUESTED = 'Contact Requested',
   REQUEST_TRIAL = 'Request Trial',
-  SEND_CONTRACT = 'Send Contract',
   OFFERED = 'Offered',
   PLACED = 'Placed',
   ARCHIVED = 'Archived'

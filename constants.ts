@@ -110,7 +110,7 @@ export const ITP_REFERENCE_PLAYERS: Player[] = [
     name: 'Tier 3: The Developer',
     age: 17,
     position: 'Standard',
-    status: PlayerStatus.SEND_CONTRACT,
+    status: PlayerStatus.REQUEST_TRIAL,
     submittedAt: new Date().toISOString(),
     outreachLogs: [],
     evaluation: {
@@ -259,7 +259,7 @@ export const INITIAL_KNOWLEDGE_BASE: KnowledgeItem[] = [
   {
     id: 'kb-1',
     title: 'The Recruiting Pipeline Explained',
-    content: '1. Lead (Discover) -> 2. Request Trial (Submit) -> 3. Send Contract (Sign) -> 4. Offered (Commit) -> 5. Placed (Done). Keep communication clear at every step.',
+    content: '1. Lead (Discover) -> 2. Contact Requested (Flag for HQ) -> 3. Request Trial (Submit) -> 4. Offered (Commit) -> 5. Placed (Done). Keep communication clear at every step.',
     category: 'Process'
   }
 ];

@@ -179,7 +179,7 @@ export async function sendProspectToTrial(
 }
 
 /**
- * Stamp a trial prospect with contract_requested_at/by when scout moves to Send Contract
+ * Stamp a trial prospect with contract_requested_at/by (legacy, no longer triggered from pipeline)
  */
 export async function markContractRequested(
   trialProspectId: string,
