@@ -21,7 +21,7 @@ Scouting CRM for Warubi Sports. Scouts manage player pipelines, send outreach, t
 - **Backend:** Supabase (PostgreSQL, Auth, REST API)
 - **Styling:** Tailwind CSS with custom `scout-*` color tokens
 - **Deploy:** Vercel (`vercel --prod`)
-- **Live URL:** https://warubi-scout-platform.vercel.app
+- **Live URL:** https://scout-buddy.vercel.app
 
 ## Key Directories
 - `/components` - React components (Dashboard, OutreachTab, ProfileTab, etc.)
