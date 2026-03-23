@@ -29,7 +29,9 @@ const HomeContent: React.FC = () => {
 
   const shareVia = (url: string) => { window.open(url, '_blank'); setShareOpen(false); };
 
-  const hasData = players.some(p => p.outreachLogs?.length > 0 || p.lastContactedAt || (p.activityStatus && p.activityStatus !== 'undiscovered'));
+  const contacted = players.filter(p => p.outreachLogs?.length > 0 || p.lastContactedAt).length;
+  const eeActivity = players.filter(p => p.activityStatus && p.activityStatus !== 'undiscovered').length;
+  const hasData = contacted >= 3 || eeActivity >= 3;
 
   return (
     <div className="space-y-4 animate-fade-in">
