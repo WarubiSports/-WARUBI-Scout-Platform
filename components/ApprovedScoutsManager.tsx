@@ -114,7 +114,7 @@ const ApprovedScoutsManager: React.FC = () => {
 
   const handleCopyInvite = (scout: ApprovedScout) => {
     // Always use production URL for invites, not current preview URL
-    const appUrl = 'https://warubi-scout-platform.vercel.app';
+    const appUrl = 'https://scout-buddy.vercel.app';
     const message = `Hi${scout.name ? ` ${scout.name.split(' ')[0]}` : ''}! 👋
 
 You've been approved to join Scout Buddy.

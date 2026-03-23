@@ -17,6 +17,7 @@ const getAllowedOrigins = (): string[] => {
     'http://localhost:5173',
     'https://warubi-scout.vercel.app',
     'https://warubi-scout-platform.vercel.app',
+    'https://scout-buddy.vercel.app',
   ];
 };
 
