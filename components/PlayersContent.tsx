@@ -40,6 +40,7 @@ const PlayersContent: React.FC = () => {
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [pipelineFilter, setPipelineFilter] = useState<'all' | 'active'>('all');
     const [outreachTargetId, setOutreachTargetId] = useState<string | null>(null);
+    const [shareGuideOpen, setShareGuideOpen] = useState(false);
 
     useEffect(() => {
         const handleResize = () => {
@@ -319,22 +320,63 @@ const PlayersContent: React.FC = () => {
                 </div>
             )}
 
-            {/* SHARE NUDGE — shown when scout has few players */}
+            {/* SHARE GUIDE — shown when scout has few players */}
             {players.length < 10 && user.scoutId && (
-                <div className="bg-scout-800 border border-scout-700 rounded-2xl p-4 flex items-center gap-4">
-                    <div className="p-2.5 bg-scout-accent/10 rounded-xl border border-scout-accent/20 shrink-0">
-                        <Share2 size={18} className="text-scout-accent" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-white">Let players find you</p>
-                        <p className="text-[10px] text-gray-500">Share your ExposureEngine link — players get a free analysis, you get leads.</p>
-                    </div>
+                <div className="bg-scout-800 border border-scout-700 rounded-2xl overflow-hidden">
                     <button
-                        onClick={handleCopyLink}
-                        className="shrink-0 px-4 py-2.5 bg-scout-accent/10 border border-scout-accent/30 text-scout-accent rounded-xl font-bold text-xs hover:bg-scout-accent/20 transition-all active:scale-[0.98]"
+                        onClick={() => setShareGuideOpen(!shareGuideOpen)}
+                        className="w-full p-4 flex items-center gap-4 hover:bg-scout-700/30 transition-colors"
                     >
-                        {linkCopied ? 'Copied!' : 'Copy Link'}
+                        <div className="p-2.5 bg-scout-accent/10 rounded-xl border border-scout-accent/20 shrink-0">
+                            <Share2 size={18} className="text-scout-accent" />
+                        </div>
+                        <div className="flex-1 min-w-0 text-left">
+                            <p className="text-sm font-bold text-white">Let players find you</p>
+                            <p className="text-[10px] text-gray-500">3 steps to start getting inbound leads</p>
+                        </div>
+                        <ArrowRight size={16} className={`text-gray-500 transition-transform ${shareGuideOpen ? 'rotate-90' : ''}`} />
                     </button>
+                    {shareGuideOpen && (
+                        <div className="px-4 pb-4 space-y-3 border-t border-scout-700 pt-4">
+                            {/* Step 1: Upload roster */}
+                            <div className="flex items-start gap-3">
+                                <div className="w-7 h-7 bg-scout-accent text-scout-900 rounded-lg flex items-center justify-center font-black text-xs shrink-0 mt-0.5">1</div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-bold text-white">Upload a roster or player list</p>
+                                    <p className="text-[10px] text-gray-500 mb-2">Photo of a team sheet, spreadsheet, or just paste names. We'll extract the players.</p>
+                                    <button
+                                        onClick={() => { setSubmissionInitialMode('BULK'); setIsSubmissionOpen(true); setShareGuideOpen(false); }}
+                                        className="px-4 py-2 bg-scout-900 border border-scout-700 text-white rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-scout-700 transition-all active:scale-[0.98]"
+                                    >
+                                        <FileUp size={14} /> Import Players
+                                    </button>
+                                </div>
+                            </div>
+                            {/* Step 2: Copy link */}
+                            <div className="flex items-start gap-3">
+                                <div className="w-7 h-7 bg-scout-accent text-scout-900 rounded-lg flex items-center justify-center font-black text-xs shrink-0 mt-0.5">2</div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-bold text-white">Share your ExposureEngine link</p>
+                                    <p className="text-[10px] text-gray-500 mb-2">Players get a free career analysis. When they complete it, they show up as leads in your pipeline.</p>
+                                    <button
+                                        onClick={handleCopyLink}
+                                        className="px-4 py-2 bg-scout-accent/10 border border-scout-accent/30 text-scout-accent rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-scout-accent/20 transition-all active:scale-[0.98]"
+                                    >
+                                        {linkCopied ? <CheckCircle size={14} /> : <Copy size={14} />}
+                                        {linkCopied ? 'Copied!' : 'Copy Link'}
+                                    </button>
+                                </div>
+                            </div>
+                            {/* Step 3: Where to share */}
+                            <div className="flex items-start gap-3">
+                                <div className="w-7 h-7 bg-scout-accent text-scout-900 rounded-lg flex items-center justify-center font-black text-xs shrink-0 mt-0.5">3</div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-bold text-white">Put it where players are</p>
+                                    <p className="text-[10px] text-gray-500">Instagram bio, WhatsApp status, send to coaches, post in parent groups. Every click is a potential lead.</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 

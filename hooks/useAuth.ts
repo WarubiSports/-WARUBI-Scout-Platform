@@ -279,20 +279,19 @@ export function useAuth(): UseAuthReturn {
   const signOut = useCallback(async () => {
     if (!isSupabaseConfigured) return
 
-    setState(prev => ({ ...prev, loading: true }))
+    // Clear state immediately — don't set loading:true (causes loading screen flash)
+    setState({
+      user: null,
+      session: null,
+      loading: false,
+      error: null,
+      needsPasswordSetup: false,
+    })
 
     try {
       await supabase.auth.signOut()
-      setState({
-        user: null,
-        session: null,
-        loading: false,
-        error: null,
-        needsPasswordSetup: false,
-      })
     } catch (err) {
       console.error('Error signing out:', err)
-      setState(prev => ({ ...prev, loading: false }))
     }
   }, [])
 

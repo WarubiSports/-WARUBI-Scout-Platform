@@ -31,8 +31,9 @@ export function ScoutProvider({ children, userId }: ScoutProviderProps) {
   useEffect(() => {
     let isMounted = true
 
-    // Only set timeout if we actually need to load (have a userId)
+    // No user = clear scout and stop loading immediately (prevents sign-out hang)
     if (!userId) {
+      setScout(null)
       setLoading(false)
       return
     }
