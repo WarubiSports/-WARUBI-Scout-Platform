@@ -6,7 +6,7 @@ import { useProspects } from '../hooks/useProspects';
 import { useOutreach } from '../hooks/useOutreach';
 import { toast } from 'sonner';
 
-type FlowStep = 'UPLOAD' | 'REVIEW' | 'SAVING' | 'OUTREACH';
+type FlowStep = 'UPLOAD' | 'REVIEW' | 'SAVING' | 'EMAIL' | 'OUTREACH';
 type OutreachTemplate = 'First Spark' | 'Invite to ID' | 'Follow-up' | 'Request Video';
 
 interface ExtractedPlayer {
@@ -196,7 +196,15 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
 
       if (saved.length > 0) {
         toast.success(`${saved.length} player${saved.length > 1 ? 's' : ''} saved`);
-        setStep('OUTREACH');
+        // Go straight to Email if players have emails
+        const hasEmails = saved.some(p => p.email);
+        if (hasEmails) {
+          setEmailSubject('Quick question about your soccer future');
+          setEmailBody(`Hi,\n\nI'm ${scoutName} with Warubi Sports. I work with European academies including FC Köln's ITP program, Bundesliga clubs, and 200+ college programs in the US to help players find the right opportunity.\n\nI came across your profile and think you've got real potential. If playing in the US or at a European academy is something you're interested in, I'd love to chat about what that could look like for you.\n\nNo pressure — just want to see if it's a good fit.\n\nBest,\n${scoutName}`);
+          setStep('EMAIL');
+        } else {
+          setStep('OUTREACH');
+        }
       } else {
         toast.error('Failed to save players');
         setStep('REVIEW');
@@ -279,6 +287,8 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
 
   // EMAIL ALL
   const [emailSent, setEmailSent] = useState(false);
+  const [emailBody, setEmailBody] = useState('');
+  const [emailSubject, setEmailSubject] = useState('');
   const BATCH_SIZE = 30;
 
   const emailableMessages = outreachMessages.filter(m => {
@@ -344,13 +354,14 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
               {step === 'UPLOAD' && 'Bulk Import'}
               {step === 'REVIEW' && `Review ${extractedPlayers.length} Players`}
               {step === 'SAVING' && 'Saving Players...'}
-              {step === 'OUTREACH' && 'Generate Outreach'}
+              {step === 'EMAIL' && 'Send Outreach'}
+              {step === 'OUTREACH' && 'Individual Messages'}
             </h2>
             <div className="flex items-center gap-2 mt-1">
-              {(['UPLOAD', 'REVIEW', 'OUTREACH'] as const).map((s, i) => (
+              {(['UPLOAD', 'REVIEW', 'EMAIL'] as const).map((s, i) => (
                 <React.Fragment key={s}>
-                  <span className={`text-[10px] font-black uppercase ${step === s || (step === 'SAVING' && s === 'REVIEW') ? 'text-scout-accent' : 'text-gray-600'}`}>
-                    {i + 1}. {s === 'UPLOAD' ? 'Import' : s === 'REVIEW' ? 'Review' : 'Outreach'}
+                  <span className={`text-[10px] font-black uppercase ${step === s || (step === 'SAVING' && s === 'REVIEW') || (step === 'OUTREACH' && s === 'EMAIL') ? 'text-scout-accent' : 'text-gray-600'}`}>
+                    {i + 1}. {s === 'UPLOAD' ? 'Import' : s === 'REVIEW' ? 'Review' : 'Send'}
                   </span>
                   {i < 2 && <ChevronRight size={10} className="text-gray-700" />}
                 </React.Fragment>
@@ -501,6 +512,89 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
             <div className="flex flex-col items-center justify-center py-16 gap-4">
               <Loader2 size={40} className="text-scout-accent animate-spin" />
               <p className="text-gray-400 text-sm">Saving {extractedPlayers.length} players to your pipeline...</p>
+            </div>
+          )}
+
+
+          {/* EMAIL STEP — Direct email blast */}
+          {step === 'EMAIL' && (
+            <div className="space-y-5">
+              {!emailSent ? (
+                <>
+                  <div className="bg-gradient-to-br from-scout-accent/20 to-scout-accent/5 border-2 border-scout-accent/40 rounded-2xl p-6 text-center">
+                    <Mail size={40} className="mx-auto text-scout-accent mb-3" />
+                    <h3 className="text-white font-black text-xl uppercase tracking-tight mb-1">
+                      Email {savedPlayers.filter(p => p.email).length} Players
+                    </h3>
+                    <p className="text-gray-400 text-xs mb-1">
+                      Opens your mail app with all players in BCC. One click, done.
+                    </p>
+                  </div>
+
+                  {/* Editable subject */}
+                  <div>
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1.5 block">Subject</label>
+                    <input
+                      value={emailSubject}
+                      onChange={(e) => setEmailSubject(e.target.value)}
+                      className="w-full bg-scout-800 border border-scout-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-scout-accent"
+                    />
+                  </div>
+
+                  {/* Editable body */}
+                  <div>
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1.5 block">Message</label>
+                    <textarea
+                      value={emailBody}
+                      onChange={(e) => setEmailBody(e.target.value)}
+                      className="w-full bg-scout-800 border border-scout-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-scout-accent resize-none"
+                      rows={10}
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      const emails = savedPlayers.filter(p => p.email).map(p => p.email!);
+                      const batches: string[][] = [];
+                      for (let i = 0; i < emails.length; i += BATCH_SIZE) batches.push(emails.slice(i, i + BATCH_SIZE));
+                      for (const batch of batches) {
+                        window.open(`mailto:?bcc=${encodeURIComponent(batch.join(','))}&subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`, '_blank');
+                      }
+                      savedPlayers.filter(p => p.email).forEach(p => logOutreach(p.id, 'Email', 'Bulk: First Spark', emailBody));
+                      setEmailSent(true);
+                    }}
+                    className="w-full py-4 bg-scout-accent text-scout-900 rounded-xl font-black uppercase text-sm flex items-center justify-center gap-3 shadow-glow hover:bg-emerald-400 transition-all"
+                  >
+                    <Send size={20} />
+                    Open Email — {savedPlayers.filter(p => p.email).length} Recipients
+                  </button>
+
+                  {savedPlayers.some(p => !p.email) && (
+                    <p className="text-center text-gray-600 text-[10px]">
+                      {savedPlayers.filter(p => !p.email).length} player{savedPlayers.filter(p => !p.email).length > 1 ? 's' : ''} without email.{' '}
+                      <button onClick={() => setStep('OUTREACH')} className="text-scout-accent hover:underline">Generate WhatsApp messages</button>
+                    </p>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-8">
+                  <CheckCircle size={48} className="mx-auto text-scout-accent mb-4" />
+                  <h3 className="text-scout-accent font-black text-xl uppercase tracking-tight mb-2">
+                    Email Opened!
+                  </h3>
+                  <p className="text-gray-400 text-sm mb-6">
+                    Check your mail app and hit send.
+                  </p>
+                  <div className="flex items-center justify-center gap-3">
+                    <button onClick={() => setStep('OUTREACH')} className="px-6 py-3 bg-scout-800 border border-scout-700 text-white rounded-xl font-bold text-sm hover:border-scout-600 transition-colors">
+                      WhatsApp Individual Messages
+                    </button>
+                    <button onClick={onClose} className="px-6 py-3 bg-scout-accent text-scout-900 rounded-xl font-black text-sm">
+                      Done
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -664,6 +758,15 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
             >
               Save {extractedPlayers.length} Players <ChevronRight size={16} />
             </button>
+          </div>
+        )}
+
+        {step === 'EMAIL' && !emailSent && (
+          <div className="p-5 border-t border-scout-700 shrink-0 flex items-center justify-between">
+            <button onClick={() => setStep('OUTREACH')} className="text-gray-500 text-sm font-bold hover:text-white transition-colors">
+              Skip to WhatsApp
+            </button>
+            <p className="text-gray-600 text-[10px]">Sent from your own email</p>
           </div>
         )}
 
