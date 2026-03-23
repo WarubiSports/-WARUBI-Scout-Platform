@@ -231,7 +231,7 @@ const operations: Record<string, (payload: any) => Promise<any>> = {
   async bulkGenerateOutreach(payload: {
     scoutName: string
     scoutBio?: string
-    language: 'en' | 'de'
+    language: string
     players: Array<{ name: string; position: string; age: number; club: string; id: string }>
     templateType: string
   }) {
@@ -241,34 +241,15 @@ const operations: Record<string, (payload: any) => Promise<any>> = {
       generationConfig: { responseMimeType: 'application/json' }
     });
 
-    const isGerman = payload.language === 'de';
     const scoutBioContext = payload.scoutBio
-      ? (isGerman ? `\nDEIN HINTERGRUND: ${payload.scoutBio}` : `\nYOUR BACKGROUND: ${payload.scoutBio}`)
+      ? `\nYOUR BACKGROUND: ${payload.scoutBio}`
       : '';
 
     const playerList = payload.players.map(p =>
-      `- ID: ${p.id}, Name: ${p.name}, Position: ${p.position || (isGerman ? 'Unbekannt' : 'Unknown')}, Age: ${p.age || '?'}, Club: ${p.club || (isGerman ? 'Unbekannt' : 'Unknown')}`
+      `- ID: ${p.id}, Name: ${p.name}, Position: ${p.position || 'Unknown'}, Age: ${p.age || '?'}, Club: ${p.club || 'Unknown'}`
     ).join('\n');
 
-    const prompt = isGerman
-      ? `Du bist ${payload.scoutName}, Elite-Fußballscout für Warubi Sports.${scoutBioContext}
-
-Schreibe eine personalisierte "${payload.templateType}" WhatsApp-Nachricht für JEDEN der folgenden Spieler.
-
-SPIELER:
-${playerList}
-
-ANFORDERUNGEN PRO NACHRICHT:
-1. 3-4 Sätze, knapp und persönlich
-2. Speziell auf Position und Verein des Spielers eingehen
-3. Erwähne Warubis Netzwerk (FC Köln ITP, 200+ US-College-Programme)
-4. Auf Deutsch, locker und authentisch
-5. Beginne mit "Hey [Name],"
-
-Gib ein JSON-Array zurück, jedes Element mit:
-- id: string (die Spieler-ID von oben)
-- message: string (die fertige Nachricht)`
-      : `You are ${payload.scoutName}, elite soccer scout for Warubi Sports.${scoutBioContext}
+    const prompt = `You are ${payload.scoutName}, elite soccer scout for Warubi Sports.${scoutBioContext}
 
 Write a personalized "${payload.templateType}" WhatsApp message for EACH of the following players.
 
@@ -316,54 +297,18 @@ Return a JSON array, each element with:
     const ai = getAiClient();
     const model = ai.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
-    const isGerman = payload.language === 'de';
-
     const templateContext: Record<string, string> = {
-      'First Spark': isGerman
-        ? `Dies ist der ERSTE Kontakt mit dem Spieler. Stell dich vor, erkläre wer Warubi Sports ist (ein Elite-Scouting-Netzwerk verbunden mit dem International Talent Program von FC Köln und 200+ US College-Programmen), warum du auf ihn aufmerksam geworden bist, und welche Möglichkeiten es gibt. Schaffe Interesse, aber sei authentisch.`
-        : `This is the FIRST contact with the player. Introduce yourself, explain who Warubi Scout is (an elite scouting network connected to FC Köln's International Talent Program and 200+ US college programs), why you noticed them, and what opportunities exist. Create urgency but be genuine.`,
-      'Invite to ID': isGerman
-        ? `Lade ihn zu einem bevorstehenden ID Day oder Showcase Event ein. Erkläre was bei diesen Events passiert (professionelle Bewertung, Videomaterial, direkter Kontakt zu Trainern). Nenne konkrete Vorteile der Teilnahme.`
-        : `Invite them to an upcoming ID Day or Showcase event. Explain what happens at these events (professional evaluation, video footage, direct exposure to coaches). Include specific benefits of attending.`,
-      'Request Video': isGerman
-        ? `Bitte um Highlight-Videomaterial. Erkläre warum Video für den Bewertungsprozess wichtig ist und worauf Trainer achten. Sei konkret was enthalten sein sollte (Spielszenen, positionsspezifische Clips).`
-        : `Ask them to submit highlight footage. Explain why video is essential for the evaluation process and what coaches look for. Be specific about what to include (game footage, position-specific clips).`,
-      'Follow-up': isGerman
-        ? `Dies ist ein Follow-up nach keiner Antwort. Beziehe dich auf deine vorherige Nachricht, füge neuen Mehrwert hinzu (aktuelle Platzierungsnews, bevorstehende Deadline, begrenzte Plätze). Schaffe sanfte Dringlichkeit ohne aufdringlich zu sein.`
-        : `This is a follow-up after no response. Reference your previous outreach, add new value (recent placement news, upcoming deadline, limited spots). Create gentle urgency without being pushy.`
+      'First Spark': `This is the FIRST contact with the player. Introduce yourself, explain who Warubi Scout is (an elite scouting network connected to FC Köln's International Talent Program and 200+ US college programs), why you noticed them, and what opportunities exist. Create urgency but be genuine.`,
+      'Invite to ID': `Invite them to an upcoming ID Day or Showcase event. Explain what happens at these events (professional evaluation, video footage, direct exposure to coaches). Include specific benefits of attending.`,
+      'Request Video': `Ask them to submit highlight footage. Explain why video is essential for the evaluation process and what coaches look for. Be specific about what to include (game footage, position-specific clips).`,
+      'Follow-up': `This is a follow-up after no response. Reference your previous outreach, add new value (recent placement news, upcoming deadline, limited spots). Create gentle urgency without being pushy.`
     };
 
     const scoutBioContext = payload.scoutBio
-      ? (isGerman ? `\nDEIN HINTERGRUND: ${payload.scoutBio}` : `\nYOUR BACKGROUND: ${payload.scoutBio}`)
+      ? `\nYOUR BACKGROUND: ${payload.scoutBio}`
       : '';
 
-    const prompt = isGerman
-      ? `Du bist ${payload.scoutName}, ein Elite-Fußballscout für Warubi Sports, das talentierte Spieler mit europäischen Akademien (FC Köln ITP, Bundesliga-Programme) und 200+ College-Programmen in den USA verbindet.
-${scoutBioContext}
-
-Schreibe eine überzeugende ${payload.templateType} Nachricht an ${payload.player.name}. DIE NACHRICHT MUSS AUF DEUTSCH SEIN.
-
-SPIELER-KONTEXT:
-- Position: ${payload.player.position || 'Unbekannt'}
-- Alter: ${payload.player.age || 'Unbekannt'} Jahre
-- Verein: ${payload.player.club || 'Unbekannt'}
-${payload.player.evaluation ? `- Scout Score: ${payload.player.evaluation.score}/100` : ''}
-
-NACHRICHTENTYP: ${templateContext[payload.templateType] || 'Professionelle Vorstellung und nächste Schritte.'}
-
-ANFORDERUNGEN:
-1. LÄNGE: Mindestens 4-6 Sätze. Die Nachricht muss substanziell genug sein um Vertrauen aufzubauen.
-2. PERSONALISIERUNG: Beziehe dich speziell auf seine Position (worauf Scouts bei einem ${payload.player.position} achten).
-3. GLAUBWÜRDIGKEIT: Erwähne Warubis Erfolgsbilanz (FC Köln ITP Partnerschaft, Bundesliga-Akademie-Netzwerk, 200+ US-College-Programme).
-4. MEHRWERT: Erkläre was FÜR IHN drin ist (kostenlose Bewertung, Exposure, zwei Pathways: europäische Akademien ODER US-College).
-5. ${payload.assessmentLink ? `CALL TO ACTION: Baue diesen Link natürlich für die kostenlose Talent-Einschätzung ein: ${payload.assessmentLink}` : 'CALL TO ACTION: Schlage ein kurzes Telefonat vor oder bitte um Rückmeldung bei Fragen.'}
-6. FORMAT: Nutze Zeilenumbrüche für WhatsApp/SMS-Lesbarkeit. Beginne mit einer personalisierten Begrüßung.
-7. SPRACHE: Die gesamte Nachricht MUSS auf Deutsch sein. Verwende natürliches, lockeres Deutsch wie es junge Leute sprechen.
-8. PATHWAYS: Stelle europäische Akademien (Bundesliga, FC Köln ITP) und US-College als gleichwertige Optionen dar. Nicht nur USA erwähnen.
-
-Gib NUR den Nachrichtentext zurück. Kein "Hier ist deine Nachricht" Intro. Eine fertige, versandfertige Nachricht.`
-
-      : `You are ${payload.scoutName}, an elite soccer scout for Warubi Sports, which connects talented players to European academies (FC Köln ITP, Bundesliga programs) and 200+ college programs in the US.
+    const prompt = `You are ${payload.scoutName}, an elite soccer scout for Warubi Sports, which connects talented players to European academies (FC Köln ITP, Bundesliga programs) and 200+ college programs in the US.
 ${scoutBioContext}
 
 Write a compelling ${payload.templateType} message to ${payload.player.name}.

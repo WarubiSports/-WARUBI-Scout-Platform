@@ -45,7 +45,6 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
   const [copied, setCopied] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [outreachLang, setOutreachLang] = useState<'en' | 'de'>('en');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Handle drag and drop
@@ -193,7 +192,7 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
     const smartLink = includeSmartLink ? `app.warubi-sports.com/audit?sid=${user.scoutId || 'demo'}&pid=${selectedPlayer.id}` : undefined;
     const outreachOptions: OutreachOptions = {
         scoutBio: user.bio,
-        language: outreachLang
+        language: 'en'
     };
 
     try {
@@ -210,32 +209,7 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
         const name = selectedPlayer.name;
         const hasCollege = user.bio?.toLowerCase().includes('college') || user.bio?.toLowerCase().includes('university');
 
-        if (outreachLang === 'de') {
-            if (hasCollege) {
-                setDraftedMessage(`Hey ${name},
-
-ich bin ${user.name} und arbeite mit Warubi Sports zusammen. Ich hab selbst College-Fußball in den USA gespielt und helfe jetzt Spielern wie dir, den richtigen Weg dorthin zu finden.
-
-Dein Profil ist mir aufgefallen und ich denke, du hast echtes Potenzial als ${position}. Falls dich ein Wechsel in die USA interessiert, würde ich mich gerne mal mit dir unterhalten, wie das aussehen könnte.
-
-${smartLink ? `Hier kannst du deine kostenlose Talent-Einschätzung machen:\n${smartLink}\n` : ''}Kein Druck - will nur schauen, ob es passt.
-
-Beste Grüße,
-${user.name}`);
-            } else {
-                setDraftedMessage(`Hey ${name},
-
-ich bin ${user.name} von Warubi Sports. Ich arbeite mit College-Trainern in den USA und dem International Talent Program von FC Köln zusammen, um Spielern die richtige Möglichkeit zu finden.
-
-Dein Profil ist mir aufgefallen und ich denke, du hast echtes Potenzial als ${position}. Falls dich ein Wechsel in die USA interessiert, würde ich mich gerne mal mit dir unterhalten, wie das aussehen könnte.
-
-${smartLink ? `Hier kannst du deine kostenlose Talent-Einschätzung machen:\n${smartLink}\n` : ''}Kein Druck - will nur schauen, ob es passt.
-
-Beste Grüße,
-${user.name}`);
-            }
-        } else {
-            if (hasCollege) {
+        if (hasCollege) {
                 setDraftedMessage(`Hey ${name},
 
 I'm ${user.name} and I work with Warubi Sports. I played college soccer in the US and now help players like you find the right path there.
@@ -258,7 +232,6 @@ ${smartLink ? `Take 2 minutes to complete your free talent assessment:\n${smartL
 Best,
 ${user.name}`);
             }
-        }
     } finally {
         setIsLoading(false);
     }
@@ -789,26 +762,7 @@ ${user.name}`);
                         </div>
                     </div>
 
-                    {/* LANGUAGE TOGGLE + INTENT BAR */}
-                    <div className="flex items-center gap-3 shrink-0">
-                        <div className="flex bg-scout-800 rounded-xl p-1 border border-scout-700">
-                            <button
-                                onClick={() => setOutreachLang('en')}
-                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${outreachLang === 'en' ? 'bg-scout-accent text-scout-900' : 'text-gray-400 hover:text-white'}`}
-                            >
-                                EN
-                            </button>
-                            <button
-                                onClick={() => setOutreachLang('de')}
-                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${outreachLang === 'de' ? 'bg-scout-accent text-scout-900' : 'text-gray-400 hover:text-white'}`}
-                            >
-                                DE
-                            </button>
-                        </div>
-                        <span className="text-[9px] text-gray-600 font-bold uppercase tracking-widest hidden md:inline">
-                            {outreachLang === 'de' ? 'German Template' : 'English Template'}
-                        </span>
-                    </div>
+                    {/* INTENT BAR */}
                     <div className="grid grid-cols-4 gap-3 shrink-0 relative z-10">
                         {INTENTS.map(intent => (
                             <button 

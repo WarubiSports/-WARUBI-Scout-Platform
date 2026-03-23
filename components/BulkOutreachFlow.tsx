@@ -49,7 +49,6 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
   const [savedPlayers, setSavedPlayers] = useState<Player[]>([]);
   const [outreachMessages, setOutreachMessages] = useState<OutreachMessage[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<OutreachTemplate>('First Spark');
-  const [outreachLang, setOutreachLang] = useState<'en' | 'de'>('de');
   const [isExtracting, setIsExtracting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -192,7 +191,7 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
 
       const results = await bulkGenerateOutreach(scoutName, playerData, selectedTemplate, {
         scoutBio,
-        language: outreachLang,
+        language: 'en',
       });
 
       const messages: OutreachMessage[] = savedPlayers.map(p => {
@@ -431,24 +430,6 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
                           <span className="text-[10px] text-gray-500">{t.desc}</span>
                         </button>
                       ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">Language</label>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setOutreachLang('de')}
-                        className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${outreachLang === 'de' ? 'bg-scout-accent text-scout-900' : 'bg-scout-800 text-gray-500 border border-scout-700'}`}
-                      >
-                        Deutsch
-                      </button>
-                      <button
-                        onClick={() => setOutreachLang('en')}
-                        className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${outreachLang === 'en' ? 'bg-scout-accent text-scout-900' : 'bg-scout-800 text-gray-500 border border-scout-700'}`}
-                      >
-                        English
-                      </button>
                     </div>
                   </div>
 

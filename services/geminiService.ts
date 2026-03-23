@@ -223,7 +223,7 @@ export const askScoutAI = async (question: string): Promise<string> => {
 
 export interface OutreachOptions {
     scoutBio?: string;
-    language?: 'en' | 'de';
+    language?: string;
 }
 
 export const generateOutreachMessage = async (
@@ -266,7 +266,6 @@ const generateFallbackMessage = (
 ): string => {
     const position = player.position || 'player';
     const name = player.name || 'there';
-    const lang = options?.language || 'en';
     const hasCollege = hasCollegeExperience(options?.scoutBio);
     const eval_ = player.evaluation as any;
     const isEE = eval_?.source === 'exposure_engine';
@@ -275,18 +274,6 @@ const generateFallbackMessage = (
 
     // WARM INTRO — for players who came through ExposureEngine
     if (isEE && bestFit && templateType === 'First Spark') {
-        if (lang === 'de') {
-            return `Hey ${name},
-
-ich hab gesehen, dass du den ExposureEngine-Check gemacht hast — dein Ergebnis zeigt ${bestFit} als beste Passung.${strengths ? ` Besonders stark: ${strengths}.` : ''}
-
-Ich bin ${scoutName} und arbeite mit Warubi Sports zusammen. Ich arbeite direkt mit Programmen auf diesem Level und denke, dass es da echte Möglichkeiten für dich gibt.
-
-Hast du Lust, kurz zu quatschen, was die nächsten Schritte wären?
-
-Beste Grüße,
-${scoutName}`;
-        }
         return `Hey ${name},
 
 I saw you completed the ExposureEngine analysis — your results show ${bestFit} as your best fit.${strengths ? ` Key strengths: ${strengths}.` : ''}
@@ -296,77 +283,6 @@ I'm ${scoutName} with Warubi Sports. I work directly with programs at that level
 Want to hop on a quick call to talk next steps?
 
 Best,
-${scoutName}`;
-    }
-
-    // GERMAN TEMPLATES
-    if (lang === 'de') {
-        if (templateType === 'First Spark') {
-            if (hasCollege) {
-                return `Hey ${name},
-
-ich bin ${scoutName} und arbeite mit Warubi Sports zusammen. Ich hab selbst College-Fußball in den USA gespielt und helfe jetzt Spielern wie dir, den richtigen Weg dorthin zu finden.
-
-Dein Profil ist mir aufgefallen und ich denke, du hast echtes Potenzial als ${position}. Falls dich ein Wechsel in die USA oder eine europäische Akademie interessiert, würde ich mich gerne mal mit dir unterhalten, wie das aussehen könnte.
-
-${assessmentLink ? `Hier kannst du in 2 Minuten deine kostenlose Talent-Einschätzung machen:\n${assessmentLink}\n` : ''}Kein Druck - will nur schauen, ob es passt.
-
-Beste Grüße,
-${scoutName}`;
-            } else {
-                return `Hey ${name},
-
-ich bin ${scoutName} von Warubi Sports. Ich arbeite mit europäischen Akademien wie dem FC Köln ITP, Bundesliga-Programmen und 200+ College-Programmen in den USA zusammen, um Spielern die richtige Möglichkeit zu finden.
-
-Dein Profil ist mir aufgefallen und ich denke, du hast echtes Potenzial als ${position}. Falls dich ein Wechsel in die USA oder eine europäische Akademie interessiert, würde ich mich gerne mal mit dir unterhalten, wie das aussehen könnte.
-
-${assessmentLink ? `Hier kannst du in 2 Minuten deine kostenlose Talent-Einschätzung machen:\n${assessmentLink}\n` : ''}Kein Druck - will nur schauen, ob es passt.
-
-Beste Grüße,
-${scoutName}`;
-            }
-        }
-
-        if (templateType === 'Follow-up') {
-            return `Hey ${name},
-
-wollte nur nochmal nachhaken - ich weiß, dass solche Nachrichten schnell untergehen können.
-
-Falls du Interesse hast, würde ich mich immer noch gerne mit dir über Möglichkeiten in den USA oder bei europäischen Akademien unterhalten. Beantworte gerne alle Fragen, die du zum Prozess hast.
-
-${scoutName}`;
-        }
-
-        if (templateType === 'Invite to ID') {
-            return `Hey ${name},
-
-wir veranstalten demnächst einen ID Day. Das ist eine Chance für Spieler, sich vor US-College-Trainern, europäischen Akademie-Scouts und Trainern zu zeigen.
-
-Nach dem was ich gesehen hab, denke ich, dass du gut abschneiden würdest. Keine Verpflichtung - komm einfach spielen und schau, welche Türen sich öffnen.
-
-Interesse?
-
-${scoutName}`;
-        }
-
-        if (templateType === 'Request Video') {
-            return `Hey ${name},
-
-hast du vielleicht aktuelles Spielmaterial oder Highlights, die ich mir anschauen könnte? Muss keine Profi-Qualität sein - Handyaufnahmen reichen völlig.
-
-Das würde mir helfen, dein Spiel besser einzuschätzen und zu sehen, welche Programme am besten passen könnten.
-
-${scoutName}`;
-        }
-
-        // Default German
-        return `Hey ${name},
-
-ich bin ${scoutName} von Warubi Sports. Ich würde mich gerne mit dir über deine Fußball-Zukunft unterhalten.
-
-${assessmentLink ? `Mehr Infos hier: ${assessmentLink}` : 'Meld dich, wenn du ein paar Minuten Zeit hast.'}
-
-Beste Grüße,
 ${scoutName}`;
     }
 

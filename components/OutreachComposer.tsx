@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Player, UserProfile, OutreachLog } from '../types';
 import {
   X, Copy, CheckCircle, MessageCircle, Send, Loader2,
-  Zap, Globe, Link, Instagram,
+  Zap, Link, Instagram,
 } from 'lucide-react';
 import { generateOutreachMessage, AIUsageLimitError, OutreachOptions } from '../services/geminiService';
 import { haptic } from '../hooks/useMobileFeatures';
@@ -37,7 +37,6 @@ const OutreachComposer: React.FC<OutreachComposerProps> = ({ player, user, onMes
   const [draftedMessage, setDraftedMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [outreachLang, setOutreachLang] = useState<'en' | 'de'>('en');
   const [includeSmartLink, setIncludeSmartLink] = useState(true);
   const [aiError, setAiError] = useState<string | null>(null);
 
@@ -54,7 +53,6 @@ const OutreachComposer: React.FC<OutreachComposerProps> = ({ player, user, onMes
     const isEE = eval_?.source === 'exposure_engine';
     const hasOutreach = player.outreachLogs && player.outreachLogs.length > 0;
     const autoIntent = hasOutreach ? 'follow_up' : 'first_spark';
-    // Auto-fire for EE leads or any lead with no prior outreach
     if (isEE || !hasOutreach) {
       handleIntentClick(autoIntent);
     }
@@ -69,14 +67,11 @@ const OutreachComposer: React.FC<OutreachComposerProps> = ({ player, user, onMes
     const intent = INTENTS.find(i => i.id === intentId);
     const smartLink = includeSmartLink ? `app.warubi-sports.com/audit?sid=${user.scoutId || 'demo'}&pid=${player.id}` : undefined;
     const eeLink = user.scoutId ? `app.warubi-sports.com?ref=${user.scoutId}` : undefined;
-    const outreachOptions: OutreachOptions = { scoutBio: user.bio, language: outreachLang };
+    const outreachOptions: OutreachOptions = { scoutBio: user.bio, language: 'en' };
 
     const appendEELink = (msg: string) => {
       if (!eeLink || msg.includes('warubi-sports.com?ref=')) return msg;
-      const psLine = outreachLang === 'de'
-        ? `\n\nPS: Hier kannst du kostenlos checken, auf welchem US-College-Level du stehst:\n${eeLink}`
-        : `\n\nPS: Check where you'd fit in US college soccer for free:\n${eeLink}`;
-      return msg + psLine;
+      return msg + `\n\nPS: Check where you'd fit in US college soccer for free:\n${eeLink}`;
     };
 
     try {
@@ -86,7 +81,6 @@ const OutreachComposer: React.FC<OutreachComposerProps> = ({ player, user, onMes
       if (e instanceof AIUsageLimitError) {
         setAiError(e.message);
       }
-      // Fallback template
       const position = player.position || 'player';
       const name = player.name;
       const hasCollege = user.bio?.toLowerCase().includes('college') || user.bio?.toLowerCase().includes('university');
@@ -95,18 +89,8 @@ const OutreachComposer: React.FC<OutreachComposerProps> = ({ player, user, onMes
       const bestFit = isEE ? eval_?.best_fit : null;
       const strengths = isEE && eval_?.key_strengths?.length ? eval_.key_strengths.slice(0, 2).join(' and ') : null;
 
-      // Warm intro for ExposureEngine leads — reference their actual results
       if (isEE && bestFit) {
-        if (outreachLang === 'de') {
-          setDraftedMessage(appendEELink(`Hey ${name},\n\nich hab gesehen, dass du den ExposureEngine-Check gemacht hast — dein Ergebnis zeigt ${bestFit} als beste Passung. ${strengths ? `Besonders stark: ${strengths}.` : ''}\n\nIch bin ${user.name} und arbeite mit Warubi Sports zusammen. Ich arbeite direkt mit Programmen auf diesem Level und denke, dass es da echte Möglichkeiten für dich gibt.\n\nHast du Lust, kurz zu quatschen, was die nächsten Schritte wären?\n\nBeste Grüße,\n${user.name}`));
-        } else {
-          setDraftedMessage(appendEELink(`Hey ${name},\n\nI saw you completed the ExposureEngine analysis — your results show ${bestFit} as your best fit. ${strengths ? `Key strengths: ${strengths}.` : ''}\n\nI'm ${user.name} with Warubi Sports. I work directly with programs at that level and think there are real opportunities for you.\n\nWant to hop on a quick call to talk next steps?\n\nBest,\n${user.name}`));
-        }
-      } else if (outreachLang === 'de') {
-        setDraftedMessage(appendEELink(hasCollege
-          ? `Hey ${name},\n\nich bin ${user.name} und arbeite mit Warubi Sports zusammen. Ich hab selbst College-Fußball in den USA gespielt und helfe jetzt Spielern wie dir, den richtigen Weg zu finden — ob US-College oder europäische Akademie.\n\nDein Profil ist mir aufgefallen und ich denke, du hast echtes Potenzial als ${position}. Falls dich ein Wechsel in die USA oder eine Bundesliga-Akademie interessiert, würde ich mich gerne mal mit dir unterhalten.\n\n${smartLink ? `Hier kannst du deine kostenlose Talent-Einschätzung machen:\n${smartLink}\n` : ''}Kein Druck - will nur schauen, ob es passt.\n\nBeste Grüße,\n${user.name}`
-          : `Hey ${name},\n\nich bin ${user.name} von Warubi Sports. Ich arbeite mit College-Trainern in den USA und dem International Talent Program von FC Köln zusammen, um Spielern die richtige Möglichkeit zu finden — ob US-College oder europäische Akademie.\n\nDein Profil ist mir aufgefallen und ich denke, du hast echtes Potenzial als ${position}. Falls dich eine dieser Möglichkeiten interessiert, lass uns kurz quatschen.\n\n${smartLink ? `Hier kannst du deine kostenlose Talent-Einschätzung machen:\n${smartLink}\n` : ''}Kein Druck - will nur schauen, ob es passt.\n\nBeste Grüße,\n${user.name}`
-        ));
+        setDraftedMessage(appendEELink(`Hey ${name},\n\nI saw you completed the ExposureEngine analysis — your results show ${bestFit} as your best fit. ${strengths ? `Key strengths: ${strengths}.` : ''}\n\nI'm ${user.name} with Warubi Sports. I work directly with programs at that level and think there are real opportunities for you.\n\nWant to hop on a quick call to talk next steps?\n\nBest,\n${user.name}`));
       } else {
         setDraftedMessage(appendEELink(hasCollege
           ? `Hey ${name},\n\nI'm ${user.name} and I work with Warubi Sports. I played college soccer in the US and now help players find the right path — whether that's US college or a European academy.\n\nI came across your profile and think you've got real potential as a ${position}. If you're interested in playing in the US or at a Bundesliga academy, I'd love to chat about what that could look like.\n\n${smartLink ? `Take 2 minutes to complete your free talent assessment:\n${smartLink}\n` : ''}No pressure - just want to see if it's a good fit.\n\nBest,\n${user.name}`
@@ -206,15 +190,6 @@ const OutreachComposer: React.FC<OutreachComposerProps> = ({ player, user, onMes
 
         {/* Controls row */}
         <div className="flex items-center gap-3 px-5 py-3 border-b border-scout-700/50 shrink-0">
-          {/* Language toggle */}
-          <button
-            onClick={() => { setOutreachLang(l => l === 'en' ? 'de' : 'en'); if (activeIntent) handleIntentClick(activeIntent); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-scout-800 text-xs font-bold text-gray-300 hover:text-white transition-colors"
-          >
-            <Globe size={12} />
-            {outreachLang === 'en' ? 'EN' : 'DE'}
-          </button>
-
           {/* Smart link toggle */}
           <button
             onClick={() => setIncludeSmartLink(v => !v)}
