@@ -8,6 +8,7 @@ import DashboardLayout from './components/DashboardLayout';
 import PasswordSetupModal from './components/PasswordSetupModal';
 import ResetPassword from './components/ResetPassword';
 import PlayersContent from './components/PlayersContent';
+import HomeContent from './components/HomeContent';
 import EventsRoute from './components/routes/EventsRoute';
 import OutreachRoute from './components/routes/OutreachRoute';
 import MyBusinessRoute from './components/routes/MyBusinessRoute';
@@ -432,7 +433,7 @@ const App: React.FC = () => {
         {userProfile && (
           <Route path="/dashboard" element={<DashboardLayout {...dashboardProps} />}>
             <Route index element={<Navigate to="players" replace />} />
-            <Route path="players" element={<PlayersContent />} />
+            <Route path="players" element={<HomeContent />} />
             <Route path="events" element={<EventsRoute />} />
             <Route path="outreach" element={<OutreachRoute />} />
             <Route path="my-business" element={<MyBusinessRoute />} />
