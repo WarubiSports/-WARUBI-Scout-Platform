@@ -9,7 +9,7 @@ interface WarmLeadsStripProps {
 export const WarmLeadsStrip: React.FC<WarmLeadsStripProps> = ({ players }) => {
   const warmLeads = useMemo(() => {
     return players
-      .filter(p => p.activityStatus === 'spotlight' || p.activityStatus === 'signal')
+      .filter(p => p.activityStatus && p.activityStatus !== 'undiscovered')
       .sort((a, b) => (b.evaluation?.score || 0) - (a.evaluation?.score || 0));
   }, [players]);
 

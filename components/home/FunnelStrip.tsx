@@ -9,9 +9,9 @@ interface FunnelStripProps {
 export const FunnelStrip: React.FC<FunnelStripProps> = ({ players }) => {
   const metrics = useMemo(() => {
     const contacted = players.filter(p => p.outreachLogs?.length > 0 || p.lastContactedAt).length;
-    const openedEE = players.filter(p => p.activityStatus === 'signal' || p.activityStatus === 'spotlight').length;
-    const completedEE = players.filter(p => p.activityStatus === 'spotlight').length;
-    const warmLeads = players.filter(p => p.activityStatus === 'spotlight' && p.status === 'Lead').length;
+    const openedEE = players.filter(p => p.activityStatus && p.activityStatus !== 'undiscovered').length;
+    const completedEE = players.filter(p => p.activityStatus === 'spotlight' || p.activityStatus === 'signal').length;
+    const warmLeads = players.filter(p => (p.activityStatus === 'spotlight' || p.activityStatus === 'signal') && p.status === 'Lead').length;
     return { contacted, openedEE, completedEE, warmLeads };
   }, [players]);
 
