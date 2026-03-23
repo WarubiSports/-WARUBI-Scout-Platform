@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Share2, MessageCircle, Mail, Copy, Check, X, Users } from 'lucide-react';
+import { Share2, MessageCircle, Mail, Copy, Check, X, Users, DollarSign, TrendingUp, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardContext } from './DashboardLayout';
 import { FunnelStrip } from './home/FunnelStrip';
@@ -8,7 +8,7 @@ import { BulkOutreachFlow } from './BulkOutreachFlow';
 import { FirstRunGuide } from './home/FirstRunGuide';
 
 const HomeContent: React.FC = () => {
-  const { user, players, handleCopyLink, linkCopied } = useDashboardContext();
+  const { user, players, handleCopyLink, linkCopied, earnings } = useDashboardContext();
   const navigate = useNavigate();
 
   const importRef = useRef<HTMLDivElement>(null);
@@ -35,6 +35,53 @@ const HomeContent: React.FC = () => {
 
   return (
     <div className="space-y-4 animate-fade-in">
+      {/* Earnings strip — always visible when scout has agreement */}
+      {earnings.hasAgreement && (
+        <button
+          onClick={() => navigate('/dashboard/my-business')}
+          className="w-full bg-scout-800 border border-scout-700 rounded-xl p-4 flex items-center gap-4 hover:border-scout-accent/40 active:scale-[0.99] transition-all text-left group"
+        >
+          <div className="p-2.5 bg-scout-accent/10 rounded-xl">
+            <DollarSign size={20} className="text-scout-accent" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline gap-2">
+              <span className="text-xl font-black text-white">
+                {earnings.currency === 'USD' ? '$' : '€'}{earnings.total.toLocaleString()}
+              </span>
+              <span className="text-[10px] font-bold text-gray-500 uppercase">pipeline value</span>
+            </div>
+            <div className="flex gap-3 mt-1 text-[11px]">
+              <span className="text-scout-accent font-bold">{earnings.currency === 'USD' ? '$' : '€'}{earnings.placed.toLocaleString()} earned</span>
+              <span className="text-gray-600">·</span>
+              <span className="text-gray-400">{earnings.placedCount} placed</span>
+              {earnings.pipelineCount > 0 && (
+                <>
+                  <span className="text-gray-600">·</span>
+                  <span className="text-gray-400">{earnings.pipelineCount} in pipeline</span>
+                </>
+              )}
+            </div>
+          </div>
+          <ChevronRight size={16} className="text-gray-600 group-hover:text-scout-accent transition-colors shrink-0" />
+        </button>
+      )}
+
+      {/* No agreement — nudge to activate */}
+      {!earnings.hasAgreement && players.length > 0 && (
+        <button
+          onClick={() => navigate('/dashboard/my-business')}
+          className="w-full bg-scout-800/50 border border-dashed border-scout-700 rounded-xl p-4 flex items-center gap-3 hover:border-scout-accent/30 active:scale-[0.99] transition-all text-left group"
+        >
+          <TrendingUp size={18} className="text-gray-500" />
+          <div className="flex-1">
+            <p className="text-xs font-bold text-gray-400">Activate your license to track earnings</p>
+            <p className="text-[10px] text-gray-600 mt-0.5">Every player you place earns you compensation</p>
+          </div>
+          <ChevronRight size={14} className="text-gray-600 group-hover:text-gray-400 transition-colors" />
+        </button>
+      )}
+
       {/* Funnel metrics — only show when there's actual data */}
       {hasData && <FunnelStrip players={players} />}
 
