@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react';
+import * as XLSX from 'xlsx';
 import { X, Upload, FileUp, Trash2, Loader2, Copy, Check, Send, ChevronRight, MessageSquare, ExternalLink, Mail, CheckCircle } from 'lucide-react';
 import { Player, PlayerStatus } from '../types';
 import { extractPlayersFromBulkData, extractRosterFromPhoto, bulkGenerateOutreach, BulkOutreachResult } from '../services/geminiService';
@@ -21,6 +22,162 @@ interface ExtractedPlayer {
   parentEmail: string;
   notes: string;
 }
+
+// --- Client-side parsers for structured data (no AI needed) ---
+
+const EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+const PHONE_RE = /\+?[\d\s\-().]{7,}/;
+
+/** Guess which column maps to which field based on header text */
+const guessColumn = (header: string): keyof ExtractedPlayer | null => {
+  const h = header.toLowerCase().trim();
+  if (/^(name|player|full.?name|first.*last|athlete)/.test(h)) return 'name';
+  if (/^(first|fname)/.test(h)) return 'name'; // will concat with last
+  if (/^(email|e-mail|player.*email)$/.test(h)) return 'email';
+  if (/^(phone|cell|mobile|tel|player.*phone)$/.test(h)) return 'phone';
+  if (/^(pos|position)/.test(h)) return 'position';
+  if (/^(age|birth|dob|year)/.test(h)) return 'age';
+  if (/^(club|team|org|school)/.test(h)) return 'club';
+  if (/^(parent.*name|guardian|father|mother|parent$)/.test(h)) return 'parentName';
+  if (/^(parent.*email|guardian.*email)/.test(h)) return 'parentEmail';
+  if (/^(parent.*phone|guardian.*phone)/.test(h)) return 'parentPhone';
+  if (/^(note|comment|info)/.test(h)) return 'notes';
+  return null;
+};
+
+/** Parse rows from a 2D array (Excel/CSV). Auto-detects headers vs headerless. */
+const parseRows = (rows: string[][]): ExtractedPlayer[] => {
+  if (rows.length === 0) return [];
+
+  // Check if first row looks like headers
+  const firstRow = rows[0];
+  const hasHeaders = firstRow.some(cell => {
+    const lower = (cell || '').toLowerCase().trim();
+    return /^(name|email|phone|position|age|club|team|player|first|last|parent|guardian)/.test(lower);
+  });
+
+  let dataRows: string[][];
+  let columnMap: Map<number, keyof ExtractedPlayer>;
+
+  if (hasHeaders) {
+    columnMap = new Map();
+    // Also track first/last name columns
+    let firstNameCol = -1;
+    let lastNameCol = -1;
+    firstRow.forEach((header, i) => {
+      const h = header.toLowerCase().trim();
+      if (/^(first|fname)/.test(h)) { firstNameCol = i; return; }
+      if (/^(last|lname|surname)/.test(h)) { lastNameCol = i; return; }
+      const field = guessColumn(header);
+      if (field) columnMap.set(i, field);
+    });
+    // If first+last found but no 'name', merge them
+    if (firstNameCol >= 0 && !Array.from(columnMap.values()).includes('name')) {
+      columnMap.set(firstNameCol, 'name');
+      if (lastNameCol >= 0) columnMap.set(lastNameCol, 'name'); // handled in merge below
+    }
+    dataRows = rows.slice(1);
+
+    return dataRows.map(row => {
+      const p: ExtractedPlayer = { name: '', position: 'CM', age: 0, club: '', email: '', phone: '', parentName: '', parentPhone: '', parentEmail: '', notes: '' };
+      columnMap.forEach((field, col) => {
+        const val = (row[col] || '').trim();
+        if (!val) return;
+        if (field === 'age') {
+          const num = parseInt(val);
+          if (!isNaN(num) && num > 0 && num < 100) p.age = num;
+        } else if (field === 'name' && p.name) {
+          // Merge first + last
+          p.name = p.name + ' ' + val;
+        } else {
+          (p as any)[field] = val;
+        }
+      });
+      // If first+last columns exist
+      if (firstNameCol >= 0 && lastNameCol >= 0) {
+        const first = (row[firstNameCol] || '').trim();
+        const last = (row[lastNameCol] || '').trim();
+        p.name = (first + ' ' + last).trim();
+      }
+      return p;
+    }).filter(p => p.name || p.email);
+  } else {
+    // No headers — try to parse each row intelligently
+    return rows.map(row => {
+      const p: ExtractedPlayer = { name: '', position: 'CM', age: 0, club: '', email: '', phone: '', parentName: '', parentPhone: '', parentEmail: '', notes: '' };
+      for (const cell of row) {
+        const val = (cell || '').trim();
+        if (!val) continue;
+        if (!p.email && EMAIL_RE.test(val)) { p.email = val.match(EMAIL_RE)![0]; continue; }
+        if (!p.phone && PHONE_RE.test(val) && !/^\d{4}$/.test(val)) { p.phone = val; continue; }
+        const num = parseInt(val);
+        if (!p.age && !isNaN(num) && num >= 10 && num <= 40) { p.age = num; continue; }
+        if (!p.name && /^[A-Za-z\s.\-']{2,}$/.test(val) && val.length > 2) { p.name = val; continue; }
+        if (!p.club) { p.club = val; continue; }
+      }
+      return p;
+    }).filter(p => p.name || p.email);
+  }
+};
+
+/** Parse plain text: emails list, CSV-like, or name list */
+const parseTextLocally = (text: string): ExtractedPlayer[] => {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+  if (lines.length === 0) return [];
+
+  // Check if it looks like CSV (has commas or tabs)
+  const hasDelimiter = lines.some(l => l.includes(',') || l.includes('\t'));
+  if (hasDelimiter) {
+    const delim = lines[0].includes('\t') ? '\t' : ',';
+    const rows = lines.map(l => l.split(delim).map(c => c.trim()));
+    return parseRows(rows);
+  }
+
+  // Otherwise: one item per line (email list, name list, etc.)
+  return lines.map(line => {
+    const p: ExtractedPlayer = { name: '', position: 'CM', age: 0, club: '', email: '', phone: '', parentName: '', parentPhone: '', parentEmail: '', notes: '' };
+    if (EMAIL_RE.test(line)) {
+      p.email = line.match(EMAIL_RE)![0];
+      // Try to derive name from email prefix
+      const prefix = p.email.split('@')[0].replace(/[0-9._-]+$/, '').replace(/[._-]/g, ' ');
+      if (prefix.length > 2) p.name = prefix.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    } else if (PHONE_RE.test(line)) {
+      p.phone = line;
+    } else {
+      p.name = line;
+    }
+    return p;
+  }).filter(p => p.name || p.email);
+};
+
+/** Parse Excel/XLSX/XLS file client-side */
+const parseExcelFile = async (file: File): Promise<ExtractedPlayer[]> => {
+  const buffer = await file.arrayBuffer();
+  const wb = XLSX.read(buffer, { type: 'array' });
+  const firstSheet = wb.Sheets[wb.SheetNames[0]];
+  const rows: string[][] = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+  // Filter empty rows
+  const nonEmpty = rows.filter(r => r.some(c => String(c || '').trim()));
+  return parseRows(nonEmpty.map(r => r.map(c => String(c || ''))));
+};
+
+/** Detect if text can be parsed locally (structured) vs needs AI (unstructured) */
+const canParseLocally = (text: string): boolean => {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+  if (lines.length === 0) return false;
+  // If most lines have emails, it's an email list
+  const emailLines = lines.filter(l => EMAIL_RE.test(l)).length;
+  if (emailLines / lines.length > 0.5) return true;
+  // If most lines have commas/tabs, it's CSV
+  const csvLines = lines.filter(l => l.includes(',') || l.includes('\t')).length;
+  if (csvLines / lines.length > 0.5) return true;
+  // If it's just a simple list of names (one per line, no complex text)
+  const simpleLines = lines.filter(l => l.length < 80 && !l.includes('.') || EMAIL_RE.test(l)).length;
+  if (simpleLines / lines.length > 0.7 && lines.length > 3) return true;
+  return false;
+};
+
+// --- End client-side parsers ---
 
 interface OutreachMessage {
   playerId: string;
@@ -85,24 +242,43 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
     try {
       const isImage = file.type.startsWith('image/');
       const isPdf = file.type === 'application/pdf';
-      let players: Partial<Player>[];
-      if (isImage) {
+      const isExcel = /\.(xlsx?|xls)$/i.test(file.name) || file.type.includes('spreadsheet') || file.type.includes('excel');
+      const isCsv = file.name.endsWith('.csv') || file.type === 'text/csv';
+
+      let normalized: ExtractedPlayer[];
+
+      if (isExcel) {
+        // Client-side Excel parsing — instant, handles 10k+ rows
+        normalized = await parseExcelFile(file);
+      } else if (isCsv) {
+        const text = await file.text();
+        normalized = parseTextLocally(text);
+      } else if (isImage) {
         const base64 = await fileToBase64(file);
-        players = await withTimeout(extractRosterFromPhoto(base64, file.type), 30000, 'Extraction');
+        const players = await withTimeout(extractRosterFromPhoto(base64, file.type), 30000, 'Extraction');
+        normalized = normalizeExtracted(players);
       } else if (isPdf) {
         const base64 = await fileToBase64(file);
-        players = await withTimeout(extractPlayersFromBulkData(base64, true, 'application/pdf'), 30000, 'Extraction');
+        const players = await withTimeout(extractPlayersFromBulkData(base64, true, 'application/pdf'), 30000, 'Extraction');
+        normalized = normalizeExtracted(players);
       } else {
+        // Text files — try local parse first, fall back to AI
         const text = await file.text();
-        players = await withTimeout(extractPlayersFromBulkData(text), 30000, 'Extraction');
+        if (canParseLocally(text)) {
+          normalized = parseTextLocally(text);
+        } else {
+          const players = await withTimeout(extractPlayersFromBulkData(text), 30000, 'Extraction');
+          normalized = normalizeExtracted(players);
+        }
       }
-      const normalized = normalizeExtracted(players);
+
       if (normalized.length === 0) {
         setExtractionFailed(true);
-        toast.error('No players found', { description: 'The AI couldn\'t find player data. Try a clearer file or paste the data instead.' });
+        toast.error('No players found', { description: 'Could not find player data. Try a different format or paste below.' });
       } else {
         setExtractedPlayers(normalized);
         setStep('REVIEW');
+        if (normalized.length > 100) toast.success(`${normalized.length} contacts extracted`, { description: 'Client-side parsing — no AI needed.' });
       }
     } catch (err) {
       setExtractionFailed(true);
@@ -118,11 +294,18 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
     setIsExtracting(true);
     setExtractionFailed(false);
     try {
-      const players = await withTimeout(extractPlayersFromBulkData(pasteText), 30000, 'Extraction');
-      const normalized = normalizeExtracted(players);
+      let normalized: ExtractedPlayer[];
+      if (canParseLocally(pasteText)) {
+        // Instant client-side parse for structured data
+        normalized = parseTextLocally(pasteText);
+      } else {
+        // Fall back to AI for unstructured text
+        const players = await withTimeout(extractPlayersFromBulkData(pasteText), 30000, 'Extraction');
+        normalized = normalizeExtracted(players);
+      }
       if (normalized.length === 0) {
         setExtractionFailed(true);
-        toast.error('No players found', { description: 'The AI couldn\'t find player data in the text you pasted.' });
+        toast.error('No players found', { description: 'Could not find player data in the text you pasted.' });
       } else {
         setExtractedPlayers(normalized);
         setStep('REVIEW');
@@ -409,14 +592,14 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".csv,.txt,.pdf,image/*"
+                  accept=".csv,.txt,.pdf,.xlsx,.xls,image/*"
                   className="hidden"
                   onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFileUpload(file); }}
                 />
                 {isExtracting ? (
                   <div className="flex flex-col items-center gap-3">
                     <Loader2 size={32} className="text-scout-accent animate-spin" />
-                    <p className="text-gray-400 text-sm">Extracting players with AI...</p>
+                    <p className="text-gray-400 text-sm">Extracting players...</p>
                     <p className="text-gray-600 text-xs">This usually takes 5-15 seconds</p>
                   </div>
                 ) : extractionFailed ? (
@@ -437,7 +620,7 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
                   <>
                     <Upload size={32} className="mx-auto text-gray-600 mb-3" />
                     <p className="text-white font-bold mb-1">Drop a file or click to upload</p>
-                    <p className="text-gray-500 text-xs">CSV, TXT, PDF, or photo of a roster</p>
+                    <p className="text-gray-500 text-xs">Excel, CSV, PDF, or photo of a roster</p>
                   </>
                 )}
               </div>
