@@ -168,14 +168,23 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
         setLoading(true);
         try {
             const reader = new FileReader();
+            const isImage = file.type.startsWith('image/');
+            const isPdf = file.type === 'application/pdf';
+
             reader.onload = async (event) => {
-                const content = event.target?.result as string;
-                const prospects = await extractPlayersFromBulkData(content, file.type.includes('image'));
+                let prospects;
+                if (isImage || isPdf) {
+                    const base64 = (event.target?.result as string).split(',')[1];
+                    prospects = await extractPlayersFromBulkData(base64, true, isPdf ? 'application/pdf' : file.type);
+                } else {
+                    const text = event.target?.result as string;
+                    prospects = await extractPlayersFromBulkData(text, false);
+                }
                 setBulkPlayers(prospects);
                 setLoading(false);
             };
 
-            if (file.type.includes('image')) {
+            if (isImage || isPdf) {
                 reader.readAsDataURL(file);
             } else {
                 reader.readAsText(file);

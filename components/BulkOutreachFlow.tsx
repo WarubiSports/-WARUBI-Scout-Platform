@@ -70,9 +70,14 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
     setIsExtracting(true);
     try {
       const isImage = file.type.startsWith('image/');
+      const isPdf = file.type === 'application/pdf';
       if (isImage) {
         const base64 = await fileToBase64(file);
         const players = await extractRosterFromPhoto(base64, file.type);
+        setExtractedPlayers(normalizeExtracted(players));
+      } else if (isPdf) {
+        const base64 = await fileToBase64(file);
+        const players = await extractPlayersFromBulkData(base64, true, 'application/pdf');
         setExtractedPlayers(normalizeExtracted(players));
       } else {
         const text = await file.text();
