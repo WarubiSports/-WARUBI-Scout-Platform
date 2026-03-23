@@ -338,7 +338,7 @@ Return a JSON array, each element with:
       : '';
 
     const prompt = isGerman
-      ? `Du bist ${payload.scoutName}, ein Elite-Fußballscout für Warubi Sports, das talentierte Spieler mit dem International Talent Program von FC Köln in Deutschland und 200+ College-Programmen in den USA verbindet.
+      ? `Du bist ${payload.scoutName}, ein Elite-Fußballscout für Warubi Sports, das talentierte Spieler mit europäischen Akademien (FC Köln ITP, Bundesliga-Programme) und 200+ College-Programmen in den USA verbindet.
 ${scoutBioContext}
 
 Schreibe eine überzeugende ${payload.templateType} Nachricht an ${payload.player.name}. DIE NACHRICHT MUSS AUF DEUTSCH SEIN.
@@ -354,15 +354,16 @@ NACHRICHTENTYP: ${templateContext[payload.templateType] || 'Professionelle Vorst
 ANFORDERUNGEN:
 1. LÄNGE: Mindestens 4-6 Sätze. Die Nachricht muss substanziell genug sein um Vertrauen aufzubauen.
 2. PERSONALISIERUNG: Beziehe dich speziell auf seine Position (worauf Scouts bei einem ${payload.player.position} achten).
-3. GLAUBWÜRDIGKEIT: Erwähne Warubis Erfolgsbilanz (200+ jährliche Platzierungen, FC Köln Partnerschaft, NCAA Netzwerk).
-4. MEHRWERT: Erkläre was FÜR IHN drin ist (kostenlose Bewertung, Exposure, Pathway-Optionen).
+3. GLAUBWÜRDIGKEIT: Erwähne Warubis Erfolgsbilanz (FC Köln ITP Partnerschaft, Bundesliga-Akademie-Netzwerk, 200+ US-College-Programme).
+4. MEHRWERT: Erkläre was FÜR IHN drin ist (kostenlose Bewertung, Exposure, zwei Pathways: europäische Akademien ODER US-College).
 5. ${payload.assessmentLink ? `CALL TO ACTION: Baue diesen Link natürlich für die kostenlose Talent-Einschätzung ein: ${payload.assessmentLink}` : 'CALL TO ACTION: Schlage ein kurzes Telefonat vor oder bitte um Rückmeldung bei Fragen.'}
 6. FORMAT: Nutze Zeilenumbrüche für WhatsApp/SMS-Lesbarkeit. Beginne mit einer personalisierten Begrüßung.
 7. SPRACHE: Die gesamte Nachricht MUSS auf Deutsch sein. Verwende natürliches, lockeres Deutsch wie es junge Leute sprechen.
+8. PATHWAYS: Stelle europäische Akademien (Bundesliga, FC Köln ITP) und US-College als gleichwertige Optionen dar. Nicht nur USA erwähnen.
 
 Gib NUR den Nachrichtentext zurück. Kein "Hier ist deine Nachricht" Intro. Eine fertige, versandfertige Nachricht.`
 
-      : `You are ${payload.scoutName}, an elite soccer scout for Warubi Sports, which connects talented players to FC Köln's International Talent Program in Germany and 200+ college programs in the US.
+      : `You are ${payload.scoutName}, an elite soccer scout for Warubi Sports, which connects talented players to European academies (FC Köln ITP, Bundesliga programs) and 200+ college programs in the US.
 ${scoutBioContext}
 
 Write a compelling ${payload.templateType} message to ${payload.player.name}.
@@ -378,10 +379,11 @@ MESSAGE TYPE: ${templateContext[payload.templateType] || 'Professional introduct
 REQUIREMENTS:
 1. LENGTH: 4-6 sentences minimum. This needs to be substantive enough to build trust.
 2. PERSONALIZATION: Reference their position specifically (what scouts look for in a ${payload.player.position}).
-3. CREDIBILITY: Mention Warubi's track record (200+ annual placements, FC Köln partnership, NCAA network).
-4. VALUE: Explain what's in it for THEM (free evaluation, exposure, pathway options).
+3. CREDIBILITY: Mention Warubi's track record (FC Köln ITP partnership, Bundesliga academy network, 200+ US college programs).
+4. VALUE: Explain what's in it for THEM (free evaluation, exposure, two pathways: European academies OR US college).
 5. ${payload.assessmentLink ? `CALL TO ACTION: Include this link naturally for their free talent assessment: ${payload.assessmentLink}` : 'CALL TO ACTION: Suggest a quick call or ask them to reply with questions.'}
 6. FORMAT: Use line breaks for WhatsApp/text readability. Start with a personalized greeting.
+7. PATHWAYS: Present European academies (Bundesliga, FC Köln ITP) and US college as equal options. Don't only mention the US.
 
 Return ONLY the message body. No "Here's your message" intro. One polished message ready to send.`;
 

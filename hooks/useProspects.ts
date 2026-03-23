@@ -365,8 +365,8 @@ export function useProspects(scoutId: string | undefined) {
               old_status: oldStatus || null,
               new_status: newDbStatus,
             })
-          } catch (_) {
-            // Best-effort: don't fail the update if history insert fails
+          } catch (e) {
+            console.error('[status-history] Insert failed:', e)
           }
         }
       }

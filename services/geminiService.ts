@@ -307,7 +307,7 @@ ${scoutName}`;
 
 ich bin ${scoutName} und arbeite mit Warubi Sports zusammen. Ich hab selbst College-Fußball in den USA gespielt und helfe jetzt Spielern wie dir, den richtigen Weg dorthin zu finden.
 
-Dein Profil ist mir aufgefallen und ich denke, du hast echtes Potenzial als ${position}. Falls dich ein Wechsel in die USA interessiert, würde ich mich gerne mal mit dir unterhalten, wie das aussehen könnte.
+Dein Profil ist mir aufgefallen und ich denke, du hast echtes Potenzial als ${position}. Falls dich ein Wechsel in die USA oder eine europäische Akademie interessiert, würde ich mich gerne mal mit dir unterhalten, wie das aussehen könnte.
 
 ${assessmentLink ? `Hier kannst du in 2 Minuten deine kostenlose Talent-Einschätzung machen:\n${assessmentLink}\n` : ''}Kein Druck - will nur schauen, ob es passt.
 
@@ -316,9 +316,9 @@ ${scoutName}`;
             } else {
                 return `Hey ${name},
 
-ich bin ${scoutName} von Warubi Sports. Ich arbeite mit College-Trainern in den USA und dem International Talent Program von FC Köln zusammen, um Spielern die richtige Möglichkeit zu finden.
+ich bin ${scoutName} von Warubi Sports. Ich arbeite mit europäischen Akademien wie dem FC Köln ITP, Bundesliga-Programmen und 200+ College-Programmen in den USA zusammen, um Spielern die richtige Möglichkeit zu finden.
 
-Dein Profil ist mir aufgefallen und ich denke, du hast echtes Potenzial als ${position}. Falls dich ein Wechsel in die USA interessiert, würde ich mich gerne mal mit dir unterhalten, wie das aussehen könnte.
+Dein Profil ist mir aufgefallen und ich denke, du hast echtes Potenzial als ${position}. Falls dich ein Wechsel in die USA oder eine europäische Akademie interessiert, würde ich mich gerne mal mit dir unterhalten, wie das aussehen könnte.
 
 ${assessmentLink ? `Hier kannst du in 2 Minuten deine kostenlose Talent-Einschätzung machen:\n${assessmentLink}\n` : ''}Kein Druck - will nur schauen, ob es passt.
 
@@ -332,7 +332,7 @@ ${scoutName}`;
 
 wollte nur nochmal nachhaken - ich weiß, dass solche Nachrichten schnell untergehen können.
 
-Falls du Interesse hast, würde ich mich immer noch gerne mit dir über Möglichkeiten in den USA unterhalten. Beantworte gerne alle Fragen, die du zum Prozess hast.
+Falls du Interesse hast, würde ich mich immer noch gerne mit dir über Möglichkeiten in den USA oder bei europäischen Akademien unterhalten. Beantworte gerne alle Fragen, die du zum Prozess hast.
 
 ${scoutName}`;
         }
@@ -340,7 +340,7 @@ ${scoutName}`;
         if (templateType === 'Invite to ID') {
             return `Hey ${name},
 
-wir veranstalten demnächst einen ID Day. Das ist eine Chance für Spieler, sich vor US-College-Trainern und Scouts zu zeigen.
+wir veranstalten demnächst einen ID Day. Das ist eine Chance für Spieler, sich vor US-College-Trainern, europäischen Akademie-Scouts und Trainern zu zeigen.
 
 Nach dem was ich gesehen hab, denke ich, dass du gut abschneiden würdest. Keine Verpflichtung - komm einfach spielen und schau, welche Türen sich öffnen.
 
@@ -377,7 +377,7 @@ ${scoutName}`;
 
 I'm ${scoutName} and I work with Warubi Sports. I played college soccer in the US and now help players like you find the right path there.
 
-I came across your profile and think you've got real potential as a ${position}. If playing in the US is something you're interested in, I'd love to chat about what that could look like for you.
+I came across your profile and think you've got real potential as a ${position}. If playing in the US or at a European academy is something you're interested in, I'd love to chat about what that could look like for you.
 
 ${assessmentLink ? `Take 2 minutes to complete your free talent assessment here:\n${assessmentLink}\n` : ''}No pressure - just want to see if it's a good fit.
 
@@ -386,9 +386,9 @@ ${scoutName}`;
         } else {
             return `Hey ${name},
 
-I'm ${scoutName} with Warubi Sports. I work with college coaches across the US and FC Köln's International Talent Program to help players find the right opportunity.
+I'm ${scoutName} with Warubi Sports. I work with European academies like FC Köln's ITP, Bundesliga programs, and 200+ college programs in the US to help players find the right opportunity.
 
-I came across your profile and think you've got real potential as a ${position}. If playing in the US is something you're interested in, I'd love to chat about what that could look like for you.
+I came across your profile and think you've got real potential as a ${position}. If playing in the US or at a European academy is something you're interested in, I'd love to chat about what that could look like for you.
 
 ${assessmentLink ? `Take 2 minutes to complete your free talent assessment here:\n${assessmentLink}\n` : ''}No pressure - just want to see if it's a good fit.
 
@@ -402,7 +402,7 @@ ${scoutName}`;
 
 Just following up on my last message. I know these things can get lost in the shuffle.
 
-Still interested in chatting about opportunities in the US if you are. Happy to answer any questions you might have about the process.
+Still interested in chatting about opportunities in the US or Europe if you are. Happy to answer any questions you might have about the process.
 
 ${scoutName}`;
     }
@@ -410,7 +410,7 @@ ${scoutName}`;
     if (templateType === 'Invite to ID') {
         return `Hey ${name},
 
-We're hosting an ID Day soon. It's a chance for players to showcase their abilities in front of US college coaches and scouts.
+We're hosting an ID Day soon. It's a chance for players to showcase their abilities in front of US college coaches, European academy scouts, and recruiters.
 
 Based on what I've seen, I think you'd do well. No commitment needed - just come play and see what doors it opens.
 
