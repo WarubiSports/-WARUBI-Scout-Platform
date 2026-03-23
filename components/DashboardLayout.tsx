@@ -326,7 +326,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                     </button>
                     <button onClick={() => navigate('/dashboard/outreach')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'outreach' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><Zap size={20} /> Messages</button>
                     <button onClick={() => navigate('/dashboard/events')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'events' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><CalendarDays size={20} /> Events</button>
-                    <button onClick={() => navigate('/dashboard/my-business')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'my-business' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><BarChart3 size={20} /> My Business</button>
                 </nav>
                 <div className="p-4">
                     <button
@@ -397,6 +396,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                             </div>
                         </div>
                         <div className="space-y-2">
+                            <button
+                                onClick={() => { setShowMobileProfile(false); navigate('/dashboard/my-business'); }}
+                                className="w-full flex items-center gap-3 px-4 py-3 bg-scout-900/50 border border-scout-700 rounded-xl text-white font-bold"
+                            >
+                                <BarChart3 size={20} /> My Business
+                            </button>
                             {onReturnToAdmin && (
                                 <button
                                     onClick={() => { setShowMobileProfile(false); onReturnToAdmin(); }}
@@ -418,8 +423,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 </div>
             )}
 
-            <nav className="md:hidden fixed bottom-0 w-full bg-[#05080f]/95 backdrop-blur-2xl border-t border-scout-700 z-[110] px-2 pt-2 pb-6" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
-                <div className="flex justify-around items-end max-w-md mx-auto">
+            <nav className="md:hidden fixed bottom-0 w-full bg-[#05080f]/95 backdrop-blur-2xl border-t border-scout-700 z-[110] px-4 pt-2 pb-6" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
+                <div className="flex justify-around items-center max-w-sm mx-auto">
                     <button onClick={() => { haptic.light(); navigate('/dashboard/players'); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === 'players' ? 'text-scout-accent' : 'text-gray-600'}`}>
                         <Home size={20} />
                         <span className="text-[8px] font-black uppercase">Home</span>
@@ -428,18 +433,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                         <CalendarDays size={20} />
                         <span className="text-[8px] font-black uppercase">Events</span>
                     </button>
-                    <div className="-mt-6 bg-[#05080f] p-2 rounded-full border border-scout-700/50 shadow-2xl">
-                        <button onClick={() => { haptic.medium(); setIsSubmissionOpen(true); }} className="w-14 h-14 bg-scout-accent text-scout-900 rounded-full flex items-center justify-center shadow-glow border-2 border-scout-accent/50 active:scale-90 transition-transform">
-                            <Plus size={28} />
-                        </button>
-                    </div>
                     <button onClick={() => { haptic.light(); navigate('/dashboard/outreach'); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === 'outreach' ? 'text-scout-accent' : 'text-gray-600'}`}>
                         <Zap size={20} />
                         <span className="text-[8px] font-black uppercase">Messages</span>
                     </button>
-                    <button onClick={() => { haptic.light(); navigate('/dashboard/my-business'); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === 'my-business' ? 'text-scout-accent' : 'text-gray-600'}`}>
-                        <BarChart3 size={20} />
-                        <span className="text-[8px] font-black uppercase">Business</span>
+                    <button onClick={() => { haptic.light(); setShowMobileProfile(true); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 text-gray-600`}>
+                        <div className="w-5 h-5 rounded-full bg-scout-700 flex items-center justify-center text-[8px] font-black text-gray-400">{user.name.charAt(0)}</div>
+                        <span className="text-[8px] font-black uppercase">Profile</span>
                     </button>
                 </div>
             </nav>

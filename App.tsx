@@ -7,7 +7,7 @@ import Onboarding from './components/Onboarding';
 import DashboardLayout from './components/DashboardLayout';
 import PasswordSetupModal from './components/PasswordSetupModal';
 import ResetPassword from './components/ResetPassword';
-import PlayersContent from './components/PlayersContent';
+const PlayersContent = React.lazy(() => import('./components/PlayersContent'));
 import HomeContent from './components/HomeContent';
 import EventsRoute from './components/routes/EventsRoute';
 import OutreachRoute from './components/routes/OutreachRoute';
@@ -434,6 +434,7 @@ const App: React.FC = () => {
           <Route path="/dashboard" element={<DashboardLayout {...dashboardProps} />}>
             <Route index element={<Navigate to="players" replace />} />
             <Route path="players" element={<HomeContent />} />
+            <Route path="players/all" element={<Suspense fallback={<div />}><PlayersContent /></Suspense>} />
             <Route path="events" element={<EventsRoute />} />
             <Route path="outreach" element={<OutreachRoute />} />
             <Route path="my-business" element={<MyBusinessRoute />} />
