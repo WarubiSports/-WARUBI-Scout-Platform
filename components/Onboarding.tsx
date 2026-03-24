@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { UserProfile, Player, ScoutingEvent } from '../types';
-import { Loader2, User, ArrowRight, BrainCircuit, ShieldCheck, Sparkles, MapPin, Check, GraduationCap, Shield, Briefcase, Users, Heart, FileText, Scale, LogOut } from 'lucide-react';
+import { Loader2, User, ArrowRight, BrainCircuit, ShieldCheck, Sparkles, MapPin, Check, GraduationCap, Shield, Briefcase, Users, LogOut } from 'lucide-react';
 import { useAuthContext } from '../contexts/AuthContext';
 
 interface OnboardingProps {
@@ -9,12 +9,11 @@ interface OnboardingProps {
 }
 
 const ROLES = [
-    { id: 'college', label: 'College Coach', icon: <GraduationCap size={20}/> },
-    { id: 'club', label: 'Club Coach', icon: <Shield size={20}/> },
-    { id: 'agent', label: 'Pro Agent', icon: <Briefcase size={20}/> },
-    { id: 'regional', label: 'Regional Scout', icon: <Users size={20}/> },
-    { id: 'parent', label: 'Parent / Advisor', icon: <Heart size={20}/> },
-    { id: 'tournament', label: 'Event Director', icon: <ShieldCheck size={20}/> },
+    { id: 'club', label: 'Club Coach', icon: <Shield size={20}/>, desc: 'I coach a team and want to get my players seen' },
+    { id: 'regional', label: 'Scout', icon: <Users size={20}/>, desc: 'I find talent in my region and build a pipeline' },
+    { id: 'college', label: 'College Coach', icon: <GraduationCap size={20}/>, desc: 'I recruit players for my college program' },
+    { id: 'agent', label: 'Agent', icon: <Briefcase size={20}/>, desc: 'I represent players professionally' },
+    { id: 'tournament', label: 'Event Director', icon: <ShieldCheck size={20}/>, desc: 'I organize showcases and ID events' },
 ];
 
 const Onboarding: React.FC<OnboardingProps> = ({ onComplete, approvedScoutInfo }) => {
@@ -23,20 +22,11 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, approvedScoutInfo }
     const [error, setError] = useState<string | null>(null);
     const { signOut } = useAuthContext();
 
-    // Check if user is admin (can select roles) or regular scout (auto-assigned)
     const isAdmin = approvedScoutInfo?.isAdmin || false;
 
-    // Pre-fill from approved scout info if available
     const [name, setName] = useState(approvedScoutInfo?.name || '');
-    // Regular scouts are auto-assigned as "Regional Scout"
-    const [selectedRoles, setSelectedRoles] = useState<string[]>(isAdmin ? [] : ['regional']);
+    const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
     const [region, setRegion] = useState(approvedScoutInfo?.region || '');
-
-    const toggleRole = (roleId: string) => {
-        setSelectedRoles(prev =>
-            prev.includes(roleId) ? prev.filter(r => r !== roleId) : [...prev, roleId]
-        );
-    };
 
     const handleBackToLogin = async () => {
         await signOut();
@@ -75,31 +65,33 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, approvedScoutInfo }
                 {step === 0 && (
                     <div className="space-y-8 animate-fade-in text-center">
                         <div className="space-y-4">
-                            <h1 className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter italic border-b border-scout-accent/30 pb-4">
-                                The Scout Protocol
+                            <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">
+                                Scout<span className="text-scout-accent">Buddy</span>
                             </h1>
-                            <p className="text-gray-400 font-mono text-sm leading-relaxed text-left bg-scout-950/50 p-6 rounded-2xl border border-white/5">
-                                <span className="text-scout-accent font-bold block mb-2">Every player you find is a life you change.</span>
-                                Behind every placement is a young athlete who gets the opportunity they wouldn't have had without you. We give you the tools to find them, verify their talent, and open doors — backed by UEFA methodology and real placement results. This is how careers are built.
+                            <p className="text-gray-400 text-sm leading-relaxed">
+                                Get your players in front of 200+ US college programs and European academies like FC Köln's ITP.
                             </p>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 text-left">
-                            <div className="p-4 bg-scout-900 rounded-xl border border-scout-700">
-                                <FileText className="text-blue-400 mb-2" size={20}/>
-                                <p className="text-[10px] font-black text-gray-500 uppercase">Verification</p>
-                                <p className="text-xs text-white font-bold">UEFA Methodology</p>
-                            </div>
-                            <div className="p-4 bg-scout-900 rounded-xl border border-scout-700">
-                                <Scale className="text-scout-highlight mb-2" size={20}/>
-                                <p className="text-[10px] font-black text-gray-500 uppercase">Integrity</p>
-                                <p className="text-xs text-white font-bold">No Pay-To-Play</p>
-                            </div>
+
+                        <div className="space-y-3 text-left">
+                            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">How it works</p>
+                            {[
+                                { num: '1', text: 'Add players or share your link — they complete a free career analysis' },
+                                { num: '2', text: 'AI evaluates talent and collects parent contacts automatically' },
+                                { num: '3', text: 'You manage the pipeline and connect players to real opportunities' },
+                            ].map(({ num, text }) => (
+                                <div key={num} className="flex items-center gap-4 bg-scout-900 p-4 rounded-xl border border-scout-700">
+                                    <div className="w-8 h-8 bg-scout-accent text-scout-900 rounded-lg flex items-center justify-center font-black text-sm shrink-0">{num}</div>
+                                    <p className="text-sm text-gray-300">{text}</p>
+                                </div>
+                            ))}
                         </div>
+
                         <button
                             onClick={() => setStep(1)}
                             className="w-full bg-scout-accent hover:bg-emerald-600 text-scout-900 font-black py-5 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-3 active:scale-95 uppercase tracking-widest text-sm"
                         >
-                            Acknowledge the Standard <ArrowRight size={20}/>
+                            Get Started <ArrowRight size={20}/>
                         </button>
 
                         <button
@@ -116,9 +108,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, approvedScoutInfo }
                     <div className="space-y-8 animate-fade-in">
                         <div className="text-center">
                             <h1 className="text-4xl font-black text-white mb-2 uppercase tracking-tighter italic">Scout<span className="text-scout-accent">Buddy</span></h1>
-                            <p className="text-gray-400 font-medium">
-                                {isAdmin ? 'Define your unified scouting identity.' : 'Confirm your scouting profile.'}
-                            </p>
+                            <p className="text-gray-400 font-medium">Set up your profile</p>
                         </div>
 
                         <div className="space-y-4">
@@ -135,52 +125,41 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, approvedScoutInfo }
                                 <input
                                     value={region} onChange={e => setRegion(e.target.value)}
                                     className="bg-transparent w-full text-white font-bold outline-none placeholder-gray-600"
-                                    placeholder="Scouting Region (e.g. Bavaria, Germany)"
+                                    placeholder="Your Region (e.g. Texas, Bavaria)"
                                 />
                             </div>
                         </div>
 
-                        {/* Role selection only for admins */}
-                        {isAdmin && (
-                            <div>
-                                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4 ml-1">Identity Matrix</p>
-                                <div className="grid grid-cols-2 gap-3">
-                                    {ROLES.map(role => (
-                                        <button
-                                            key={role.id}
-                                            onClick={() => toggleRole(role.id)}
-                                            className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all text-left ${
-                                                selectedRoles.includes(role.id)
-                                                ? 'bg-scout-accent/10 border-scout-accent text-white'
-                                                : 'bg-scout-900 border-scout-700 text-gray-500 hover:border-scout-600'
-                                            }`}
-                                        >
-                                            <div className={selectedRoles.includes(role.id) ? 'text-scout-accent' : 'text-gray-600'}>{role.icon}</div>
-                                            <span className="text-xs font-bold uppercase tracking-tight">{role.label}</span>
-                                            {selectedRoles.includes(role.id) && <Check size={14} className="ml-auto text-scout-accent" />}
-                                        </button>
-                                    ))}
-                                </div>
+                        <div>
+                            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-4 ml-1">What best describes you?</p>
+                            <div className="grid grid-cols-1 gap-2">
+                                {ROLES.map(role => (
+                                    <button
+                                        key={role.id}
+                                        onClick={() => setSelectedRoles([role.id])}
+                                        className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left ${
+                                            selectedRoles.includes(role.id)
+                                            ? 'bg-scout-accent/10 border-scout-accent text-white'
+                                            : 'bg-scout-900 border-scout-700 text-gray-500 hover:border-scout-600'
+                                        }`}
+                                    >
+                                        <div className={selectedRoles.includes(role.id) ? 'text-scout-accent' : 'text-gray-600'}>{role.icon}</div>
+                                        <div className="flex-1 min-w-0">
+                                            <span className="text-sm font-bold block">{role.label}</span>
+                                            <span className="text-[10px] text-gray-500">{role.desc}</span>
+                                        </div>
+                                        {selectedRoles.includes(role.id) && <Check size={16} className="text-scout-accent shrink-0" />}
+                                    </button>
+                                ))}
                             </div>
-                        )}
-
-                        {/* Show assigned role for regular scouts */}
-                        {!isAdmin && (
-                            <div className="bg-scout-900/50 border border-scout-700 rounded-2xl p-4">
-                                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Your Role</p>
-                                <div className="flex items-center gap-3 text-white">
-                                    <Users size={20} className="text-scout-accent" />
-                                    <span className="font-bold">Regional Scout</span>
-                                </div>
-                            </div>
-                        )}
+                        </div>
 
                         <button
                             onClick={() => setStep(2)}
-                            disabled={!name || !region || (isAdmin && selectedRoles.length === 0) || loading}
+                            disabled={!name || !region || selectedRoles.length === 0 || loading}
                             className="w-full bg-scout-accent hover:bg-emerald-600 disabled:opacity-30 text-scout-900 font-black py-5 rounded-2xl shadow-xl transition-all flex items-center justify-center gap-3 active:scale-95"
                         >
-                            {loading ? <Loader2 className="animate-spin" /> : <>Next Step <ArrowRight size={20}/></>}
+                            {loading ? <Loader2 className="animate-spin" /> : <>Next <ArrowRight size={20}/></>}
                         </button>
                     </div>
                 )}
