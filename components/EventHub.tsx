@@ -115,41 +115,56 @@ const ShareMessages = ({ event, scoutId, copyToClipboard, copied }: { event: Sco
     )
 }
 
-// Shows player registration count + expandable list from showcase_players
+// Shows this scout's player registrations from showcase_players
 interface RegPlayer { id: string; name: string; position: string | null; club: string | null; registered_at: string | null; referred_by_scout_id: string | null }
-const RegistrationCount = ({ showcaseEventId, scoutId }: { showcaseEventId: string; scoutId?: string }) => {
-    const [players, setPlayers] = useState<RegPlayer[]>([])
+const RegistrationCount = ({ showcaseEventId, scoutId, showcaseSlug }: { showcaseEventId: string; scoutId?: string; showcaseSlug?: string }) => {
+    const [allPlayers, setAllPlayers] = useState<RegPlayer[]>([])
     const [loading, setLoading] = useState(true)
     const [expanded, setExpanded] = useState(false)
-    const myReferrals = scoutId ? players.filter(r => r.referred_by_scout_id === scoutId).length : 0
+    const [linkCopied, setLinkCopied] = useState(false)
+
+    const myPlayers = scoutId ? allPlayers.filter(r => r.referred_by_scout_id === scoutId) : allPlayers
+    const othersCount = allPlayers.length - myPlayers.length
 
     useEffect(() => {
         supabaseRest.select<RegPlayer>('showcase_players', `event_id=eq.${showcaseEventId}&select=id,name,position,club,registered_at,referred_by_scout_id&order=registered_at.desc`).then(
             (res: { data: RegPlayer[] | null }) => {
-                setPlayers(res.data || [])
+                setAllPlayers(res.data || [])
                 setLoading(false)
             }
         )
     }, [showcaseEventId])
 
     if (loading) return null
+
+    const shareLink = showcaseSlug && scoutId
+        ? `https://showcase-coordinator.vercel.app/event/${showcaseSlug}?ref=${scoutId}`
+        : null
+
+    const handleShareLink = () => {
+        if (!shareLink) return
+        navigator.clipboard.writeText(shareLink)
+        setLinkCopied(true)
+        setTimeout(() => setLinkCopied(false), 2000)
+    }
+
     return (
         <div className="bg-scout-900 rounded-lg border border-scout-700 overflow-hidden">
             <button onClick={() => setExpanded(!expanded)} className="w-full p-3 flex items-center justify-between hover:bg-scout-800/50 transition-colors">
                 <div className="flex items-center gap-2">
                     <Users size={14} className="text-scout-accent" />
-                    <span className="text-xs font-bold text-gray-400 uppercase">Registrations</span>
+                    <span className="text-xs font-bold text-gray-400 uppercase">Your Registrations</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    {myReferrals > 0 && <span className="text-[10px] font-bold text-scout-accent bg-scout-accent/10 px-2 py-0.5 rounded-full">{myReferrals} yours</span>}
-                    <span className="text-lg font-bold text-white">{players.length}</span>
+                    {othersCount > 0 && <span className="text-[10px] text-gray-600">{allPlayers.length} total</span>}
+                    <span className="text-lg font-bold text-white">{myPlayers.length}</span>
                     <ChevronRight size={14} className={`text-gray-500 transition-transform ${expanded ? 'rotate-90' : ''}`} />
                 </div>
             </button>
-            {expanded && players.length > 0 && (
+            {expanded && myPlayers.length > 0 && (
                 <div className="border-t border-scout-700 max-h-48 overflow-y-auto">
-                    {players.map(p => (
-                        <div key={p.id} className={`px-3 py-2 flex items-center justify-between text-sm border-b border-scout-800 last:border-0 ${p.referred_by_scout_id === scoutId ? 'bg-scout-accent/5' : ''}`}>
+                    {myPlayers.map(p => (
+                        <div key={p.id} className="px-3 py-2 flex items-center justify-between text-sm border-b border-scout-800 last:border-0">
                             <div>
                                 <span className="text-white font-medium">{p.name}</span>
                                 {p.position && <span className="text-gray-500 ml-2 text-xs">{p.position}</span>}
@@ -159,7 +174,18 @@ const RegistrationCount = ({ showcaseEventId, scoutId }: { showcaseEventId: stri
                     ))}
                 </div>
             )}
-            {expanded && players.length === 0 && (
+            {expanded && myPlayers.length === 0 && shareLink && (
+                <div className="border-t border-scout-700 p-4 space-y-3">
+                    <p className="text-xs text-gray-500 text-center">No players registered through your link yet</p>
+                    <button
+                        onClick={handleShareLink}
+                        className="w-full py-2 bg-scout-accent/10 border border-scout-accent/30 rounded-lg text-xs font-bold text-scout-accent flex items-center justify-center gap-2 hover:bg-scout-accent/20 transition-all active:scale-[0.98]"
+                    >
+                        {linkCopied ? <><Check size={12} /> Copied!</> : <><Share2 size={12} /> Share Registration Link</>}
+                    </button>
+                </div>
+            )}
+            {expanded && myPlayers.length === 0 && !shareLink && (
                 <div className="border-t border-scout-700 p-4 text-center text-xs text-gray-500">No registrations yet</div>
             )}
         </div>
@@ -706,7 +732,7 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                         <ClipboardList size={12} /> Manage Event
                                       </a>
                                   )}
-                                  {event.showcaseEventId && <RegistrationCount showcaseEventId={event.showcaseEventId} scoutId={currentScoutId} />}
+                                  {event.showcaseEventId && <RegistrationCount showcaseEventId={event.showcaseEventId} scoutId={currentScoutId} showcaseSlug={event.showcaseSlug} />}
                               </div>
                           ) : (
                               <>
