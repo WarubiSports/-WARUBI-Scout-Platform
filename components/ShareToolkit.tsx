@@ -60,42 +60,30 @@ const ShareToolkit: React.FC<ShareToolkitProps> = ({ scoutId, scoutName, variant
 
   const content = (
     <div className="space-y-3">
-      {/* Branded link card */}
-      <div className="flex items-center gap-3 bg-scout-900 border border-scout-700 rounded-xl px-4 py-3">
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-white">ExposureEngine — Free Career Analysis</p>
-          <p className="text-[10px] text-gray-500 font-mono truncate mt-0.5">{shortLink}</p>
-        </div>
-        <button
-          onClick={() => copyTemplate('link', link)}
-          className="shrink-0 p-2 rounded-lg hover:bg-scout-700 transition-colors"
-        >
-          {copied === 'link' ? <Check size={16} className="text-scout-accent" /> : <Copy size={16} className="text-gray-400" />}
-        </button>
-      </div>
-
-      {/* Compact channel grid */}
+      {/* Channel grid — primary action */}
+      <p className="text-[10px] font-bold text-gray-500 px-1">Tap a channel to copy a ready-to-send message with your link:</p>
       <div className="grid grid-cols-2 gap-2">
         {Object.entries(templates).map(([key, t]) => {
           const Icon = t.icon;
           const isEmail = key === 'email' && onEmailBlast;
+          const isCopied = copied === key;
           return (
             <button
               key={key}
               onClick={() => isEmail ? onEmailBlast() : copyTemplate(key, t.message)}
-              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border ${t.bg} hover:opacity-80 transition-all active:scale-[0.98]`}
+              className={`flex items-center gap-2.5 px-3 py-3 rounded-xl border transition-all active:scale-[0.98] ${isCopied ? 'border-scout-accent/50 bg-scout-accent/10' : `${t.bg} hover:opacity-80`}`}
             >
-              <Icon size={16} className={t.color} />
-              <span className={`text-xs font-bold ${t.color}`}>{isEmail ? 'Bulk Email' : t.label}</span>
-              <span className="ml-auto text-[10px] text-gray-600 font-bold">
-                {isEmail ? <Send size={11} /> : (copied === key ? '✓' : '')}
+              <Icon size={16} className={isCopied ? 'text-scout-accent' : t.color} />
+              <span className={`text-xs font-bold ${isCopied ? 'text-scout-accent' : t.color}`}>
+                {isCopied ? 'Copied!' : (isEmail ? 'Bulk Email' : t.label)}
               </span>
+              {isEmail && !isCopied && <Send size={11} className="ml-auto text-gray-600" />}
             </button>
           );
         })}
         <button
           onClick={() => setShowQR(!showQR)}
-          className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border bg-purple-500/10 border-purple-500/20 hover:opacity-80 transition-all active:scale-[0.98]"
+          className="flex items-center gap-2.5 px-3 py-3 rounded-xl border bg-purple-500/10 border-purple-500/20 hover:opacity-80 transition-all active:scale-[0.98]"
         >
           <QrCode size={16} className="text-purple-400" />
           <span className="text-xs font-bold text-purple-400">QR Code</span>
@@ -110,6 +98,17 @@ const ShareToolkit: React.FC<ShareToolkitProps> = ({ scoutId, scoutName, variant
           <p className="text-[10px] text-gray-500">Screenshot or right-click to save</p>
         </div>
       )}
+
+      {/* Raw link — secondary */}
+      <button
+        onClick={() => copyTemplate('link', link)}
+        className={`w-full flex items-center gap-3 bg-scout-900 border rounded-lg px-3 py-2 transition-colors ${copied === 'link' ? 'border-scout-accent/50' : 'border-scout-700 hover:border-scout-600'}`}
+      >
+        <div className="flex-1 min-w-0 text-left">
+          <p className="text-[10px] text-gray-500 font-mono truncate">{shortLink}</p>
+        </div>
+        {copied === 'link' ? <Check size={14} className="text-scout-accent shrink-0" /> : <Copy size={14} className="text-gray-500 shrink-0" />}
+      </button>
     </div>
   );
 
