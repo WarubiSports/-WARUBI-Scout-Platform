@@ -121,6 +121,7 @@ export const InstallSidebarLink: React.FC = () => {
 
   useEffect(() => {
     if (isStandalone()) return;
+    if (getDevice() === "desktop") return;
     setShow(true);
 
     const handler = (e: Event) => {
