@@ -118,16 +118,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     }, []);
 
     const submissionLink = user.scoutId ? `https://app.warubi-sports.com?ref=${user.scoutId}` : '';
-    const handleCopyLink = async () => {
+    const handleCopyLink = () => {
         if (!submissionLink) return;
-        // Mobile: native share sheet for immediate action
-        if (navigator.share) {
-            try {
-                await navigator.share({ title: 'ExposureEngine — Free Career Analysis', text: 'Free talent analysis for soccer players — see where you\'d fit:', url: submissionLink });
-                return;
-            } catch { /* user cancelled */ }
-        }
-        // Desktop fallback: copy to clipboard
         navigator.clipboard.writeText(submissionLink);
         setLinkCopied(true);
         haptic.success();
