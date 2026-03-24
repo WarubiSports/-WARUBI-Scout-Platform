@@ -548,6 +548,7 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
     };
 
     if (!isMobile) {
+        const hasKit = (isMine || isAttending) && (event.marketingCopy || (event.agenda && event.agenda.length > 0) || (event.checklist && event.checklist.length > 0));
         return (
           <div className="h-full flex flex-col animate-fade-in">
               <div className="flex items-center gap-2 mb-4">
@@ -559,7 +560,7 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
               </div>
 
               <div className="bg-scout-800 border border-scout-700 rounded-xl overflow-hidden flex flex-col md:flex-row shadow-2xl max-h-[85vh] md:max-h-none">
-                  <div className="md:w-1/3 p-6 border-b md:border-b-0 md:border-r border-scout-700 bg-scout-800/50 overflow-y-auto custom-scrollbar">
+                  <div className={`${hasKit ? "md:w-1/3 border-b md:border-b-0 md:border-r" : "w-full"} p-6 border-scout-700 bg-scout-800/50 overflow-y-auto custom-scrollbar`}>
                       <div>
                           <div className="mb-6">
                               <div className="flex justify-between items-start">
@@ -807,7 +808,7 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                       )}
                   </div>
 
-                  <div className="md:w-2/3 p-6 bg-scout-900 flex flex-col gap-6 overflow-y-auto max-h-[60vh] md:max-h-[80vh] custom-scrollbar">
+                  {hasKit && (<div className="md:w-2/3 p-6 bg-scout-900 flex flex-col gap-6 overflow-y-auto max-h-[60vh] md:max-h-[80vh] custom-scrollbar">
                       {isMine || isAttending ? (
                           <>
                               <div className="flex items-center justify-between">
@@ -889,7 +890,7 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                               <p className="text-sm text-gray-500 max-w-sm mt-2">Marketing kits and admin tools are only available for the event host.</p>
                           </div>
                       )}
-                  </div>
+                  </div>)}
               </div>
           </div>
         );
