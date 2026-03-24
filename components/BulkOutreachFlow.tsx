@@ -354,7 +354,9 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
     setExtractedPlayers(prev => prev.map((p, i) => i === index ? { ...p, [field]: value } : p));
   };
 
-  // SAVING
+  // SAVING — chunked with progress tracking
+  const [saveProgress, setSaveProgress] = useState({ saved: 0, total: 0 });
+
   const handleSavePlayers = async () => {
     setIsSaving(true);
     setStep('SAVING');
@@ -377,13 +379,30 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
         isRecalibrating: false,
       }));
 
-      const saved = await withTimeout(addProspectsBatch(playersToSave), 120000, 'Saving players');
-      setSavedPlayers(saved);
+      // For large imports, save in app-level chunks with progress
+      const CHUNK = 500;
+      const allSaved: Player[] = [];
+      setSaveProgress({ saved: 0, total: playersToSave.length });
 
-      if (saved.length > 0) {
-        toast.success(`${saved.length} player${saved.length > 1 ? 's' : ''} saved`);
+      for (let i = 0; i < playersToSave.length; i += CHUNK) {
+        const chunk = playersToSave.slice(i, i + CHUNK);
+        try {
+          const result = await addProspectsBatch(chunk);
+          allSaved.push(...result);
+          setSaveProgress({ saved: allSaved.length, total: playersToSave.length });
+        } catch (err) {
+          console.error(`Chunk ${i}-${i + chunk.length} failed:`, err);
+          // Continue with next chunk — don't lose what we have
+          toast.error(`Batch failed at ${i + 1}-${i + chunk.length}. ${allSaved.length} saved so far.`);
+        }
+      }
+
+      setSavedPlayers(allSaved);
+
+      if (allSaved.length > 0) {
+        toast.success(`${allSaved.length.toLocaleString()} player${allSaved.length > 1 ? 's' : ''} saved`);
         // Go straight to Email if players have emails
-        const hasEmails = saved.some(p => p.email);
+        const hasEmails = allSaved.some(p => p.email);
         if (hasEmails) {
           setEmailSubject('Quick question about your soccer future');
           setEmailBody(`Hi,\n\nI'm ${scoutName} with Warubi Sports. I work with European academies including FC Köln's ITP program, Bundesliga clubs, and 200+ college programs in the US to help players find the right opportunity.\n\nI came across your profile and think you've got real potential. If playing in the US or at a European academy is something you're interested in, I'd love to chat about what that could look like for you.${assessmentLink ? `\n\nTake 2 minutes to see where you'd fit — it's free:\n${assessmentLink}` : ''}\n\nNo pressure — just want to see if it's a good fit.\n\nBest,\n${scoutName}`);
@@ -770,8 +789,18 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
             <div className="flex flex-col items-center justify-center py-16 gap-4">
               <Loader2 size={40} className="text-scout-accent animate-spin" />
               <p className="text-gray-400 text-sm">Saving {extractedPlayers.length.toLocaleString()} players to your pipeline...</p>
-              {extractedPlayers.length > 500 && (
-                <p className="text-gray-600 text-xs">Large import — this may take a moment</p>
+              {saveProgress.total > 500 && (
+                <div className="w-64 space-y-2">
+                  <div className="h-2 bg-scout-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-scout-accent rounded-full transition-all duration-500"
+                      style={{ width: `${Math.round((saveProgress.saved / saveProgress.total) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-gray-500 text-xs text-center">
+                    {saveProgress.saved.toLocaleString()} / {saveProgress.total.toLocaleString()}
+                  </p>
+                </div>
               )}
             </div>
           )}
