@@ -187,26 +187,33 @@ export const supabaseRest = {
     const token = getAccessToken()
     if (!token) return { data: null, error: { message: 'No auth token' } }
     try {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 30000)
-      const response = await fetch(`${supabaseUrl}/rest/v1/${table}`, {
-        method: 'POST',
-        headers: {
-          'apikey': supabaseAnonKey!,
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation',
-        },
-        body: JSON.stringify(rows),
-        signal: controller.signal,
-      })
-      clearTimeout(timeoutId)
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        return { data: null, error: { message: errorData.message || `HTTP ${response.status}` } }
+      const CHUNK_SIZE = 500
+      const allResults: T[] = []
+      for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+        const chunk = rows.slice(i, i + CHUNK_SIZE)
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 30000)
+        const response = await fetch(`${supabaseUrl}/rest/v1/${table}`, {
+          method: 'POST',
+          headers: {
+            'apikey': supabaseAnonKey!,
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation',
+          },
+          body: JSON.stringify(chunk),
+          signal: controller.signal,
+        })
+        clearTimeout(timeoutId)
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}))
+          return { data: null, error: { message: errorData.message || `HTTP ${response.status}` } }
+        }
+        const result = await response.json()
+        const arr = Array.isArray(result) ? result : [result]
+        allResults.push(...(arr as T[]))
       }
-      const result = await response.json()
-      return { data: Array.isArray(result) ? result : [result], error: null }
+      return { data: allResults, error: null }
     } catch (e) {
       return { data: null, error: { message: e instanceof Error ? e.message : 'Unknown error' } }
     }

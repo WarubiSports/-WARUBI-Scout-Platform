@@ -377,7 +377,7 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
         isRecalibrating: false,
       }));
 
-      const saved = await withTimeout(addProspectsBatch(playersToSave), 20000, 'Saving players');
+      const saved = await withTimeout(addProspectsBatch(playersToSave), 120000, 'Saving players');
       setSavedPlayers(saved);
 
       if (saved.length > 0) {
@@ -516,10 +516,15 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
       window.open(mailto, '_blank');
     }
 
-    // Log outreach + bump to Contacted for all emailed players
-    for (const m of emailableMessages) {
-      await logOutreach(m.playerId, 'Email', `Bulk: ${selectedTemplate}`, body);
-      await updateProspect(m.playerId, { status: PlayerStatus.CONTACT_REQUESTED, lastContactedAt: new Date().toISOString(), activityStatus: 'spark' });
+    // Log outreach + bump to Contacted — batched for large lists
+    const now = new Date().toISOString();
+    await Promise.all(emailableMessages.map(m =>
+      logOutreach(m.playerId, 'Email', `Bulk: ${selectedTemplate}`, body)
+    ));
+    for (let i = 0; i < emailableMessages.length; i += 50) {
+      await Promise.all(emailableMessages.slice(i, i + 50).map(m =>
+        updateProspect(m.playerId, { status: PlayerStatus.CONTACT_REQUESTED, lastContactedAt: now, activityStatus: 'spark' })
+      ));
     }
 
     setEmailSent(true);
@@ -666,6 +671,48 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
                   <p>No players extracted. Try a different format.</p>
                   <button onClick={() => setStep('UPLOAD')} className="mt-3 text-scout-accent font-bold text-sm">Go back</button>
                 </div>
+              ) : extractedPlayers.length > 100 ? (
+                /* Large import summary — don't render 10k form cards */
+                <div className="space-y-4">
+                  <div className="bg-scout-accent/10 border border-scout-accent/30 rounded-xl p-5 text-center">
+                    <p className="text-3xl font-black text-scout-accent">{extractedPlayers.length.toLocaleString()}</p>
+                    <p className="text-sm font-bold text-white mt-1">Players Ready to Import</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-scout-800 border border-scout-700 rounded-xl p-4 text-center">
+                      <p className="text-xl font-black text-blue-400">{extractedPlayers.filter(p => p.email).length.toLocaleString()}</p>
+                      <p className="text-[10px] text-gray-500 font-bold uppercase mt-1">With Email</p>
+                    </div>
+                    <div className="bg-scout-800 border border-scout-700 rounded-xl p-4 text-center">
+                      <p className="text-xl font-black text-green-400">{extractedPlayers.filter(p => p.phone).length.toLocaleString()}</p>
+                      <p className="text-[10px] text-gray-500 font-bold uppercase mt-1">With Phone</p>
+                    </div>
+                    <div className="bg-scout-800 border border-scout-700 rounded-xl p-4 text-center">
+                      <p className="text-xl font-black text-amber-400">{extractedPlayers.filter(p => p.position).length.toLocaleString()}</p>
+                      <p className="text-[10px] text-gray-500 font-bold uppercase mt-1">With Position</p>
+                    </div>
+                    <div className="bg-scout-800 border border-scout-700 rounded-xl p-4 text-center">
+                      <p className="text-xl font-black text-purple-400">{extractedPlayers.filter(p => p.club).length.toLocaleString()}</p>
+                      <p className="text-[10px] text-gray-500 font-bold uppercase mt-1">With Club</p>
+                    </div>
+                  </div>
+                  {/* Preview first 5 */}
+                  <div>
+                    <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Preview</p>
+                    {extractedPlayers.slice(0, 5).map((p, i) => (
+                      <div key={i} className="flex items-center gap-3 py-2 border-b border-scout-700/50 text-sm">
+                        <span className="text-white font-bold flex-1 truncate">{p.name}</span>
+                        <span className="text-gray-500 text-xs">{p.position}</span>
+                        <span className="text-gray-600 text-xs truncate max-w-[120px]">{p.email || p.phone || ''}</span>
+                      </div>
+                    ))}
+                    {extractedPlayers.length > 5 && (
+                      <p className="text-gray-600 text-xs text-center mt-2">
+                        + {(extractedPlayers.length - 5).toLocaleString()} more
+                      </p>
+                    )}
+                  </div>
+                </div>
               ) : (
                 extractedPlayers.map((player, index) => (
                   <div key={index} className="bg-scout-800 border border-scout-700 rounded-xl p-4">
@@ -722,7 +769,10 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
           {step === 'SAVING' && (
             <div className="flex flex-col items-center justify-center py-16 gap-4">
               <Loader2 size={40} className="text-scout-accent animate-spin" />
-              <p className="text-gray-400 text-sm">Saving {extractedPlayers.length} players to your pipeline...</p>
+              <p className="text-gray-400 text-sm">Saving {extractedPlayers.length.toLocaleString()} players to your pipeline...</p>
+              {extractedPlayers.length > 500 && (
+                <p className="text-gray-600 text-xs">Large import — this may take a moment</p>
+              )}
             </div>
           )}
 
@@ -799,17 +849,25 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
                   </div>
 
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       const emails = savedPlayers.filter(p => p.email).map(p => p.email!);
                       const batches: string[][] = [];
                       for (let i = 0; i < emails.length; i += BATCH_SIZE) batches.push(emails.slice(i, i + BATCH_SIZE));
                       for (const batch of batches) {
                         window.open(`mailto:?bcc=${encodeURIComponent(batch.join(','))}&subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`, '_blank');
                       }
-                      savedPlayers.filter(p => p.email).forEach(p => {
-                        logOutreach(p.id, 'Email', 'Bulk: First Spark', emailBody);
-                        updateProspect(p.id, { status: PlayerStatus.CONTACT_REQUESTED, lastContactedAt: new Date().toISOString(), activityStatus: 'spark' });
-                      });
+                      const emailPlayers = savedPlayers.filter(p => p.email);
+                      // Log outreach + bump status in parallel batches
+                      const now = new Date().toISOString();
+                      await Promise.all(emailPlayers.map(p =>
+                        logOutreach(p.id, 'Email', 'Bulk: First Spark', emailBody)
+                      ));
+                      // Batch status updates — don't await individually
+                      for (let i = 0; i < emailPlayers.length; i += 50) {
+                        await Promise.all(emailPlayers.slice(i, i + 50).map(p =>
+                          updateProspect(p.id, { status: PlayerStatus.CONTACT_REQUESTED, lastContactedAt: now, activityStatus: 'spark' })
+                        ));
+                      }
                       setEmailSent(true);
                     }}
                     className="w-full py-4 bg-scout-accent text-scout-900 rounded-xl font-black uppercase text-sm flex items-center justify-center gap-3 shadow-glow hover:bg-emerald-400 transition-all"
