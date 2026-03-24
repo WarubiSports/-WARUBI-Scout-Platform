@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { Share2, X, Users, DollarSign, TrendingUp, ChevronRight, Upload } from 'lucide-react';
+import { Share2, X, Users, DollarSign, TrendingUp, ChevronRight, Upload, ArrowRight } from 'lucide-react';
+import { PlayerStatus } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardContext } from './DashboardLayout';
 import { FunnelStrip } from './home/FunnelStrip';
@@ -135,15 +136,53 @@ const HomeContent: React.FC = () => {
       {/* Warm leads */}
       <WarmLeadsStrip players={players} />
 
-      {/* View all players link */}
-      {players.length > 0 && (
-        <button
-          onClick={() => navigate('/dashboard/players/all')}
-          className="w-full py-3 text-center text-xs font-bold text-gray-500 hover:text-white transition-colors flex items-center justify-center gap-2"
-        >
-          <Users size={14} /> View All {players.length} Players
-        </button>
-      )}
+      {/* Pipeline preview */}
+      {players.length > 0 && (() => {
+        const stages = [
+          { status: PlayerStatus.LEAD, label: 'Leads', color: 'text-gray-400', dot: 'bg-gray-400' },
+          { status: PlayerStatus.CONTACT_REQUESTED, label: 'Contacted', color: 'text-cyan-400', dot: 'bg-cyan-400' },
+          { status: PlayerStatus.REQUEST_TRIAL, label: 'Trial', color: 'text-blue-400', dot: 'bg-blue-400' },
+          { status: PlayerStatus.OFFERED, label: 'Offered', color: 'text-yellow-400', dot: 'bg-yellow-400' },
+          { status: PlayerStatus.PLACED, label: 'Placed', color: 'text-scout-accent', dot: 'bg-scout-accent' },
+        ];
+        const activePlayers = players.filter(p => p.status !== PlayerStatus.ARCHIVED);
+        return (
+          <div className="bg-scout-800 border border-scout-700 rounded-xl overflow-hidden">
+            <div className="p-4 pb-3 flex items-center justify-between">
+              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Your Pipeline</p>
+              <button
+                onClick={() => navigate('/dashboard/players')}
+                className="text-[10px] font-bold text-scout-accent flex items-center gap-1 hover:underline"
+              >
+                View Board <ArrowRight size={10} />
+              </button>
+            </div>
+            <div className="px-4 pb-4 space-y-1.5">
+              {stages.map(({ status, label, color, dot }) => {
+                const stagePlayers = activePlayers.filter(p => p.status === status);
+                if (stagePlayers.length === 0) return null;
+                return (
+                  <div key={status} className="flex items-center gap-3 py-1.5">
+                    <div className={`w-2 h-2 rounded-full ${dot} shrink-0`} />
+                    <span className={`text-[10px] font-black uppercase w-16 shrink-0 ${color}`}>{label}</span>
+                    <div className="flex-1 flex items-center gap-1.5 min-w-0 overflow-hidden">
+                      {stagePlayers.slice(0, 5).map(p => (
+                        <div key={p.id} className="px-2 py-1 bg-scout-900 rounded text-[10px] text-gray-300 font-medium truncate max-w-[120px] shrink-0">
+                          {p.name.split(' ')[0]}
+                        </div>
+                      ))}
+                      {stagePlayers.length > 5 && (
+                        <span className="text-[10px] text-gray-600 shrink-0">+{stagePlayers.length - 5}</span>
+                      )}
+                    </div>
+                    <span className="text-xs font-black text-gray-600 shrink-0">{stagePlayers.length}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
