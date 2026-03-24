@@ -116,6 +116,7 @@ export const InstallBanner: React.FC = () => {
 /** Small sidebar link — hidden when installed */
 export const InstallSidebarLink: React.FC = () => {
   const [show, setShow] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
@@ -136,19 +137,40 @@ export const InstallSidebarLink: React.FC = () => {
       await deferredPrompt.userChoice;
       setDeferredPrompt(null);
       setShow(false);
+    } else {
+      setShowInstructions(prev => !prev);
     }
-    // iOS / desktop — the banner handles instructions
   };
 
-  if (!show || !deferredPrompt) return null;
+  if (!show) return null;
+
+  const device = getDevice();
 
   return (
-    <button
-      onClick={handleClick}
-      className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-500 hover:text-scout-accent hover:bg-scout-accent/5 transition-all text-xs font-bold"
-    >
-      <Download size={16} />
-      Install App
-    </button>
+    <div>
+      <button
+        onClick={handleClick}
+        className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-gray-500 hover:text-scout-accent hover:bg-scout-accent/5 transition-all text-xs font-bold"
+      >
+        <Download size={16} />
+        Install App
+      </button>
+      {showInstructions && !deferredPrompt && (
+        <div className="mx-4 mt-1 p-3 bg-scout-900 border border-scout-700 rounded-xl text-[11px] text-gray-400 space-y-1 animate-fade-in">
+          {device === 'ios' ? (
+            <>
+              <p className="font-bold text-white">Safari:</p>
+              <p>Tap <Share size={12} className="inline text-scout-accent" /> Share → <strong className="text-white">Add to Home Screen</strong></p>
+            </>
+          ) : (
+            <>
+              <p className="font-bold text-white">Safari:</p>
+              <p>Menu → File → <strong className="text-white">Add to Dock</strong></p>
+              <p className="text-gray-600 mt-1">Or use Chrome for one-click install.</p>
+            </>
+          )}
+        </div>
+      )}
+    </div>
   );
 };
