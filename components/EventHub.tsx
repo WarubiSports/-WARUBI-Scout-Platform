@@ -639,22 +639,12 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                           <div className="flex items-center gap-2"><Sparkles size={14}/> {event.type} • {event.fee}</div>
                                       </div>
                                       {event.link && (
-                                          <a
-                                              href={event.link}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="mt-4 w-full bg-scout-700 hover:bg-scout-600 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-all border border-scout-600 text-sm"
-                                          >
-                                              <ExternalLink size={14}/> Open Event Link
+                                          <a href={event.link} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-500 hover:text-scout-accent transition-colors flex items-center gap-1 mt-2">
+                                              <ExternalLink size={10}/> {event.link.replace(/^https?:\/\//, '').replace(/\/$/, '')}
                                           </a>
                                       )}
                                       {event.notes && (
-                                          <div className="mt-4 p-3 bg-scout-900/50 rounded-lg border border-scout-700">
-                                              <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase mb-2">
-                                                  <StickyNote size={12}/> Notes
-                                              </div>
-                                              <p className="text-sm text-gray-300 whitespace-pre-wrap">{event.notes}</p>
-                                          </div>
+                                          <p className="mt-3 text-xs text-gray-500 line-clamp-2">{event.notes}</p>
                                       )}
                                   </>
                               )}
@@ -693,42 +683,27 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                           <button onClick={() => onPublishEvent(event)} className="w-full bg-scout-accent hover:bg-emerald-600 text-white font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-2 transition-all"><Share2 size={18} /> Publish Event</button>
                                       </div>
                                   )}
-                                  {event.status === 'Published' && (
-                                      <div className="bg-scout-900 p-4 rounded-lg border border-scout-700">
-                                          <label className="text-xs text-gray-500 font-bold uppercase mb-2 block">Registration Link</label>
-                                          <div className="flex gap-2">
-                                              {(() => { const pl = getPersonalLink(event, currentScoutId); return pl ? (
-                                                <>
-                                                  <input readOnly value={pl.display} className="bg-scout-800 text-scout-accent text-sm px-2 rounded border border-scout-600 w-full"/>
-                                                  <button onClick={() => copyToClipboard(pl.full, 'link')} className="p-2 bg-scout-700 hover:bg-scout-600 rounded text-white">{copied === 'link' ? <CheckCircle size={16}/> : <Copy size={16}/>}</button>
-                                                </>
-                                              ) : (
-                                                <button onClick={() => onUpdateEvent({ ...event, status: 'Published' })} className="w-full bg-scout-accent/20 text-scout-accent text-sm font-bold py-2 px-3 rounded border border-scout-accent/30 hover:bg-scout-accent/30 transition-colors">
-                                                  Retry Sync
-                                                </button>
-                                              ); })()}
-                                          </div>
-                                      </div>
-                                  )}
                                   {event.status === 'Published' && (event.showcaseSlug || event.link) && (
-                                      <ShareMessages event={event} scoutId={currentScoutId} copyToClipboard={copyToClipboard} copied={copied} />
+                                      <>
+                                          <ShareMessages event={event} scoutId={currentScoutId} copyToClipboard={copyToClipboard} copied={copied} />
+                                          {onNetworkOutreach && (
+                                              <button
+                                                onClick={() => onNetworkOutreach(event)}
+                                                className="w-full py-3 bg-scout-accent/10 border border-scout-accent/20 text-scout-accent rounded-lg font-black uppercase text-xs flex items-center justify-center gap-2 hover:bg-scout-accent/20 transition-all"
+                                              >
+                                                <Megaphone size={16} /> Let Your Network Know
+                                              </button>
+                                          )}
+                                      </>
                                   )}
-                                  {event.status === 'Published' && (event.showcaseSlug || event.link) && onNetworkOutreach && (
-                                      <button
-                                        onClick={() => onNetworkOutreach(event)}
-                                        className="w-full py-3 bg-scout-accent/10 border border-scout-accent/20 text-scout-accent rounded-lg font-black uppercase text-xs flex items-center justify-center gap-2 hover:bg-scout-accent/20 transition-all"
-                                      >
-                                        <Megaphone size={16} /> Let Your Network Know
-                                      </button>
-                                  )}
-                                  {event.showcaseSlug && (
+                                  {event.status === 'Published' && event.showcaseSlug && (
                                       <a
                                         href={`https://showcase-coordinator.vercel.app/event/${event.showcaseSlug}/manage?name=${encodeURIComponent(scoutName || event.hostName || '')}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="w-full py-3 bg-scout-700 border border-scout-600 text-white rounded-lg font-bold text-sm flex items-center justify-center gap-2 hover:bg-scout-600 transition-all"
+                                        className="w-full py-2 text-gray-500 text-xs font-bold flex items-center justify-center gap-1.5 hover:text-white transition-all"
                                       >
-                                        <ClipboardList size={16} /> Manage Event
+                                        <ClipboardList size={12} /> Manage Event
                                       </a>
                                   )}
                                   {event.showcaseEventId && <RegistrationCount showcaseEventId={event.showcaseEventId} scoutId={currentScoutId} />}
