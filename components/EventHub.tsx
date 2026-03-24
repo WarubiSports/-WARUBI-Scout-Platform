@@ -685,15 +685,15 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                   )}
                                   {event.status === 'Published' && (event.showcaseSlug || event.link) && (
                                       <>
-                                          <ShareMessages event={event} scoutId={currentScoutId} copyToClipboard={copyToClipboard} copied={copied} />
                                           {onNetworkOutreach && (
                                               <button
                                                 onClick={() => onNetworkOutreach(event)}
-                                                className="w-full py-3 bg-scout-accent/10 border border-scout-accent/20 text-scout-accent rounded-lg font-black uppercase text-xs flex items-center justify-center gap-2 hover:bg-scout-accent/20 transition-all"
+                                                className="w-full py-4 bg-scout-accent text-scout-900 rounded-xl font-black uppercase text-sm flex items-center justify-center gap-2 hover:bg-emerald-400 transition-all shadow-glow active:scale-[0.98]"
                                               >
-                                                <Megaphone size={16} /> Let Your Network Know
+                                                <Megaphone size={18} /> Promote to Your Database
                                               </button>
                                           )}
+                                          <ShareMessages event={event} scoutId={currentScoutId} copyToClipboard={copyToClipboard} copied={copied} />
                                       </>
                                   )}
                                   {event.status === 'Published' && event.showcaseSlug && (
@@ -725,12 +725,13 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
                                   )}
                               </div>
                               {event.status === 'Published' && (() => { const pl = getPersonalLink(event, currentScoutId); return pl ? (
-                                  <div className="bg-scout-900 p-4 rounded-lg border border-scout-700 mt-4 space-y-3">
-                                      <label className="text-xs text-gray-500 font-bold uppercase block">Your Registration Link</label>
-                                      <div className="flex gap-2">
-                                          <input readOnly value={pl.display} className="bg-scout-800 text-scout-accent text-sm px-2 rounded border border-scout-600 w-full"/>
-                                          <button onClick={() => copyToClipboard(pl.full, 'link')} className="p-2 bg-scout-700 hover:bg-scout-600 rounded text-white">{copied === 'link' ? <CheckCircle size={16}/> : <Copy size={16}/>}</button>
-                                      </div>
+                                  <div className="mt-4 space-y-3">
+                                      <button
+                                        onClick={() => onNetworkOutreach && onNetworkOutreach(event)}
+                                        className="w-full py-4 bg-scout-accent text-scout-900 rounded-xl font-black uppercase text-sm flex items-center justify-center gap-2 hover:bg-emerald-400 transition-all shadow-glow active:scale-[0.98]"
+                                      >
+                                        <Megaphone size={18} /> Promote to Your Database
+                                      </button>
                                       <ShareMessages event={event} scoutId={currentScoutId} copyToClipboard={copyToClipboard} copied={copied} />
                                   </div>
                               ) : null; })()}
