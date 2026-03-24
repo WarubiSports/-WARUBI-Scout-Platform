@@ -155,7 +155,7 @@ const HomeContent: React.FC = () => {
             <div className="p-4 pb-3 flex items-center justify-between">
               <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Your Pipeline</p>
               <button
-                onClick={() => navigate('/dashboard/players')}
+                onClick={() => navigate('/dashboard/players/all')}
                 className="text-[10px] font-bold text-scout-accent flex items-center gap-1 hover:underline"
               >
                 View Board <ArrowRight size={10} />
