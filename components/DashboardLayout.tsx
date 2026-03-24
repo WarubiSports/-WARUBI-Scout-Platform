@@ -9,6 +9,7 @@ import PlacementModal, { PlacementData } from './PlacementModal';
 import { haptic } from '../hooks/useMobileFeatures';
 import { Home, Users, CalendarDays, Plus, LogOut, Lightbulb, BarChart3, Link2, Copy, CheckCircle, DollarSign, Share2, Zap } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
+import { InstallBanner, InstallSidebarLink } from './InstallPrompt';
 import { BulkOutreachFlow } from './BulkOutreachFlow';
 import ShareToolkit from './ShareToolkit';
 import NetworkOutreachModal from './NetworkOutreachModal';
@@ -275,6 +276,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     return (
         <div className="flex h-screen bg-[#05080f] text-white overflow-hidden relative">
             <ConnectionStatus />
+            <InstallBanner />
             <GlobalSearch
                 isOpen={isSearchOpen}
                 onClose={() => setIsSearchOpen(false)}
@@ -326,7 +328,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                     <button onClick={() => navigate('/dashboard/outreach')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'outreach' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><Zap size={20} /> Messages</button>
                     <button onClick={() => navigate('/dashboard/events')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'events' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><CalendarDays size={20} /> Events</button>
                 </nav>
-                <div className="p-4">
+                <div className="p-4 space-y-2">
+                    <InstallSidebarLink />
                     <button
                         onClick={() => setIsBugReportOpen(true)}
                         className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 text-amber-400 hover:text-amber-300 hover:border-amber-400/50 transition-all group"
