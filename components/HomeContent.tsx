@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Share2, MessageCircle, Mail, Copy, Check, X, Users, DollarSign, TrendingUp, ChevronRight, Upload } from 'lucide-react';
+import { Share2, X, Users, DollarSign, TrendingUp, ChevronRight, Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardContext } from './DashboardLayout';
 import { FunnelStrip } from './home/FunnelStrip';
@@ -14,22 +14,21 @@ const HomeContent: React.FC = () => {
   const importRef = useRef<HTMLDivElement>(null);
   const scrollToImport = () => importRef.current?.scrollIntoView({ behavior: 'smooth' });
 
-  const [shareOpen, setShareOpen] = useState(false);
   const [importExpanded, setImportExpanded] = useState(false);
   const assessmentLink = user.scoutId ? `https://app.warubi-sports.com?ref=${user.scoutId}` : '';
 
   const handleShareLink = async () => {
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'ExposureEngine — Free Career Analysis', text: "Free Career Analysis for Soccer Players", url: assessmentLink });
-        return;
+        await navigator.share({ title: 'ExposureEngine — Free Career Analysis', text: 'Free Career Analysis for Soccer Players', url: assessmentLink });
       } catch { /* cancelled */ }
+    } else {
+      navigator.clipboard.writeText(assessmentLink);
+      handleCopyLink();
     }
-    setShareOpen(prev => !prev);
   };
 
-  const shareVia = (url: string) => { window.open(url, '_blank'); setShareOpen(false); };
-
+  
   const contacted = players.filter(p => p.outreachLogs?.length > 0 || p.lastContactedAt).length;
   const eeActivity = players.filter(p => p.activityStatus && p.activityStatus !== 'undiscovered').length;
   const hasData = contacted >= 3 || eeActivity >= 3;
@@ -99,8 +98,7 @@ const HomeContent: React.FC = () => {
 
       {/* EE Link — share action */}
       {players.length > 0 && assessmentLink && (
-        <div className="relative">
-          <button
+        <button
             onClick={handleShareLink}
             className="w-full bg-gradient-to-r from-scout-accent/10 to-transparent border border-scout-accent/30 rounded-xl p-4 flex items-center justify-between gap-3 hover:border-scout-accent/60 active:scale-[0.99] transition-all cursor-pointer text-left"
           >
@@ -112,23 +110,6 @@ const HomeContent: React.FC = () => {
               <Share2 size={14} /> Share Now
             </div>
           </button>
-          {shareOpen && (
-            <div className="absolute right-0 top-full mt-2 w-56 bg-scout-800 border border-scout-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-fade-in">
-              <button onClick={() => shareVia(`https://wa.me/?text=${encodeURIComponent(`Check this out — free career analysis for soccer players: ${assessmentLink}`)}`)} className="w-full px-4 py-3 flex items-center gap-3 text-sm text-white hover:bg-scout-700 transition-colors">
-                <MessageCircle size={18} className="text-green-400" /> WhatsApp
-              </button>
-              <button onClick={() => shareVia(`mailto:?subject=${encodeURIComponent('Free Career Analysis — ExposureEngine')}&body=${encodeURIComponent(`Hey,\n\nCheck out this free tool:\n\n${assessmentLink}\n\nLet me know what you think.`)}`)} className="w-full px-4 py-3 flex items-center gap-3 text-sm text-white hover:bg-scout-700 transition-colors">
-                <Mail size={18} className="text-blue-400" /> Email
-              </button>
-              <button onClick={() => shareVia(`sms:?&body=${encodeURIComponent(`Free career analysis for soccer players: ${assessmentLink}`)}`)} className="w-full px-4 py-3 flex items-center gap-3 text-sm text-white hover:bg-scout-700 transition-colors">
-                <MessageCircle size={18} className="text-yellow-400" /> SMS
-              </button>
-              <button onClick={() => { handleCopyLink(); setShareOpen(false); }} className="w-full px-4 py-3 flex items-center gap-3 text-sm text-white hover:bg-scout-700 transition-colors border-t border-scout-700">
-                {linkCopied ? <><Check size={18} className="text-scout-accent" /> Copied!</> : <><Copy size={18} className="text-gray-400" /> Copy Link</>}
-              </button>
-            </div>
-          )}
-        </div>
       )}
 
       {/* Import & Send */}
