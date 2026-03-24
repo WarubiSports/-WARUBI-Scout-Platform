@@ -4,13 +4,22 @@ import { Player } from '../../types';
 import { PlayerDetailSheet } from './PlayerDetailSheet';
 import { useDashboardContext } from '../DashboardLayout';
 
+const buildFollowUpEmail = (player: Player, scoutName: string) => {
+  const firstName = player.name.split(' ')[0];
+  const score = player.evaluation?.score;
+  const tier = player.evaluation?.scholarshipTier;
+  const subject = `${firstName} — Your ExposureEngine Results`;
+  const body = `Hi ${firstName},\n\nI saw you completed your ExposureEngine assessment${score ? ` and scored ${score}` : ''}${tier ? ` (${tier})` : ''}. That's a strong profile.\n\nI'd love to walk you through what opportunities could be a fit — whether that's US college programs or European academy pathways.\n\nWould you have a few minutes to connect this week?\n\nBest,\n${scoutName}`;
+  return { subject, body };
+};
+
 interface WarmLeadsStripProps {
   players: Player[];
 }
 
 export const WarmLeadsStrip: React.FC<WarmLeadsStripProps> = ({ players }) => {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-  const { handleEditPlayer, onMessageSent } = useDashboardContext();
+  const { handleEditPlayer, onMessageSent, user } = useDashboardContext();
   const warmLeads = useMemo(() => {
     return players
       .filter(p => p.activityStatus && p.activityStatus !== 'undiscovered')
@@ -66,26 +75,34 @@ export const WarmLeadsStrip: React.FC<WarmLeadsStripProps> = ({ players }) => {
               </div>
             )}
             <div className="flex gap-1.5">
-              {player.phone && (
-                <a
-                  href={`https://wa.me/${player.phone.replace(/[^\d+]/g, '').replace(/^\+/, '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={(e) => { e.stopPropagation(); onMessageSent?.(player.id, { method: 'WhatsApp', templateName: 'Quick follow-up' }); }}
-                  className="flex-1 py-1.5 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-[10px] font-bold text-center hover:bg-green-500/20 transition-colors"
-                >
-                  WhatsApp
-                </a>
-              )}
-              {player.email && (
-                <a
-                  href={`mailto:${player.email}`}
-                  onClick={(e) => { e.stopPropagation(); onMessageSent?.(player.id, { method: 'Email', templateName: 'Quick follow-up' }); }}
-                  className="flex-1 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-lg text-blue-400 text-[10px] font-bold text-center hover:bg-blue-500/20 transition-colors"
-                >
-                  Email
-                </a>
-              )}
+              {player.phone && (() => {
+                const firstName = player.name.split(' ')[0];
+                const score = player.evaluation?.score;
+                const waMsg = `Hey ${firstName}! I saw your ExposureEngine results${score ? ` — a ${score} is solid` : ''}. I'd love to chat about which programs could be a fit for you. Got a few minutes this week?`;
+                return (
+                  <a
+                    href={`https://wa.me/${player.phone.replace(/[^\d+]/g, '').replace(/^\+/, '')}?text=${encodeURIComponent(waMsg)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => { e.stopPropagation(); onMessageSent?.(player.id, { method: 'WhatsApp', templateName: 'Quick follow-up' }); }}
+                    className="flex-1 py-1.5 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-[10px] font-bold text-center hover:bg-green-500/20 transition-colors"
+                  >
+                    WhatsApp
+                  </a>
+                );
+              })()}
+              {player.email && (() => {
+                const { subject, body } = buildFollowUpEmail(player, user.name);
+                return (
+                  <a
+                    href={`mailto:${player.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`}
+                    onClick={(e) => { e.stopPropagation(); onMessageSent?.(player.id, { method: 'Email', templateName: 'Quick follow-up' }); }}
+                    className="flex-1 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-lg text-blue-400 text-[10px] font-bold text-center hover:bg-blue-500/20 transition-colors"
+                  >
+                    Email
+                  </a>
+                );
+              })()}
               {!player.phone && !player.email && (
                 <span className="flex-1 py-1.5 text-gray-600 text-[10px] text-center">No contact info</span>
               )}
