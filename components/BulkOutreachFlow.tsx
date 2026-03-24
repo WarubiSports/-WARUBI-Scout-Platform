@@ -568,10 +568,15 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
             </div>
           </div>
           {inline ? (
-            step !== 'UPLOAD' ? (
-              <button onClick={() => { setStep('UPLOAD'); setExtractedPlayers([]); setSavedPlayers([]); setOutreachMessages([]); setEmailSent(false); }}
-                className="text-[10px] text-gray-500 hover:text-white transition-colors font-bold uppercase">Reset</button>
-            ) : null
+            <div className="flex items-center gap-2">
+              {step !== 'UPLOAD' && (
+                <button onClick={() => { setStep('UPLOAD'); setExtractedPlayers([]); setSavedPlayers([]); setOutreachMessages([]); setEmailSent(false); }}
+                  className="text-[10px] text-gray-500 hover:text-white transition-colors font-bold uppercase">Reset</button>
+              )}
+              <button onClick={onClose} className="p-1.5 hover:bg-scout-700 rounded-lg text-gray-500 hover:text-white transition-colors" title="Collapse">
+                <X size={16} />
+              </button>
+            </div>
           ) : (
             <button onClick={handleClose} className="p-2 hover:bg-scout-800 rounded-xl transition-colors">
               <X size={20} className="text-gray-500" />
