@@ -80,7 +80,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, approvedScoutInfo }
                             </h1>
                             <p className="text-gray-400 font-mono text-sm leading-relaxed text-left bg-scout-950/50 p-6 rounded-2xl border border-white/5">
                                 <span className="text-scout-accent font-bold block mb-2">Every player you find is a life you change.</span>
-                                Behind every placement is a young athlete who gets the opportunity they wouldn't have had without you. We give you the tools to find them, verify their talent, and open doors — backed by UEFA methodology and FIFA licensing. This is how careers are built.
+                                Behind every placement is a young athlete who gets the opportunity they wouldn't have had without you. We give you the tools to find them, verify their talent, and open doors — backed by UEFA methodology and real placement results. This is how careers are built.
                             </p>
                         </div>
                         <div className="grid grid-cols-2 gap-4 text-left">
@@ -191,23 +191,23 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, approvedScoutInfo }
                             <div className="w-20 h-20 bg-scout-accent/20 rounded-full flex items-center justify-center mx-auto mb-6 text-scout-accent border-2 border-scout-accent/30">
                                 <Sparkles size={40} />
                             </div>
-                            <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Activate Lead Magnet</h2>
-                            <p className="text-gray-400 text-sm mt-2">Every elite scout needs a link in their Instagram bio. <br/>Players submit details, AI evaluates, you approve.</p>
+                            <h2 className="text-3xl font-black text-white uppercase tracking-tighter">Your ExposureEngine Link</h2>
+                            <p className="text-gray-400 text-sm mt-2">Share this link anywhere — Instagram bio, WhatsApp, coaches. <br/>Players get a free career analysis, you get qualified leads.</p>
                         </div>
 
                         <div className="bg-scout-900 p-6 rounded-[2rem] border border-scout-700">
                             <div className="flex items-center gap-4 mb-4">
                                 <div className="w-10 h-10 bg-scout-800 rounded-lg flex items-center justify-center text-blue-400"><ShieldCheck size={24}/></div>
                                 <div>
-                                    <h4 className="text-white font-bold text-sm">Smart Apply Link</h4>
-                                    <p className="text-[10px] text-gray-500 uppercase font-black">warubi.com/apply/<span className="text-scout-accent">your-unique-id</span></p>
+                                    <h4 className="text-white font-bold text-sm">ExposureEngine — Free Career Analysis</h4>
+                                    <p className="text-[10px] text-gray-500 uppercase font-black">app.warubi-sports.com?ref=<span className="text-scout-accent">you</span></p>
                                 </div>
                             </div>
                             <ul className="space-y-3">
                                 {[
-                                    "Automated evaluations on arrival",
-                                    "Direct Parent contact collection",
-                                    "Pipeline integration"
+                                    "AI evaluates every player automatically",
+                                    "Parent contact info collected",
+                                    "Players land directly in your pipeline"
                                 ].map((item, i) => (
                                     <li key={i} className="flex items-center gap-2 text-xs text-gray-300">
                                         <Check size={14} className="text-scout-accent" /> {item}
@@ -227,7 +227,7 @@ const Onboarding: React.FC<OnboardingProps> = ({ onComplete, approvedScoutInfo }
                             disabled={loading}
                             className="w-full bg-white hover:bg-gray-100 text-scout-900 font-black py-5 rounded-2xl transition-all shadow-2xl active:scale-95 uppercase tracking-wide flex items-center justify-center gap-3"
                         >
-                            {loading ? <Loader2 className="animate-spin" /> : <><BrainCircuit size={20}/> Generate Intelligence Hub</>}
+                            {loading ? <Loader2 className="animate-spin" /> : <><BrainCircuit size={20}/> Launch Scout Buddy</>}
                         </button>
                     </div>
                 )}

@@ -569,7 +569,7 @@ const PlayersContent: React.FC = () => {
                                         <p className="text-[9px] font-bold text-gray-600 uppercase mb-3">
                                             {status === PlayerStatus.LEAD && 'New players you discover'}
                                             {status === PlayerStatus.REQUEST_TRIAL && 'Players requesting a trial'}
-                                            {status === PlayerStatus.CONTACT_REQUESTED && 'Flagged for HQ outreach'}
+                                            {status === PlayerStatus.CONTACT_REQUESTED && 'Outreach sent'}
                                             {status === PlayerStatus.OFFERED && 'Players with active offers'}
                                             {status === PlayerStatus.PLACED && 'Successfully placed'}
                                         </p>

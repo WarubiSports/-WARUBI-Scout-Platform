@@ -1,6 +1,7 @@
 import React from 'react';
-import { MessageCircle, Mail, Phone, Edit3, Trophy } from 'lucide-react';
+import { MessageCircle, Mail, Phone, Edit3, Trophy, CheckCircle } from 'lucide-react';
 import { Player, PlayerStatus } from '../../types';
+import { useDashboardContext } from '../DashboardLayout';
 
 interface PlayerDetailSheetProps {
   player: Player;
@@ -18,6 +19,16 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export const PlayerDetailSheet: React.FC<PlayerDetailSheetProps> = ({ player, onClose, onEdit }) => {
+  const { onMessageSent, onStatusChange } = useDashboardContext();
+
+  const logAndOpen = (url: string, method: 'WhatsApp' | 'Email') => {
+    onMessageSent?.(player.id, { method, templateName: 'Quick follow-up' });
+    if (url.startsWith('mailto:') || url.startsWith('tel:')) {
+      window.location.href = url;
+    } else {
+      window.open(url, '_blank');
+    }
+  };
   const eval_ = player.evaluation;
   const hasContact = player.phone || player.email;
   const waLink = player.phone ? `https://wa.me/${player.phone.replace(/[^\d+]/g, '').replace(/^\+/, '')}` : null;
@@ -58,19 +69,20 @@ export const PlayerDetailSheet: React.FC<PlayerDetailSheetProps> = ({ player, on
           {/* Quick actions */}
           <div className="flex gap-2">
             {waLink && (
-              <a href={waLink} target="_blank" rel="noopener noreferrer"
+              <button onClick={() => logAndOpen(waLink, 'WhatsApp')}
                 className="flex-1 py-3 bg-green-500/10 border border-green-500/30 rounded-xl text-green-400 text-xs font-bold text-center flex items-center justify-center gap-2 hover:bg-green-500/20 transition-colors">
                 <MessageCircle size={16} /> WhatsApp
-              </a>
+              </button>
             )}
             {player.email && (
-              <a href={`mailto:${player.email}`}
+              <button onClick={() => logAndOpen(`mailto:${player.email}`, 'Email')}
                 className="flex-1 py-3 bg-blue-500/10 border border-blue-500/30 rounded-xl text-blue-400 text-xs font-bold text-center flex items-center justify-center gap-2 hover:bg-blue-500/20 transition-colors">
                 <Mail size={16} /> Email
-              </a>
+              </button>
             )}
             {player.phone && (
               <a href={`tel:${player.phone}`}
+                onClick={() => onMessageSent?.(player.id, { method: 'WhatsApp', templateName: 'Phone call' })}
                 className="flex-1 py-3 bg-purple-500/10 border border-purple-500/30 rounded-xl text-purple-400 text-xs font-bold text-center flex items-center justify-center gap-2 hover:bg-purple-500/20 transition-colors">
                 <Phone size={16} /> Call
               </a>
@@ -182,6 +194,19 @@ export const PlayerDetailSheet: React.FC<PlayerDetailSheetProps> = ({ player, on
                 ))}
               </div>
             </div>
+          )}
+
+          {/* Got a reply? — surface for contacted players */}
+          {(player.status === PlayerStatus.LEAD || player.status === PlayerStatus.CONTACT_REQUESTED) && player.lastContactedAt && (
+            <button
+              onClick={() => {
+                onStatusChange?.(player.id, PlayerStatus.REQUEST_TRIAL);
+                onClose();
+              }}
+              className="w-full py-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 font-bold text-sm flex items-center justify-center gap-2 hover:bg-emerald-500/20 transition-colors"
+            >
+              <CheckCircle size={16} /> Player Replied — Request Trial
+            </button>
           )}
 
           {/* Edit button */}

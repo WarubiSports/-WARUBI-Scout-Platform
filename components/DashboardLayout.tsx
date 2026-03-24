@@ -222,8 +222,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     const handlePlacementSubmitted = (data: PlacementData) => {
         if (!pendingPlacedPlayer) return;
         haptic.success();
-        if (onStatusChange) onStatusChange(pendingPlacedPlayer.id, PlayerStatus.PLACED, data.placedLocation);
-        // Also update program duration
+        // Single update: status + placement data. handleUpdatePlayer detects status change and triggers ITP sync.
         if (onUpdatePlayer) {
             onUpdatePlayer({ ...pendingPlacedPlayer, status: PlayerStatus.PLACED, programDuration: data.programDuration, placedLocation: data.placedLocation });
         }

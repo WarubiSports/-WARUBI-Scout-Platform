@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Share2, MessageCircle, Mail, Copy, Check, X, Users, DollarSign, TrendingUp, ChevronRight } from 'lucide-react';
+import { Share2, MessageCircle, Mail, Copy, Check, X, Users, DollarSign, TrendingUp, ChevronRight, Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useDashboardContext } from './DashboardLayout';
 import { FunnelStrip } from './home/FunnelStrip';
@@ -15,6 +15,7 @@ const HomeContent: React.FC = () => {
   const scrollToImport = () => importRef.current?.scrollIntoView({ behavior: 'smooth' });
 
   const [shareOpen, setShareOpen] = useState(false);
+  const [importExpanded, setImportExpanded] = useState(false);
   const assessmentLink = user.scoutId ? `https://app.warubi-sports.com?ref=${user.scoutId}` : '';
 
   const handleShareLink = async () => {
@@ -132,13 +133,22 @@ const HomeContent: React.FC = () => {
 
       {/* Import & Send */}
       <div ref={importRef}>
-        <BulkOutreachFlow
-          scoutId={user.scoutId}
-          scoutName={user.name}
-          scoutBio={user.bio}
-          onClose={() => {}}
-          inline
-        />
+        {players.length >= 5 && !importExpanded ? (
+          <button
+            onClick={() => setImportExpanded(true)}
+            className="w-full py-3 bg-scout-800 border border-dashed border-scout-700 rounded-xl text-gray-400 text-xs font-bold flex items-center justify-center gap-2 hover:border-scout-accent/40 hover:text-white transition-all active:scale-[0.99]"
+          >
+            <Upload size={14} /> Import More Contacts
+          </button>
+        ) : (
+          <BulkOutreachFlow
+            scoutId={user.scoutId}
+            scoutName={user.name}
+            scoutBio={user.bio}
+            onClose={() => setImportExpanded(false)}
+            inline
+          />
+        )}
       </div>
 
       {/* Warm leads */}

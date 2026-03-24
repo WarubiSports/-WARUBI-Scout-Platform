@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Flame, ArrowRight, MessageSquare, Share2 } from 'lucide-react';
+import { Flame } from 'lucide-react';
 import { Player } from '../../types';
 import { PlayerDetailSheet } from './PlayerDetailSheet';
 import { useDashboardContext } from '../DashboardLayout';
@@ -10,7 +10,7 @@ interface WarmLeadsStripProps {
 
 export const WarmLeadsStrip: React.FC<WarmLeadsStripProps> = ({ players }) => {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-  const { handleEditPlayer } = useDashboardContext();
+  const { handleEditPlayer, onMessageSent } = useDashboardContext();
   const warmLeads = useMemo(() => {
     return players
       .filter(p => p.activityStatus && p.activityStatus !== 'undiscovered')
@@ -71,6 +71,7 @@ export const WarmLeadsStrip: React.FC<WarmLeadsStripProps> = ({ players }) => {
                   href={`https://wa.me/${player.phone.replace(/[^\d+]/g, '').replace(/^\+/, '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={(e) => { e.stopPropagation(); onMessageSent?.(player.id, { method: 'WhatsApp', templateName: 'Quick follow-up' }); }}
                   className="flex-1 py-1.5 bg-green-500/10 border border-green-500/30 rounded-lg text-green-400 text-[10px] font-bold text-center hover:bg-green-500/20 transition-colors"
                 >
                   WhatsApp
@@ -79,6 +80,7 @@ export const WarmLeadsStrip: React.FC<WarmLeadsStripProps> = ({ players }) => {
               {player.email && (
                 <a
                   href={`mailto:${player.email}`}
+                  onClick={(e) => { e.stopPropagation(); onMessageSent?.(player.id, { method: 'Email', templateName: 'Quick follow-up' }); }}
                   className="flex-1 py-1.5 bg-blue-500/10 border border-blue-500/30 rounded-lg text-blue-400 text-[10px] font-bold text-center hover:bg-blue-500/20 transition-colors"
                 >
                   Email

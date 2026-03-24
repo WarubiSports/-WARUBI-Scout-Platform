@@ -223,7 +223,7 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s. Please try again.`)), ms)),
     ]);
 
-  const { addProspectsBatch } = useProspects(scoutId);
+  const { addProspectsBatch, updateProspect } = useProspects(scoutId);
   const { logOutreach } = useOutreach(scoutId);
   const assessmentLink = scoutId ? `https://app.warubi-sports.com?ref=${scoutId}` : '';
 
@@ -459,6 +459,7 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
     if (phone) {
       window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg.message)}`, '_blank');
       await logOutreach(msg.playerId, 'WhatsApp', `Bulk: ${selectedTemplate}`, msg.message);
+      await updateProspect(msg.playerId, { status: PlayerStatus.CONTACT_REQUESTED, lastContactedAt: new Date().toISOString(), activityStatus: 'spark' });
     }
   };
 
@@ -515,9 +516,10 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
       window.open(mailto, '_blank');
     }
 
-    // Log outreach for all emailed players
+    // Log outreach + bump to Contacted for all emailed players
     for (const m of emailableMessages) {
       await logOutreach(m.playerId, 'Email', `Bulk: ${selectedTemplate}`, body);
+      await updateProspect(m.playerId, { status: PlayerStatus.CONTACT_REQUESTED, lastContactedAt: new Date().toISOString(), activityStatus: 'spark' });
     }
 
     setEmailSent(true);
@@ -799,7 +801,10 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
                       for (const batch of batches) {
                         window.open(`mailto:?bcc=${encodeURIComponent(batch.join(','))}&subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`, '_blank');
                       }
-                      savedPlayers.filter(p => p.email).forEach(p => logOutreach(p.id, 'Email', 'Bulk: First Spark', emailBody));
+                      savedPlayers.filter(p => p.email).forEach(p => {
+                        logOutreach(p.id, 'Email', 'Bulk: First Spark', emailBody);
+                        updateProspect(p.id, { status: PlayerStatus.CONTACT_REQUESTED, lastContactedAt: new Date().toISOString(), activityStatus: 'spark' });
+                      });
                       setEmailSent(true);
                     }}
                     className="w-full py-4 bg-scout-accent text-scout-900 rounded-xl font-black uppercase text-sm flex items-center justify-center gap-3 shadow-glow hover:bg-emerald-400 transition-all"
@@ -819,17 +824,22 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
                 <div className="text-center py-8">
                   <CheckCircle size={48} className="mx-auto text-scout-accent mb-4" />
                   <h3 className="text-scout-accent font-black text-xl uppercase tracking-tight mb-2">
-                    Email Opened!
+                    Outreach Sent!
                   </h3>
-                  <p className="text-gray-400 text-sm mb-6">
-                    Check your mail app and hit send.
+                  <p className="text-gray-400 text-sm mb-2">
+                    {savedPlayers.filter(p => p.email).length} players emailed. Check your mail app and hit send.
+                  </p>
+                  <p className="text-gray-500 text-xs mb-6">
+                    Players moved to <span className="text-scout-accent font-bold">Contacted</span>. Check back in a few days for warm leads.
                   </p>
                   <div className="flex items-center justify-center gap-3">
-                    <button onClick={() => setStep('OUTREACH')} className="px-6 py-3 bg-scout-800 border border-scout-700 text-white rounded-xl font-bold text-sm hover:border-scout-600 transition-colors">
-                      WhatsApp Individual Messages
-                    </button>
-                    <button onClick={onClose} className="px-6 py-3 bg-scout-accent text-scout-900 rounded-xl font-black text-sm">
-                      Done
+                    {savedPlayers.some(p => p.phone && !p.email) && (
+                      <button onClick={() => setStep('OUTREACH')} className="px-6 py-3 bg-scout-800 border border-scout-700 text-white rounded-xl font-bold text-sm hover:border-scout-600 transition-colors">
+                        WhatsApp {savedPlayers.filter(p => p.phone && !p.email).length} Without Email
+                      </button>
+                    )}
+                    <button onClick={() => { setStep('UPLOAD'); setExtractedPlayers([]); setSavedPlayers([]); setOutreachMessages([]); setEmailSent(false); }} className="px-6 py-3 bg-scout-accent text-scout-900 rounded-xl font-black text-sm">
+                      Import More
                     </button>
                   </div>
                 </div>
