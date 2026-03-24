@@ -93,14 +93,17 @@ const HomeContent: React.FC = () => {
         <>
           <button
             onClick={() => setShareModalOpen(true)}
-            className="w-full bg-gradient-to-r from-scout-accent/10 to-transparent border border-scout-accent/30 rounded-xl p-4 flex items-center justify-between gap-3 hover:border-scout-accent/60 active:scale-[0.99] transition-all cursor-pointer text-left"
+            className="w-full bg-gradient-to-r from-scout-accent/10 to-transparent border border-scout-accent/30 rounded-xl p-4 flex items-center justify-between gap-3 hover:border-scout-accent/60 active:scale-[0.99] transition-all cursor-pointer"
           >
-            <div className="min-w-0">
-              <p className="text-xs font-black text-scout-accent uppercase tracking-wider mb-0.5">Your ExposureEngine Link</p>
-              <p className="text-[10px] text-gray-400 truncate">{assessmentLink}</p>
+            <div className="flex items-center gap-3">
+              <Share2 size={18} className="text-scout-accent" />
+              <div>
+                <p className="text-sm font-black text-white">Share Your ExposureEngine Link</p>
+                <p className="text-[10px] text-gray-500">Players get free analysis. You get leads.</p>
+              </div>
             </div>
-            <div className="shrink-0 px-4 py-2 bg-scout-accent text-scout-900 rounded-lg text-xs font-black flex items-center gap-1.5">
-              <Share2 size={14} /> Share Now
+            <div className="shrink-0 px-4 py-2 bg-scout-accent text-scout-900 rounded-lg text-xs font-black">
+              Share Now
             </div>
           </button>
           {shareModalOpen && (
