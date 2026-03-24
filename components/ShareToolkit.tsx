@@ -18,6 +18,8 @@ const ShareToolkit: React.FC<ShareToolkitProps> = ({ scoutId, scoutName, variant
   const link = `${EE_BASE}?ref=${scoutId}`;
   const shortLink = `app.warubi-sports.com?ref=${scoutId}`;
 
+  const emailBody = `Hi,\n\nI wanted to share a free tool that might help you or someone you know.\n\nThe ExposureEngine analyzes a player's stats, league level, and academics to show where they'd realistically fit — US college soccer (D1, D2, NAIA, JUCO) or European academy pathways including Bundesliga programs. It also gives a personalized action plan.\n\n${link}\n\nTakes about 3 minutes. If the results look promising, I'd be happy to discuss next steps.\n\nBest,\n${scoutName}`;
+
   const templates = useMemo(() => ({
     whatsapp: {
       label: 'WhatsApp',
@@ -25,6 +27,8 @@ const ShareToolkit: React.FC<ShareToolkitProps> = ({ scoutId, scoutName, variant
       color: 'text-green-400',
       bg: 'bg-green-500/10 border-green-500/20',
       message: `Hey! Check out this free tool — it analyzes your stats and shows where you'd fit, whether that's US college soccer or a European academy pathway. Takes 3 minutes:\n\n${link}\n\nPretty eye-opening. Let me know what you get.`,
+      url: `https://wa.me/?text=${encodeURIComponent(`Hey! Check out this free tool — it analyzes your stats and shows where you'd fit, whether that's US college soccer or a European academy pathway. Takes 3 minutes:\n\n${link}\n\nPretty eye-opening. Let me know what you get.`)}`,
+      hint: 'Opens WhatsApp',
     },
     instagram: {
       label: 'Instagram',
@@ -32,6 +36,8 @@ const ShareToolkit: React.FC<ShareToolkitProps> = ({ scoutId, scoutName, variant
       color: 'text-pink-400',
       bg: 'bg-pink-500/10 border-pink-500/20',
       message: `Hey! Thought you might find this interesting — it's a free AI tool that analyzes your soccer career options. Shows your fit for US college programs (D1/D2/NAIA) and European academy pathways based on your stats:\n\n${link}\n\nTakes a few minutes. Worth checking out`,
+      url: 'https://www.instagram.com/direct/inbox/',
+      hint: 'Opens Instagram DMs',
     },
     coach: {
       label: 'Coach',
@@ -39,15 +45,19 @@ const ShareToolkit: React.FC<ShareToolkitProps> = ({ scoutId, scoutName, variant
       color: 'text-orange-400',
       bg: 'bg-orange-500/10 border-orange-500/20',
       message: `Hi Coach,\n\nI'm ${scoutName} with Warubi Sports. We connect players with opportunities in US college soccer and European academies — including a direct pathway through FC Köln's International Training Program.\n\nI'd love to share a free tool with your players — the ExposureEngine. It analyzes their stats and shows them where they'd realistically fit, whether that's D1, D2, NAIA in the US, or a Bundesliga academy pathway in Europe. Takes 3 minutes and gives them a personalized action plan.\n\n${link}\n\nFeel free to share it with your squad. If any of your players show strong results, I'd be happy to connect them with programs that match their level.\n\nBest,\n${scoutName}`,
+      url: `https://wa.me/?text=${encodeURIComponent(`Hi Coach,\n\nI'm ${scoutName} with Warubi Sports. We connect players with opportunities in US college soccer and European academies — including a direct pathway through FC Köln's International Training Program.\n\nI'd love to share a free tool with your players — the ExposureEngine. It analyzes their stats and shows them where they'd realistically fit, whether that's D1, D2, NAIA in the US, or a Bundesliga academy pathway in Europe. Takes 3 minutes and gives them a personalized action plan.\n\n${link}\n\nFeel free to share it with your squad. If any of your players show strong results, I'd be happy to connect them with programs that match their level.\n\nBest,\n${scoutName}`)}`,
+      hint: 'Opens WhatsApp',
     },
     email: {
       label: 'Email',
       icon: Mail,
       color: 'text-blue-400',
       bg: 'bg-blue-500/10 border-blue-500/20',
-      message: `Hi,\n\nI wanted to share a free tool that might help you or someone you know.\n\nThe ExposureEngine analyzes a player's stats, league level, and academics to show where they'd realistically fit — US college soccer (D1, D2, NAIA, JUCO) or European academy pathways including Bundesliga programs. It also gives a personalized action plan.\n\n${link}\n\nTakes about 3 minutes. If the results look promising, I'd be happy to discuss next steps.\n\nBest,\n${scoutName}`,
+      message: emailBody,
+      url: `mailto:?subject=${encodeURIComponent('Free Career Analysis — ExposureEngine')}&body=${encodeURIComponent(emailBody)}`,
+      hint: 'Opens email app',
     },
-  }), [link, scoutName]);
+  }), [link, scoutName, emailBody]);
 
   const copyTemplate = (key: string, text: string) => {
     navigator.clipboard.writeText(text);
@@ -61,23 +71,30 @@ const ShareToolkit: React.FC<ShareToolkitProps> = ({ scoutId, scoutName, variant
   const content = (
     <div className="space-y-3">
       {/* Channel grid — primary action */}
-      <p className="text-[10px] font-bold text-gray-500 px-1">Tap a channel to copy a ready-to-send message with your link:</p>
       <div className="grid grid-cols-2 gap-2">
         {Object.entries(templates).map(([key, t]) => {
           const Icon = t.icon;
           const isEmail = key === 'email' && onEmailBlast;
           const isCopied = copied === key;
+          const handleClick = () => {
+            if (isEmail) { onEmailBlast(); return; }
+            copyTemplate(key, t.message);
+            if (t.url) window.open(t.url, '_blank');
+          };
           return (
             <button
               key={key}
-              onClick={() => isEmail ? onEmailBlast() : copyTemplate(key, t.message)}
-              className={`flex items-center gap-2.5 px-3 py-3 rounded-xl border transition-all active:scale-[0.98] ${isCopied ? 'border-scout-accent/50 bg-scout-accent/10' : `${t.bg} hover:opacity-80`}`}
+              onClick={handleClick}
+              className={`flex flex-col items-start px-3 py-3 rounded-xl border transition-all active:scale-[0.98] ${isCopied ? 'border-scout-accent/50 bg-scout-accent/10' : `${t.bg} hover:opacity-80`}`}
             >
-              <Icon size={16} className={isCopied ? 'text-scout-accent' : t.color} />
-              <span className={`text-xs font-bold ${isCopied ? 'text-scout-accent' : t.color}`}>
-                {isCopied ? 'Copied!' : (isEmail ? 'Bulk Email' : t.label)}
-              </span>
-              {isEmail && !isCopied && <Send size={11} className="ml-auto text-gray-600" />}
+              <div className="flex items-center gap-2.5 w-full">
+                <Icon size={16} className={isCopied ? 'text-scout-accent' : t.color} />
+                <span className={`text-xs font-bold ${isCopied ? 'text-scout-accent' : t.color}`}>
+                  {isCopied ? 'Copied!' : (isEmail ? 'Bulk Email' : t.label)}
+                </span>
+                {isEmail && !isCopied && <Send size={11} className="ml-auto text-gray-600" />}
+              </div>
+              {!isCopied && <span className="text-[9px] text-gray-600 mt-1 ml-[26px]">{isEmail ? 'Send to all players' : t.hint}</span>}
             </button>
           );
         })}

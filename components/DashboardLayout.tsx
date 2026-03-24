@@ -40,6 +40,7 @@ export interface DashboardContext {
     submissionLink: string;
     handleCopyLink: () => void;
     linkCopied: boolean;
+    openShareToolkit: () => void;
     earnings: EarningsBreakdown;
 }
 
@@ -260,6 +261,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         submissionLink,
         handleCopyLink,
         linkCopied,
+        openShareToolkit: () => setIsShareToolkitOpen(true),
         earnings,
     };
 
