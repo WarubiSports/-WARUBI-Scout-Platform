@@ -140,7 +140,7 @@ export const InstallSidebarLink: React.FC = () => {
     // iOS / desktop — the banner handles instructions
   };
 
-  if (!show) return null;
+  if (!show || !deferredPrompt) return null;
 
   return (
     <button
