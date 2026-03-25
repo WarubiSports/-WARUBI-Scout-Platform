@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Flame } from 'lucide-react';
+import { Flame, Share2 } from 'lucide-react';
 import { Player } from '../../types';
 import { PlayerDetailSheet } from './PlayerDetailSheet';
 import { useDashboardContext } from '../DashboardLayout';
@@ -19,7 +19,7 @@ interface WarmLeadsStripProps {
 
 export const WarmLeadsStrip: React.FC<WarmLeadsStripProps> = ({ players }) => {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-  const { handleEditPlayer, onMessageSent, user } = useDashboardContext();
+  const { handleEditPlayer, onMessageSent, user, openShareToolkit } = useDashboardContext();
   const warmLeads = useMemo(() => {
     return players
       .filter(p => p.activityStatus && p.activityStatus !== 'undiscovered')
@@ -31,9 +31,15 @@ export const WarmLeadsStrip: React.FC<WarmLeadsStripProps> = ({ players }) => {
       <div className="bg-scout-800/50 border border-scout-700 rounded-xl p-5 text-center">
         <Flame size={28} className="mx-auto text-gray-600 mb-2" />
         <p className="text-sm font-bold text-gray-400">No warm leads yet</p>
-        <p className="text-[10px] text-gray-500 mt-1">
+        <p className="text-[10px] text-gray-500 mt-1 mb-3">
           When players complete their ExposureEngine assessment, they'll appear here — ready for follow-up.
         </p>
+        <button
+          onClick={openShareToolkit}
+          className="px-4 py-2 bg-scout-accent/10 border border-scout-accent/30 rounded-lg text-xs font-bold text-scout-accent flex items-center justify-center gap-2 mx-auto hover:bg-scout-accent/20 transition-colors active:scale-[0.98]"
+        >
+          <Share2 size={12} /> Share Your Link
+        </button>
       </div>
     );
   }

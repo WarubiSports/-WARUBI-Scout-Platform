@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link2, Copy, Check, FileUp, Send, ChevronRight, Zap } from 'lucide-react';
+import { Share2, FileUp, Send, Check, Zap } from 'lucide-react';
 
 interface FirstRunGuideProps {
   assessmentLink: string;
@@ -7,14 +7,15 @@ interface FirstRunGuideProps {
   linkCopied: boolean;
   onStartImport: () => void;
   hasPlayers: boolean;
+  onShareLink?: () => void;
+  onBulkOutreach?: () => void;
 }
 
 export const FirstRunGuide: React.FC<FirstRunGuideProps> = ({
-  assessmentLink,
-  onCopyLink,
-  linkCopied,
   onStartImport,
   hasPlayers,
+  onShareLink,
+  onBulkOutreach,
 }) => {
   const [dismissed, setDismissed] = useState(false);
 
@@ -23,23 +24,18 @@ export const FirstRunGuide: React.FC<FirstRunGuideProps> = ({
   const steps = [
     {
       num: 1,
-      icon: Link2,
+      icon: Share2,
       title: 'Share your link',
       desc: 'Send this to players — they get a free talent analysis, you get leads.',
       done: false,
-      action: (
-        <div className="mt-3">
-          <div className="bg-scout-900 border border-scout-700 rounded-lg px-3 py-2 text-[10px] text-gray-400 truncate mb-2">
-            {assessmentLink}
-          </div>
-          <button
-            onClick={onCopyLink}
-            className="w-full py-2.5 bg-scout-accent text-scout-900 rounded-lg font-bold text-xs flex items-center justify-center gap-2"
-          >
-            {linkCopied ? <><Check size={14} /> Copied!</> : <><Copy size={14} /> Copy Link</>}
-          </button>
-        </div>
-      ),
+      action: onShareLink ? (
+        <button
+          onClick={onShareLink}
+          className="mt-3 w-full py-2.5 bg-scout-accent text-scout-900 rounded-lg font-bold text-xs flex items-center justify-center gap-2 hover:bg-emerald-400 transition-colors active:scale-[0.98]"
+        >
+          <Share2 size={14} /> Share Your Link
+        </button>
+      ) : null,
     },
     {
       num: 2,
@@ -61,10 +57,17 @@ export const FirstRunGuide: React.FC<FirstRunGuideProps> = ({
     {
       num: 3,
       icon: Send,
-      title: 'Blast outreach',
-      desc: 'Email all imported players in one click. Every email includes your link.',
+      title: 'Message your players',
+      desc: 'Reach out to imported players via WhatsApp or email with one tap.',
       done: false,
-      action: null,
+      action: hasPlayers && onBulkOutreach ? (
+        <button
+          onClick={onBulkOutreach}
+          className="mt-3 w-full py-2.5 bg-scout-800 border border-scout-700 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-2 hover:border-scout-accent transition-colors"
+        >
+          <Send size={14} /> Bulk Outreach
+        </button>
+      ) : null,
     },
   ];
 

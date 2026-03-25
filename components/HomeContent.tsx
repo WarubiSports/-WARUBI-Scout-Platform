@@ -10,7 +10,7 @@ import { FirstRunGuide } from './home/FirstRunGuide';
 import ShareToolkit from './ShareToolkit';
 
 const HomeContent: React.FC = () => {
-  const { user, players, handleCopyLink, linkCopied, earnings } = useDashboardContext();
+  const { user, players, handleCopyLink, linkCopied, earnings, openShareToolkit } = useDashboardContext();
   const navigate = useNavigate();
 
   const importRef = useRef<HTMLDivElement>(null);
@@ -85,6 +85,8 @@ const HomeContent: React.FC = () => {
           linkCopied={linkCopied}
           onStartImport={scrollToImport}
           hasPlayers={false}
+          onShareLink={openShareToolkit}
+          onBulkOutreach={scrollToImport}
         />
       )}
 

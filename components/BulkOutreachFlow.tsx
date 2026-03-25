@@ -227,10 +227,24 @@ export const BulkOutreachFlow: React.FC<BulkOutreachFlowProps> = ({
   const { logOutreach } = useOutreach(scoutId);
   const assessmentLink = scoutId ? `https://app.warubi-sports.com?ref=${scoutId}` : '';
 
+  const resetState = () => {
+    setStep('UPLOAD');
+    setExtractedPlayers([]);
+    setSavedPlayers([]);
+    setOutreachMessages([]);
+    setIsExtracting(false);
+    setIsSaving(false);
+    setIsGenerating(false);
+    setExtractionFailed(false);
+    setLastFile(null);
+    setPasteText('');
+  };
+
   const handleClose = () => {
     if (step !== 'UPLOAD' && extractedPlayers.length > 0) {
       if (!confirm('Close? Unsaved data will be lost.')) return;
     }
+    resetState();
     onClose();
   };
 

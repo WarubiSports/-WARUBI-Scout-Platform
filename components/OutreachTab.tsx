@@ -189,7 +189,7 @@ const OutreachTab: React.FC<OutreachTabProps> = ({ players, user, initialPlayerI
     setAiError(null);
 
     const intent = INTENTS.find(i => i.id === intentId);
-    const smartLink = includeSmartLink ? `app.warubi-sports.com/audit?sid=${user.scoutId || 'demo'}&pid=${selectedPlayer.id}` : undefined;
+    const smartLink = includeSmartLink ? `app.warubi-sports.com?ref=${user.scoutId || 'demo'}` : undefined;
     const outreachOptions: OutreachOptions = {
         scoutBio: user.bio,
         language: 'en'
@@ -380,7 +380,19 @@ ${user.name}`);
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar">
-                {ingestionMode === 'LIST' ? (
+                {ingestionMode === 'LIST' && scoutingPool.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+                        <Ghost size={32} className="text-gray-600 mb-3" />
+                        <p className="text-sm font-bold text-gray-400 mb-1">No players in your scouting pool</p>
+                        <p className="text-[10px] text-gray-600 mb-4">Import a roster or share your ExposureEngine link to start filling your pipeline.</p>
+                        <button
+                            onClick={() => setIngestionMode('DROPZONE')}
+                            className="px-5 py-2.5 bg-scout-accent text-scout-900 rounded-xl font-bold text-xs flex items-center gap-2 hover:bg-emerald-400 transition-colors active:scale-[0.98]"
+                        >
+                            <Plus size={14} /> Add Players
+                        </button>
+                    </div>
+                ) : ingestionMode === 'LIST' ? (
                     <div className="pb-10">
                         {/* 1. SPOTLIGHTS */}
                         {filteredSpotlights.length > 0 && (

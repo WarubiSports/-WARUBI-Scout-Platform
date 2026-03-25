@@ -9,8 +9,10 @@ import {
   Calendar, MapPin, Sparkles, Plus, Copy, CheckCircle,
   Share2, Users, FileText, CheckSquare, Loader2, ArrowRight,
   ClipboardList, X, ShieldCheck, Lock, Eye,
-  HelpCircle, Check, QrCode, ChevronRight, Navigation, History, CalendarPlus, Ticket, Clock, Camera, Edit3, Timer, ExternalLink, StickyNote, Megaphone, Upload, Send, Mail
+  HelpCircle, Check, QrCode, ChevronRight, Navigation, History, CalendarPlus, Ticket, Clock, Camera, Edit3, Timer, ExternalLink, StickyNote, Megaphone, Upload, Send, Mail,
+  Map, LayoutList
 } from 'lucide-react';
+import { EventMap } from './EventMap';
 
 import type { Player } from '../types';
 
@@ -1179,6 +1181,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState('');
   const [showGuide, setShowGuide] = useState(false);
+  const [listMode, setListMode] = useState<'list' | 'map'>('list');
   const [networkOutreachEvent, setNetworkOutreachEvent] = useState<ScoutingEvent | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
@@ -1422,6 +1425,20 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
                             <p className="text-gray-400 mt-1">Direct access to your scheduled and upcoming events.</p>
                         </div>
                         <div className="flex gap-3">
+                            <div className="flex bg-scout-900 border border-scout-700 rounded-lg overflow-hidden">
+                              <button
+                                onClick={() => setListMode('list')}
+                                className={`px-3 py-2 flex items-center gap-1.5 text-sm font-medium transition-colors ${listMode === 'list' ? 'bg-scout-accent/20 text-scout-accent' : 'text-gray-400 hover:text-white'}`}
+                              >
+                                <LayoutList size={16} /> List
+                              </button>
+                              <button
+                                onClick={() => setListMode('map')}
+                                className={`px-3 py-2 flex items-center gap-1.5 text-sm font-medium transition-colors ${listMode === 'map' ? 'bg-scout-accent/20 text-scout-accent' : 'text-gray-400 hover:text-white'}`}
+                              >
+                                <Map size={16} /> Map
+                              </button>
+                            </div>
                             <button 
                                 onClick={() => setShowGuide(true)}
                                 className="px-4 py-2 rounded-lg bg-scout-900 border border-scout-700 text-gray-300 hover:text-white flex items-center gap-2 text-sm font-medium transition-colors"
@@ -1438,6 +1455,31 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
                     </div>
                 )}
 
+                {/* Mobile List/Map Toggle */}
+                {isMobile && (
+                    <div className="flex bg-scout-900 border border-scout-700 rounded-lg overflow-hidden mb-4 w-fit">
+                      <button
+                        onClick={() => setListMode('list')}
+                        className={`px-3 py-2 flex items-center gap-1.5 text-xs font-bold transition-colors ${listMode === 'list' ? 'bg-scout-accent/20 text-scout-accent' : 'text-gray-400'}`}
+                      >
+                        <LayoutList size={14} /> List
+                      </button>
+                      <button
+                        onClick={() => setListMode('map')}
+                        className={`px-3 py-2 flex items-center gap-1.5 text-xs font-bold transition-colors ${listMode === 'map' ? 'bg-scout-accent/20 text-scout-accent' : 'text-gray-400'}`}
+                      >
+                        <Map size={14} /> Map
+                      </button>
+                    </div>
+                )}
+
+                {listMode === 'map' ? (
+                    <EventMap
+                        events={[...thisWeekEvents, ...futureEvents]}
+                        onEventClick={(e) => { setSelectedEvent(e); setView('detail'); }}
+                    />
+                ) : (
+                <>
                 {/* Next Event Countdown Banner */}
                 {(() => {
                     const allUpcoming = [...thisWeekEvents, ...futureEvents];
@@ -1591,6 +1633,8 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
                             )}
                     </div>
                 </div>
+                </>
+                )}
                 
                 {/* Mobile FAB */}
                 {isMobile && (
