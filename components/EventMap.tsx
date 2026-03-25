@@ -35,30 +35,47 @@ const setCache = (cache: Record<string, [number, number]>) => {
   sessionStorage.setItem(CACHE_KEY, JSON.stringify(cache));
 };
 
+async function geocodeSingle(query: string): Promise<[number, number] | null> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`,
+      { headers: { 'User-Agent': 'ScoutBuddy/1.0' } }
+    );
+    const data = await res.json();
+    if (data.length > 0) {
+      return [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+    }
+  } catch {}
+  return null;
+}
+
 async function geocode(location: string): Promise<[number, number] | null> {
   const cache = getCache();
   const key = location.trim().toLowerCase();
   if (cache[key]) return cache[key];
 
-  try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(location)}`,
-      { headers: { 'User-Agent': 'ScoutBuddy/1.0' } }
-    );
-    const data = await res.json();
-    if (data.length > 0) {
-      const coords: [number, number] = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+  // Try full address first, then progressively simpler versions
+  const parts = location.split(',').map(s => s.trim());
+  const attempts = [location];
+  if (parts.length > 2) attempts.push(parts.slice(1).join(', ')); // drop venue name
+  if (parts.length > 1) attempts.push(parts[parts.length - 1]); // just city/state
+
+  for (const attempt of attempts) {
+    const coords = await geocodeSingle(attempt);
+    if (coords) {
       cache[key] = coords;
       setCache(cache);
       return coords;
     }
-  } catch {}
+    await new Promise(r => setTimeout(r, 350));
+  }
   return null;
 }
 
 interface EventMapProps {
   events: ScoutingEvent[];
   onEventClick: (event: ScoutingEvent) => void;
+  className?: string;
 }
 
 interface GeoEvent {
@@ -66,7 +83,7 @@ interface GeoEvent {
   coords: [number, number];
 }
 
-export const EventMap: React.FC<EventMapProps> = ({ events, onEventClick }) => {
+export const EventMap: React.FC<EventMapProps> = ({ events, onEventClick, className }) => {
   const [geoEvents, setGeoEvents] = useState<GeoEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const mapRef = useRef<L.Map | null>(null);
@@ -114,7 +131,7 @@ export const EventMap: React.FC<EventMapProps> = ({ events, onEventClick }) => {
   };
 
   return (
-    <div className="relative h-[calc(100vh-200px)] md:h-[600px] rounded-2xl overflow-hidden border border-scout-700">
+    <div className={`relative rounded-2xl overflow-hidden border border-scout-700 ${className || "h-[calc(100vh-200px)] md:h-[600px]"}`}>
       {loading && (
         <div className="absolute inset-0 z-[10] bg-scout-900/80 flex items-center justify-center">
           <div className="flex items-center gap-3 text-gray-400">

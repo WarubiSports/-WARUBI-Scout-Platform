@@ -1425,20 +1425,6 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
                             <p className="text-gray-400 mt-1">Direct access to your scheduled and upcoming events.</p>
                         </div>
                         <div className="flex gap-3">
-                            <div className="flex bg-scout-900 border border-scout-700 rounded-lg overflow-hidden">
-                              <button
-                                onClick={() => setListMode('list')}
-                                className={`px-3 py-2 flex items-center gap-1.5 text-sm font-medium transition-colors ${listMode === 'list' ? 'bg-scout-accent/20 text-scout-accent' : 'text-gray-400 hover:text-white'}`}
-                              >
-                                <LayoutList size={16} /> List
-                              </button>
-                              <button
-                                onClick={() => setListMode('map')}
-                                className={`px-3 py-2 flex items-center gap-1.5 text-sm font-medium transition-colors ${listMode === 'map' ? 'bg-scout-accent/20 text-scout-accent' : 'text-gray-400 hover:text-white'}`}
-                              >
-                                <Map size={16} /> Map
-                              </button>
-                            </div>
                             <button 
                                 onClick={() => setShowGuide(true)}
                                 className="px-4 py-2 rounded-lg bg-scout-900 border border-scout-700 text-gray-300 hover:text-white flex items-center gap-2 text-sm font-medium transition-colors"
@@ -1473,12 +1459,26 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
                     </div>
                 )}
 
-                {listMode === 'map' ? (
+                {/* Desktop: side-by-side list + map */}
+                {!isMobile && (
+                    <div className="flex gap-6 mb-6">
+                        <div className="flex-1 min-w-0">
+                            <EventMap
+                                events={[...thisWeekEvents, ...futureEvents]}
+                                onEventClick={(e) => { setSelectedEvent(e); setView('detail'); }}
+                                className="h-[400px]"
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {/* Mobile: toggle between list and map */}
+                {isMobile && listMode === 'map' ? (
                     <EventMap
                         events={[...thisWeekEvents, ...futureEvents]}
                         onEventClick={(e) => { setSelectedEvent(e); setView('detail'); }}
                     />
-                ) : (
+                ) : (isMobile && listMode === 'list') || !isMobile ? (
                 <>
                 {/* Next Event Countdown Banner */}
                 {(() => {
@@ -1634,7 +1634,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
                     </div>
                 </div>
                 </>
-                )}
+                ) : null}
                 
                 {/* Mobile FAB */}
                 {isMobile && (
