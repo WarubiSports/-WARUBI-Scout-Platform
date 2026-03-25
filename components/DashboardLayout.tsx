@@ -7,7 +7,7 @@ import GlobalSearch from './GlobalSearch';
 import TrialRequestModal, { TrialDates } from './TrialRequestModal';
 import PlacementModal, { PlacementData } from './PlacementModal';
 import { haptic } from '../hooks/useMobileFeatures';
-import { Home, Users, CalendarDays, Plus, LogOut, Lightbulb, BarChart3, Link2, Copy, CheckCircle, DollarSign, Share2, Zap } from 'lucide-react';
+import { Home, Users, CalendarDays, Plus, LogOut, Lightbulb, BarChart3, Link2, Copy, CheckCircle, DollarSign, Share2, Zap, QrCode } from 'lucide-react';
 import ReportBugModal from './ReportBugModal';
 import { InstallBanner, InstallSidebarLink } from './InstallPrompt';
 import { BulkOutreachFlow } from './BulkOutreachFlow';
@@ -398,6 +398,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                             >
                                 <BarChart3 size={20} /> My Business
                             </button>
+                            {user.scoutId && (
+                                <button
+                                    onClick={() => { setShowMobileProfile(false); setIsShareToolkitOpen(true); }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 bg-purple-500/10 border border-purple-500/30 rounded-xl text-purple-400 font-bold"
+                                >
+                                    <QrCode size={20} /> Share EE Link via QR
+                                </button>
+                            )}
                             {onReturnToAdmin && (
                                 <button
                                     onClick={() => { setShowMobileProfile(false); onReturnToAdmin(); }}
