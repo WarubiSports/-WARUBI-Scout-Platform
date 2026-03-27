@@ -9,6 +9,8 @@ import PasswordSetupModal from './components/PasswordSetupModal';
 import ResetPassword from './components/ResetPassword';
 const PlayersContent = React.lazy(() => import('./components/PlayersContent'));
 import HomeContent from './components/HomeContent';
+import UploadScreen from './components/screens/UploadScreen';
+import BlastScreen from './components/screens/BlastScreen';
 import EventsRoute from './components/routes/EventsRoute';
 import OutreachRoute from './components/routes/OutreachRoute';
 import MyBusinessRoute from './components/routes/MyBusinessRoute';
@@ -124,7 +126,7 @@ const App: React.FC = () => {
         if (location.pathname.startsWith('/submit/')) {
           setInitialRouteSet(true);
         } else if (['/', '/login', '/onboarding'].includes(location.pathname)) {
-          navigate(scout.is_admin ? '/admin' : '/dashboard/players', { replace: true });
+          navigate(scout.is_admin ? '/admin' : '/dashboard/upload', { replace: true });
           setInitialRouteSet(true);
         } else {
           setInitialRouteSet(true);
@@ -172,7 +174,7 @@ const App: React.FC = () => {
     for (const event of initialEvents) {
       await addEvent(event);
     }
-    navigate('/dashboard/players');
+    navigate('/dashboard/upload');
   };
 
   const handleAddPlayer = async (player: Player) => {
@@ -432,10 +434,13 @@ const App: React.FC = () => {
         {/* Dashboard with layout */}
         {userProfile && (
           <Route path="/dashboard" element={<DashboardLayout {...dashboardProps} />}>
-            <Route index element={<Navigate to="players" replace />} />
+            <Route index element={<Navigate to="upload" replace />} />
+            <Route path="upload" element={<UploadScreen />} />
+            <Route path="blast" element={<BlastScreen />} />
+            <Route path="events" element={<EventsRoute />} />
+            {/* Legacy routes — kept for admin/deep links */}
             <Route path="players" element={<HomeContent />} />
             <Route path="players/all" element={<Suspense fallback={<div />}><PlayersContent /></Suspense>} />
-            <Route path="events" element={<EventsRoute />} />
             <Route path="outreach" element={<OutreachRoute />} />
             <Route path="my-business" element={<MyBusinessRoute />} />
           </Route>
@@ -456,7 +461,7 @@ const App: React.FC = () => {
                 onAddNotification={handleAddNotification}
                 onMarkAllRead={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
                 onLogout={handleLogout}
-                onImpersonate={(p) => { setUserProfile(p); setImpersonatedScoutId(p.scoutId || null); navigate('/dashboard/players'); }}
+                onImpersonate={(p) => { setUserProfile(p); setImpersonatedScoutId(p.scoutId || null); navigate('/dashboard/upload'); }}
                 onSwitchToScoutView={() => navigate('/dashboard/players')}
               />
             </Suspense>
@@ -466,7 +471,7 @@ const App: React.FC = () => {
         {/* Catch-all: redirect to dashboard or login */}
         <Route path="*" element={
           isAuthenticated && scout
-            ? <Navigate to="/dashboard/players" replace />
+            ? <Navigate to="/dashboard/upload" replace />
             : <Navigate to="/login" replace />
         } />
       </Routes>
