@@ -14,7 +14,7 @@ import BlastScreen from './components/screens/BlastScreen';
 import EventsRoute from './components/routes/EventsRoute';
 import OutreachRoute from './components/routes/OutreachRoute';
 import MyBusinessRoute from './components/routes/MyBusinessRoute';
-import { evaluatePlayer } from './services/geminiService';
+// AI evaluation removed — scouts upload players without scoring
 import { isEmailApproved } from './services/accessControlService';
 import { setAdminMode } from './services/aiUsageService';
 import { useItpSync } from './hooks/useItpSync';
@@ -238,45 +238,7 @@ const App: React.FC = () => {
         }
       }
 
-      // AI Recalibration on high-impact field changes
-      const highImpactFieldsChanged =
-          oldPlayer.position !== updatedPlayer.position ||
-          oldPlayer.gpa !== updatedPlayer.gpa ||
-          oldPlayer.club !== updatedPlayer.club ||
-          oldPlayer.teamLevel !== updatedPlayer.teamLevel ||
-          oldPlayer.videoLink !== updatedPlayer.videoLink;
-
-      if (highImpactFieldsChanged) {
-          await updateProspect(updatedPlayer.id, {
-            ...updatedPlayer,
-            isRecalibrating: true,
-            previousScore: oldPlayer.evaluation?.score
-          });
-
-          try {
-              const inputString = `Name: ${updatedPlayer.name}, Pos: ${updatedPlayer.position}, Club: ${updatedPlayer.club}, Level: ${updatedPlayer.teamLevel}, GPA: ${updatedPlayer.gpa}, Video: ${updatedPlayer.videoLink}`;
-              const newEval = await evaluatePlayer(inputString);
-
-              await updateProspect(updatedPlayer.id, {
-                ...updatedPlayer,
-                evaluation: newEval,
-                isRecalibrating: false
-              });
-
-              handleAddNotification({
-                  type: 'SUCCESS',
-                  title: 'Intelligence Recalibrated',
-                  message: `${updatedPlayer.name}'s Scout Score updated to ${newEval.score}.`
-              });
-          } catch (e) {
-              await updateProspect(updatedPlayer.id, {
-                ...updatedPlayer,
-                isRecalibrating: false
-              });
-          }
-      } else {
-          await updateProspect(updatedPlayer.id, updatedPlayer);
-      }
+      await updateProspect(updatedPlayer.id, updatedPlayer);
   };
 
   const handleUpdateProfile = (updatedProfile: UserProfile) => {
