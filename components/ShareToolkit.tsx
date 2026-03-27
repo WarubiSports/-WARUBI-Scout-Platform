@@ -140,8 +140,14 @@ const ShareToolkit: React.FC<ShareToolkitProps> = ({ scoutId, scoutName, variant
             </button>
           </div>
           <div className="p-6">
+            <div className="mb-4 p-3 rounded-xl bg-scout-900/80 border border-scout-700">
+              <p className="text-[11px] font-bold text-white mb-1">What is ExposureEngine?</p>
+              <p className="text-[10px] text-gray-400 leading-relaxed">
+                A free player-facing tool at <span className="text-scout-accent font-mono">app.warubi-sports.com</span>. Players enter their stats and get an AI-powered analysis showing where they'd fit — US college programs (D1/D2/NAIA/JUCO) or European academy pathways. When they complete it through your link, they show up as a lead in your pipeline.
+              </p>
+            </div>
             <p className="text-xs text-gray-400 mb-4">
-              Players get a free AI analysis. You get a qualified lead in your pipeline. Tap any channel to copy a ready-to-send message.
+              Tap any channel to copy a ready-to-send message with your personal referral link.
             </p>
             {content}
           </div>
