@@ -140,12 +140,29 @@ const ShareToolkit: React.FC<ShareToolkitProps> = ({ scoutId, scoutName, variant
             </button>
           </div>
           <div className="p-6">
-            <div className="mb-4 p-3 rounded-xl bg-scout-900/80 border border-scout-700">
-              <p className="text-[11px] font-bold text-white mb-1">What is ExposureEngine?</p>
-              <p className="text-[10px] text-gray-400 leading-relaxed">
-                A free player-facing tool at <span className="text-scout-accent font-mono">app.warubi-sports.com</span>. Players enter their stats and get an AI-powered analysis showing where they'd fit — US college programs (D1/D2/NAIA/JUCO) or European academy pathways. When they complete it through your link, they show up as a lead in your pipeline.
+            {/* ExposureEngine Explainer */}
+            <div className="mb-5 p-4 rounded-2xl bg-gradient-to-br from-scout-accent/10 via-scout-900/80 to-scout-900/80 border border-scout-accent/30">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-1.5 bg-scout-accent/20 rounded-lg">
+                  <Share2 size={14} className="text-scout-accent" />
+                </div>
+                <p className="text-sm font-black text-white">ExposureEngine</p>
+              </div>
+              <p className="text-xs text-gray-300 leading-relaxed mb-3">
+                A free AI-powered career analysis tool for players at <span className="text-scout-accent font-semibold">app.warubi-sports.com</span>. Players enter their stats and instantly see where they'd realistically fit — US college soccer (D1, D2, NAIA, JUCO) or European academy pathways including Bundesliga programs.
               </p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2.5 rounded-xl bg-scout-800/80 border border-scout-700">
+                  <p className="text-[10px] font-bold text-scout-accent mb-1">For the Player</p>
+                  <p className="text-[10px] text-gray-400 leading-snug">Free, honest assessment of their level + a personalized action plan. No commitment, no cost.</p>
+                </div>
+                <div className="p-2.5 rounded-xl bg-scout-800/80 border border-scout-700">
+                  <p className="text-[10px] font-bold text-scout-accent mb-1">For You</p>
+                  <p className="text-[10px] text-gray-400 leading-snug">Every player who completes it through your link lands as a qualified lead in your pipeline — pre-screened with stats.</p>
+                </div>
+              </div>
             </div>
+
             <p className="text-xs text-gray-400 mb-4">
               Tap any channel to copy a ready-to-send message with your personal referral link.
             </p>
