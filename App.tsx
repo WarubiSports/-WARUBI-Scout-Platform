@@ -424,7 +424,7 @@ const App: React.FC = () => {
                 onMarkAllRead={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
                 onLogout={handleLogout}
                 onImpersonate={(p) => { setUserProfile(p); setImpersonatedScoutId(p.scoutId || null); navigate('/dashboard/upload'); }}
-                onSwitchToScoutView={() => navigate('/dashboard/players')}
+                onSwitchToScoutView={() => navigate('/dashboard/upload')}
               />
             </Suspense>
           } />
