@@ -106,6 +106,7 @@ export const PlayerDetailSheet: React.FC<PlayerDetailSheetProps> = ({ player, on
                 <div className="flex items-center justify-between bg-scout-800 border border-scout-700 rounded-lg px-3 py-2 mb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black text-gray-500 uppercase">Est. Caliber</span>
+                    {eval_.caliberLabel && <span className="text-[9px] font-bold text-amber-400">{eval_.caliberLabel}</span>}
                     <span className="text-[9px] text-gray-600 bg-scout-700 px-1.5 py-0.5 rounded">Self-reported</span>
                   </div>
                   <span className="text-sm font-black text-amber-400">{eval_.caliberMin}–{eval_.caliberMax}</span>

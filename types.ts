@@ -63,6 +63,8 @@ export interface PlayerEvaluation {
   summary: string;
   caliberMin?: number;
   caliberMax?: number;
+  caliberLabel?: string;
+  caliberConfidence?: string;
 }
 
 export interface OutreachLog {
