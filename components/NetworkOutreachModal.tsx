@@ -115,7 +115,30 @@ const NetworkOutreachModal: React.FC<NetworkOutreachModalProps> = ({
           {/* Step 1: Audience */}
           {step === 'audience' && (
             <div className="space-y-4">
-              <p className="text-sm text-gray-400">Email your ExposureEngine link to players, parents, and coaches. Opens in your mail app.</p>
+              {/* ExposureEngine Explainer */}
+              <div className="p-3 rounded-xl bg-gradient-to-br from-scout-accent/10 via-scout-900/80 to-scout-900/80 border border-scout-accent/30">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="p-1.5 bg-scout-accent/20 rounded-lg">
+                    <Mail size={14} className="text-scout-accent" />
+                  </div>
+                  <p className="text-sm font-black text-white">ExposureEngine</p>
+                </div>
+                <p className="text-[10px] text-gray-300 leading-relaxed mb-2">
+                  A free AI-powered career analysis tool at <span className="text-scout-accent font-semibold">app.warubi-sports.com</span>. Players enter their stats and instantly see where they'd realistically fit.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-2 rounded-lg bg-scout-800/80 border border-scout-700">
+                    <p className="text-[9px] font-bold text-scout-accent mb-0.5">For the Player</p>
+                    <p className="text-[9px] text-gray-400 leading-snug">Free, honest assessment + personalized action plan. No cost.</p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-scout-800/80 border border-scout-700">
+                    <p className="text-[9px] font-bold text-scout-accent mb-0.5">For You</p>
+                    <p className="text-[9px] text-gray-400 leading-snug">Every completion through your link = a qualified lead with stats.</p>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-sm text-gray-400">Email your link to players, parents, and coaches. Opens in your mail app.</p>
 
               {/* My Database */}
               <button

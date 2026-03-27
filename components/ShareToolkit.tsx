@@ -176,13 +176,26 @@ const ShareToolkit: React.FC<ShareToolkitProps> = ({ scoutId, scoutName, variant
   // Card variant (for dashboard)
   return (
     <div className="bg-scout-800 border border-scout-700 rounded-2xl p-5">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="p-2.5 bg-scout-accent/10 rounded-xl border border-scout-accent/20">
-          <Share2 size={18} className="text-scout-accent" />
+      {/* ExposureEngine Explainer */}
+      <div className="mb-4 p-3 rounded-xl bg-gradient-to-br from-scout-accent/10 via-scout-900/80 to-scout-900/80 border border-scout-accent/30">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="p-1.5 bg-scout-accent/20 rounded-lg">
+            <Share2 size={14} className="text-scout-accent" />
+          </div>
+          <p className="text-sm font-black text-white">ExposureEngine</p>
         </div>
-        <div>
-          <h3 className="text-sm font-black text-white uppercase">Grow Your Pipeline</h3>
-          <p className="text-[10px] text-gray-500">Players get free analysis. You get leads.</p>
+        <p className="text-[10px] text-gray-300 leading-relaxed mb-2">
+          A free AI-powered career analysis tool for players at <span className="text-scout-accent font-semibold">app.warubi-sports.com</span>. Players enter their stats and instantly see where they'd realistically fit.
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <div className="p-2 rounded-lg bg-scout-800/80 border border-scout-700">
+            <p className="text-[9px] font-bold text-scout-accent mb-0.5">For the Player</p>
+            <p className="text-[9px] text-gray-400 leading-snug">Free, honest assessment + personalized action plan. No cost.</p>
+          </div>
+          <div className="p-2 rounded-lg bg-scout-800/80 border border-scout-700">
+            <p className="text-[9px] font-bold text-scout-accent mb-0.5">For You</p>
+            <p className="text-[9px] text-gray-400 leading-snug">Every completion through your link = a qualified lead with stats.</p>
+          </div>
         </div>
       </div>
       {content}
