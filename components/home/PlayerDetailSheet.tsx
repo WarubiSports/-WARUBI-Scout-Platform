@@ -102,6 +102,15 @@ export const PlayerDetailSheet: React.FC<PlayerDetailSheetProps> = ({ player, on
               <div className="h-2 bg-scout-700 rounded-full overflow-hidden mb-3">
                 <div className="h-full bg-gradient-to-r from-scout-accent to-emerald-400 rounded-full" style={{ width: `${eval_.score}%` }} />
               </div>
+              {eval_.caliberMin != null && eval_.caliberMax != null && (
+                <div className="flex items-center justify-between bg-scout-800 border border-scout-700 rounded-lg px-3 py-2 mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black text-gray-500 uppercase">Est. Caliber</span>
+                    <span className="text-[9px] text-gray-600 bg-scout-700 px-1.5 py-0.5 rounded">Self-reported</span>
+                  </div>
+                  <span className="text-sm font-black text-amber-400">{eval_.caliberMin}–{eval_.caliberMax}</span>
+                </div>
+              )}
               {eval_.collegeLevel && (
                 <div className="flex items-center gap-2 mb-2">
                   <Trophy size={12} className="text-amber-400" />

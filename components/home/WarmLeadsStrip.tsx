@@ -22,7 +22,7 @@ export const WarmLeadsStrip: React.FC<WarmLeadsStripProps> = ({ players }) => {
   const { handleEditPlayer, onMessageSent, user, openShareToolkit } = useDashboardContext();
   const warmLeads = useMemo(() => {
     return players
-      .filter(p => p.activityStatus && p.activityStatus !== 'undiscovered')
+      .filter(p => (p.activityStatus === 'spotlight' || p.activityStatus === 'signal'))
       .sort((a, b) => (b.evaluation?.score || 0) - (a.evaluation?.score || 0));
   }, [players]);
 
@@ -70,14 +70,22 @@ export const WarmLeadsStrip: React.FC<WarmLeadsStripProps> = ({ players }) => {
               </div>
             </div>
             {player.evaluation?.score != null && (
-              <div className="flex items-center gap-2 mb-2">
-                <div className="flex-1 h-1.5 bg-scout-700 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full"
-                    style={{ width: `${player.evaluation.score}%` }}
-                  />
+              <div className="mb-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-1.5 bg-scout-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-orange-500 to-amber-400 rounded-full"
+                      style={{ width: `${player.evaluation.score}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] font-bold text-orange-400">{player.evaluation.score}</span>
                 </div>
-                <span className="text-[10px] font-bold text-orange-400">{player.evaluation.score}</span>
+                {player.evaluation.caliberMin != null && player.evaluation.caliberMax != null && (
+                  <div className="flex items-center justify-between mt-1.5">
+                    <span className="text-[9px] text-gray-500">Caliber</span>
+                    <span className="text-[10px] font-black text-amber-400">{player.evaluation.caliberMin}–{player.evaluation.caliberMax}</span>
+                  </div>
+                )}
               </div>
             )}
             <div className="flex gap-1.5">

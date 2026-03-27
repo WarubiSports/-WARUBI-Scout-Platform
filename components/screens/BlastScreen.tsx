@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Send, Copy, CheckCircle, ExternalLink, MessageCircle } from 'lucide-react';
+import { Send, Copy, CheckCircle, ExternalLink, Mail } from 'lucide-react';
 import { useDashboardContext } from '../DashboardLayout';
 import ShareToolkit from '../ShareToolkit';
 import { FunnelStrip } from '../home/FunnelStrip';
@@ -17,9 +17,10 @@ const BlastScreen: React.FC = () => {
 
   const blastMessage = `Hey! I'm ${user.name}, a scout with Warubi Sports. We help players get recruited to play college soccer in the USA — many with scholarships. Check out your options here: ${eeLink}`;
 
-  const handleBlastWhatsApp = () => {
-    navigator.clipboard.writeText(blastMessage);
-    window.open(`https://wa.me/?text=${encodeURIComponent(blastMessage)}`, '_blank');
+  const handleBlastEmail = () => {
+    const subject = encodeURIComponent('College Soccer Opportunity — Free Assessment');
+    const body = encodeURIComponent(blastMessage);
+    window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
   };
 
   return (
@@ -54,10 +55,10 @@ const BlastScreen: React.FC = () => {
           </div>
           <div className="flex gap-2">
             <button
-              onClick={handleBlastWhatsApp}
-              className="flex-1 flex items-center justify-center gap-2 py-3 bg-green-600 rounded-xl text-white font-black text-sm active:scale-95"
+              onClick={handleBlastEmail}
+              className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-600 rounded-xl text-white font-black text-sm active:scale-95"
             >
-              <MessageCircle size={16} /> WhatsApp Blast
+              <Mail size={16} /> Email Blast
             </button>
             <button
               onClick={() => navigator.clipboard.writeText(blastMessage)}

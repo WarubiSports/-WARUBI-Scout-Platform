@@ -61,6 +61,8 @@ export interface PlayerEvaluation {
   weaknesses: string[];
   nextAction: string;
   summary: string;
+  caliberMin?: number;
+  caliberMax?: number;
 }
 
 export interface OutreachLog {

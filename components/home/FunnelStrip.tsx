@@ -17,7 +17,7 @@ export const FunnelStrip: React.FC<FunnelStripProps> = ({ players }) => {
 
   const pills = [
     { label: 'Contacted', value: metrics.contacted, icon: Send, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-    { label: 'Opened EE', value: metrics.openedEE, icon: MousePointerClick, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
+    { label: 'Opened Link', value: metrics.openedEE, icon: MousePointerClick, color: 'text-cyan-400', bg: 'bg-cyan-500/10' },
     { label: 'Completed', value: metrics.completedEE, icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
     { label: 'Warm Leads', value: metrics.warmLeads, icon: Flame, color: 'text-orange-400', bg: 'bg-orange-500/10' },
   ];

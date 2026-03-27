@@ -277,7 +277,12 @@ const PlayersContent: React.FC = () => {
                                             {[PlayerStatus.LEAD, PlayerStatus.CONTACT_REQUESTED, PlayerStatus.REQUEST_TRIAL, PlayerStatus.OFFERED, PlayerStatus.PLACED, PlayerStatus.ARCHIVED].map(status => <option key={status} value={status}>{status}</option>)}
                                         </select>
                                     </td>
-                                    <td className="px-6 py-4 font-black text-scout-accent">{p.evaluation?.score || '?'}</td>
+                                    <td className="px-6 py-4">
+                                        <span className="font-black text-scout-accent">{p.evaluation?.score || '?'}</span>
+                                        {p.evaluation?.caliberMin != null && p.evaluation?.caliberMax != null && (
+                                            <span className="ml-2 text-[10px] font-bold text-amber-400">{p.evaluation.caliberMin}–{p.evaluation.caliberMax}</span>
+                                        )}
+                                    </td>
                                     <td className="px-6 py-4 text-right">
                                         <button onClick={() => handleEditPlayer(p)} className="p-2 text-gray-400 hover:text-white transition-colors"><Edit2 size={14} /></button>
                                     </td>

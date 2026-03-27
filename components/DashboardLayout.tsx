@@ -404,7 +404,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                                     onClick={() => { setShowMobileProfile(false); setIsShareToolkitOpen(true); }}
                                     className="w-full flex items-center gap-3 px-4 py-3 bg-purple-500/10 border border-purple-500/30 rounded-xl text-purple-400 font-bold"
                                 >
-                                    <QrCode size={20} /> Share EE Link via QR
+                                    <QrCode size={20} /> Share ExposureEngine Link
                                 </button>
                             )}
                             {onReturnToAdmin && (

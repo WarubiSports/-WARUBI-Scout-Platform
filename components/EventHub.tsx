@@ -445,6 +445,27 @@ const CreateEventForm = ({ formData, setFormData, loading, handleCreate, onCance
 
                 <div className="grid md:grid-cols-2 gap-6">
                     <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Start Time</label>
+                        <input
+                            type="time"
+                            value={formData.startTime}
+                            onChange={e => setFormData({...formData, startTime: e.target.value})}
+                            className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">End Time</label>
+                        <input
+                            type="time"
+                            value={formData.endTime}
+                            onChange={e => setFormData({...formData, endTime: e.target.value})}
+                            className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
+                        />
+                    </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                    <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Type</label>
                         <select
                             value={formData.type}
@@ -460,25 +481,61 @@ const CreateEventForm = ({ formData, setFormData, loading, handleCreate, onCance
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">{formData.isHosting ? 'Player Fee' : 'Scout Fee / Cost'}</label>
+                        <div className="flex gap-2">
+                            <input
+                                type="number"
+                                value={formData.fee}
+                                onChange={e => setFormData({...formData, fee: e.target.value})}
+                                placeholder="0"
+                                className="flex-1 bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
+                            />
+                            <select
+                                value={formData.currency}
+                                onChange={e => setFormData({...formData, currency: e.target.value})}
+                                className="w-20 bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
+                            >
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Age Min</label>
                         <input
-                            value={formData.fee}
-                            onChange={e => setFormData({...formData, fee: e.target.value})}
-                            placeholder="e.g. Free, $50, €20"
+                            type="number"
+                            value={formData.ageMin}
+                            onChange={e => setFormData({...formData, ageMin: e.target.value})}
+                            placeholder="14"
+                            className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Age Max</label>
+                        <input
+                            type="number"
+                            value={formData.ageMax}
+                            onChange={e => setFormData({...formData, ageMax: e.target.value})}
+                            placeholder="21"
                             className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
                         />
                     </div>
                 </div>
 
-                <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Link <span className="text-gray-600 normal-case">(optional)</span></label>
-                    <input
-                        value={formData.link || ''}
-                        onChange={e => setFormData({...formData, link: e.target.value})}
-                        placeholder="https://example.com/registration"
-                        onFocus={handleMobileFocus}
-                        className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
-                    />
-                </div>
+                {!formData.isHosting && (
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Event Link <span className="text-gray-600 normal-case">(optional)</span></label>
+                        <input
+                            value={formData.link || ''}
+                            onChange={e => setFormData({...formData, link: e.target.value})}
+                            placeholder="https://example.com/registration"
+                            onFocus={handleMobileFocus}
+                            className="w-full bg-scout-900 border border-scout-600 rounded-lg p-3 text-white focus:border-scout-accent outline-none"
+                        />
+                    </div>
+                )}
 
                 <div>
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Notes <span className="text-gray-600 normal-case">(optional)</span></label>
@@ -1233,11 +1290,16 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
     location: '',
     date: '',
     endDate: '',
+    startTime: '',
+    endTime: '',
     type: 'ID Day',
-    fee: 'Free',
+    fee: '',
+    currency: 'USD',
     isHosting: false,
     link: '',
-    notes: ''
+    notes: '',
+    ageMin: '',
+    ageMax: '',
   });
 
   // Date Logic for Grouping
@@ -1283,8 +1345,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
         if (formData.isHosting) {
             const slug = formData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + formData.date.slice(0, 4);
             const typeMap: Record<string, string> = { 'ID Day': 'id_camp', 'Showcase': 'showcase', 'Camp': 'futures', 'Tournament': 'showcase', 'League Match': 'showcase' };
-            const priceNum = formData.fee && formData.fee !== 'Free' ? parseFloat(formData.fee.replace(/[^0-9.]/g, '')) : null;
-            const currency = formData.fee?.includes('€') ? 'EUR' : 'USD';
+            const priceNum = formData.fee ? parseFloat(formData.fee) : null;
 
             const { data: showcaseEvent } = await supabase
                 .from('showcase_events')
@@ -1294,10 +1355,14 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
                     location: formData.location,
                     start_date: formData.date,
                     end_date: formData.endDate || formData.date,
+                    start_time: formData.startTime || '09:00:00',
+                    end_time: formData.endTime || null,
                     type: typeMap[formData.type] || 'showcase',
                     description: formData.notes || null,
                     price: priceNum,
-                    currency,
+                    currency: formData.currency || 'USD',
+                    age_min: formData.ageMin ? parseInt(formData.ageMin) : null,
+                    age_max: formData.ageMax ? parseInt(formData.ageMax) : null,
                     registration_open: true,
                 })
                 .select()
@@ -1329,7 +1394,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
         setSelectedEvent(finalEvent);
 
         setView('detail');
-        setFormData({ title: '', location: '', date: '', endDate: '', type: 'ID Day', fee: 'Free', isHosting: false, link: '', notes: '' });
+        setFormData({ title: '', location: '', date: '', endDate: '', startTime: '', endTime: '', type: 'ID Day', fee: '', currency: 'USD', isHosting: false, link: '', notes: '', ageMin: '', ageMax: '' });
     } catch (e) {
         onAddEvent(baseEvent);
         setSelectedEvent(baseEvent);
