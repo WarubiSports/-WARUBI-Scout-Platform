@@ -11,6 +11,7 @@ const PlayersContent = React.lazy(() => import('./components/PlayersContent'));
 import HomeContent from './components/HomeContent';
 import UploadScreen from './components/screens/UploadScreen';
 import BlastScreen from './components/screens/BlastScreen';
+import EvaluateScreen from './components/screens/EvaluateScreen';
 import EventsRoute from './components/routes/EventsRoute';
 import OutreachRoute from './components/routes/OutreachRoute';
 import MyBusinessRoute from './components/routes/MyBusinessRoute';
@@ -399,6 +400,7 @@ const App: React.FC = () => {
             <Route index element={<Navigate to="upload" replace />} />
             <Route path="upload" element={<UploadScreen />} />
             <Route path="blast" element={<BlastScreen />} />
+            <Route path="evaluate" element={<EvaluateScreen />} />
             <Route path="events" element={<EventsRoute />} />
             {/* Legacy routes — kept for admin/deep links */}
             <Route path="players" element={<HomeContent />} />

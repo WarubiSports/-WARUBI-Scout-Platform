@@ -1,6 +1,6 @@
 import React, { useState, useEffect, memo } from 'react';
 import { ScoutingEvent, UserProfile, EventStatus } from '../types';
-import { generateEventPlan } from '../services/geminiService';
+// AI event plan generation removed — using static templates
 import { haptic, handleMobileFocus } from '../hooks/useMobileFeatures';
 import { parseEventType } from '../lib/guards';
 import { useEventAttendees, AttendeeWithScout } from '../hooks/useEventAttendees';
@@ -12,7 +12,7 @@ import {
   HelpCircle, Check, QrCode, ChevronRight, Navigation, History, CalendarPlus, Ticket, Clock, Camera, Edit3, Timer, ExternalLink, StickyNote, Megaphone, Upload, Send, Mail,
   Map, LayoutList
 } from 'lucide-react';
-import { EventMap } from './EventMap';
+// EventMap removed — list-only view
 
 import type { Player } from '../types';
 
@@ -1278,24 +1278,19 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
     };
 
     try {
-        if (formData.isHosting) {
-            const plan = await generateEventPlan(formData.title, formData.location, formData.date, formData.type, formData.fee);
-            const finalEvent = { ...baseEvent, ...plan };
-            onAddEvent(finalEvent);
-            setSelectedEvent(finalEvent);
-        } else {
-            const attendeeEvent: ScoutingEvent = {
-                ...baseEvent,
-                marketingCopy: `Personal scouting mission for ${formData.title}. Goal: Identify top talent and build relationships with coaches.`,
-                agenda: ["Arrival", "Match Observation", "Coach Networking", "Assessment"],
-                checklist: [
-                    { task: "Get the Roster", completed: false },
-                    { task: "Prepare QR Code", completed: false }
-                ]
-            };
-            onAddEvent(attendeeEvent);
-            setSelectedEvent(attendeeEvent);
-        }
+        const finalEvent: ScoutingEvent = {
+            ...baseEvent,
+            marketingCopy: formData.isHosting
+                ? `${formData.title} — scouting event in ${formData.location}.`
+                : `Personal scouting mission for ${formData.title}. Goal: Identify top talent and build relationships with coaches.`,
+            agenda: ["Arrival", "Match Observation", "Coach Networking", "Assessment"],
+            checklist: [
+                { task: "Get the Roster", completed: false },
+                { task: "Prepare QR Code", completed: false }
+            ]
+        };
+        onAddEvent(finalEvent);
+        setSelectedEvent(finalEvent);
         
         setView('detail');
         setFormData({ title: '', location: '', date: '', endDate: '', type: 'ID Day', fee: 'Free', isHosting: false, link: '', notes: '' });
@@ -1441,44 +1436,8 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
                     </div>
                 )}
 
-                {/* Mobile List/Map Toggle */}
-                {isMobile && (
-                    <div className="flex bg-scout-900 border border-scout-700 rounded-lg overflow-hidden mb-4 w-fit">
-                      <button
-                        onClick={() => setListMode('list')}
-                        className={`px-3 py-2 flex items-center gap-1.5 text-xs font-bold transition-colors ${listMode === 'list' ? 'bg-scout-accent/20 text-scout-accent' : 'text-gray-400'}`}
-                      >
-                        <LayoutList size={14} /> List
-                      </button>
-                      <button
-                        onClick={() => setListMode('map')}
-                        className={`px-3 py-2 flex items-center gap-1.5 text-xs font-bold transition-colors ${listMode === 'map' ? 'bg-scout-accent/20 text-scout-accent' : 'text-gray-400'}`}
-                      >
-                        <Map size={14} /> Map
-                      </button>
-                    </div>
-                )}
 
-                {/* Desktop: side-by-side list + map */}
-                {!isMobile && (
-                    <div className="flex gap-6 mb-6">
-                        <div className="flex-1 min-w-0">
-                            <EventMap
-                                events={[...thisWeekEvents, ...futureEvents]}
-                                onEventClick={(e) => { setSelectedEvent(e); setView('detail'); }}
-                                className="h-[400px]"
-                            />
-                        </div>
-                    </div>
-                )}
-
-                {/* Mobile: toggle between list and map */}
-                {isMobile && listMode === 'map' ? (
-                    <EventMap
-                        events={[...thisWeekEvents, ...futureEvents]}
-                        onEventClick={(e) => { setSelectedEvent(e); setView('detail'); }}
-                    />
-                ) : (isMobile && listMode === 'list') || !isMobile ? (
+                {(
                 <>
                 {/* Next Event Countdown Banner */}
                 {(() => {
@@ -1634,7 +1593,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
                     </div>
                 </div>
                 </>
-                ) : null}
+                )}
                 
                 {/* Mobile FAB */}
                 {isMobile && (
