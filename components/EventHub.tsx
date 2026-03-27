@@ -262,8 +262,20 @@ const HostGuideModal = ({ onClose }: { onClose: () => void }) => (
                <section>
                    <h3 className="text-lg font-bold text-white mb-2">Why Host an Event?</h3>
                    <p className="text-gray-400 text-sm">
-                       Events are the most effective way to identify new talent and build your reputation as a scout. 
+                       Events are the most effective way to identify new talent and build your reputation as a scout.
                        Hosted ID days allow you to see players in person, verify their data, and build relationships with families.
+                   </p>
+               </section>
+               <section>
+                   <h3 className="text-lg font-bold text-white mb-2">Showcase Coordinator</h3>
+                   <p className="text-gray-400 text-sm mb-2">
+                       When you create a hosted event, a full coordination dashboard is automatically generated at:
+                   </p>
+                   <a href="https://showcase-coordinator.vercel.app" target="_blank" rel="noopener noreferrer" className="text-scout-accent text-sm font-bold hover:underline">
+                       showcase-coordinator.vercel.app
+                   </a>
+                   <p className="text-gray-500 text-xs mt-2">
+                       Manage registrations, share QR codes, promote to your database, track attendees, and coordinate the event day — all in one place.
                    </p>
                </section>
                <div className="p-4 border-t border-scout-700 bg-scout-900 flex justify-end">
@@ -1519,6 +1531,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
                         <div>
                             <h2 className="text-3xl font-black text-white tracking-tight uppercase">My Events</h2>
                             <p className="text-gray-400 mt-1">Direct access to your scheduled and upcoming events.</p>
+                            <p className="text-scout-accent/70 text-xs mt-1">Host your own event — registration page, QR codes & promotion tools are created automatically.</p>
                         </div>
                         <div className="flex gap-3">
                             <button 
