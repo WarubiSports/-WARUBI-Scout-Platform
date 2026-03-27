@@ -4,7 +4,7 @@ import { ScoutingEvent, UserProfile, EventStatus } from '../types';
 import { haptic, handleMobileFocus } from '../hooks/useMobileFeatures';
 import { parseEventType } from '../lib/guards';
 import { useEventAttendees, AttendeeWithScout } from '../hooks/useEventAttendees';
-import { supabaseRest } from '../lib/supabase';
+import { supabase, supabaseRest } from '../lib/supabase';
 import {
   Calendar, MapPin, Sparkles, Plus, Copy, CheckCircle,
   Share2, Users, FileText, CheckSquare, Loader2, ArrowRight,
@@ -396,7 +396,7 @@ const CreateEventForm = ({ formData, setFormData, loading, handleCreate, onCance
                 {formData.isHosting && (
                     <div className="bg-scout-accent/10 border border-scout-accent/20 p-3 rounded-lg text-xs text-scout-accent flex items-start gap-2">
                         <Sparkles size={16} className="shrink-0 mt-0.5" />
-                        <span>Host Mode active: AI will generate a marketing plan, agenda, and checklist for you.</span>
+                        <span>Host Mode: A Showcase Coordinator dashboard will be created automatically for your event.</span>
                     </div>
                 )}
 
@@ -499,7 +499,7 @@ const CreateEventForm = ({ formData, setFormData, loading, handleCreate, onCance
                         className={`w-full font-bold py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${formData.isHosting ? 'bg-scout-accent hover:bg-emerald-600 text-scout-900' : 'bg-scout-700 hover:bg-scout-600 text-white'}`}
                     >
                         {loading ? <Loader2 className="animate-spin" /> : formData.isHosting ? <Sparkles size={18} /> : <Calendar size={18} />}
-                        {loading ? 'Processing...' : formData.isHosting ? 'Create Event & Generate Kit' : 'Add to Schedule'}
+                        {loading ? 'Creating...' : formData.isHosting ? 'Create Event & Dashboard' : 'Add to Schedule'}
                     </button>
                 </div>
             </div>
@@ -1278,8 +1278,44 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
     };
 
     try {
+        // If hosting, create Showcase Coordinator event (same Supabase DB)
+        let coordinatorUrl: string | undefined;
+        if (formData.isHosting) {
+            const slug = formData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + formData.date.slice(0, 4);
+            const typeMap: Record<string, string> = { 'ID Day': 'id_camp', 'Showcase': 'showcase', 'Camp': 'futures', 'Tournament': 'showcase', 'League Match': 'showcase' };
+            const priceNum = formData.fee && formData.fee !== 'Free' ? parseFloat(formData.fee.replace(/[^0-9.]/g, '')) : null;
+            const currency = formData.fee?.includes('€') ? 'EUR' : 'USD';
+
+            const { data: showcaseEvent } = await supabase
+                .from('showcase_events')
+                .insert({
+                    name: formData.title,
+                    slug,
+                    location: formData.location,
+                    start_date: formData.date,
+                    end_date: formData.endDate || formData.date,
+                    type: typeMap[formData.type] || 'showcase',
+                    description: formData.notes || null,
+                    price: priceNum,
+                    currency,
+                    registration_open: true,
+                })
+                .select()
+                .single();
+
+            if (showcaseEvent) {
+                await supabase.from('showcase_day_groups').insert([
+                    { name: 'General', color: '#6b7280', sort_order: 0, event_id: showcaseEvent.id },
+                    { name: 'Group A', color: '#3b82f6', sort_order: 1, event_id: showcaseEvent.id },
+                    { name: 'Group B', color: '#ef4444', sort_order: 2, event_id: showcaseEvent.id },
+                ]);
+                coordinatorUrl = `https://showcase-coordinator.vercel.app/event/${slug}`;
+            }
+        }
+
         const finalEvent: ScoutingEvent = {
             ...baseEvent,
+            link: coordinatorUrl || baseEvent.link,
             marketingCopy: formData.isHosting
                 ? `${formData.title} — scouting event in ${formData.location}.`
                 : `Personal scouting mission for ${formData.title}. Goal: Identify top talent and build relationships with coaches.`,
@@ -1291,7 +1327,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
         };
         onAddEvent(finalEvent);
         setSelectedEvent(finalEvent);
-        
+
         setView('detail');
         setFormData({ title: '', location: '', date: '', endDate: '', type: 'ID Day', fee: 'Free', isHosting: false, link: '', notes: '' });
     } catch (e) {
