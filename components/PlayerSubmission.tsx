@@ -15,11 +15,12 @@ interface PlayerSubmissionProps {
     existingPlayers: Player[];
     editingPlayer?: Player | null;
     initialMode?: SubmissionMode;
+    onBulkImportComplete?: (count: number) => void;
 }
 
 type SubmissionMode = 'HUB' | 'SCANNING' | 'BUILD' | 'FIELD' | 'BULK';
 
-const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlayer, onUpdatePlayer, existingPlayers, editingPlayer, initialMode }) => {
+const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlayer, onUpdatePlayer, existingPlayers, editingPlayer, initialMode, onBulkImportComplete }) => {
     const [mode, setMode] = useState<SubmissionMode>(editingPlayer ? 'BUILD' : (initialMode || 'HUB'));
     const [buildStep, setBuildStep] = useState(1);
     const [loading, setLoading] = useState(false);
@@ -211,6 +212,7 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
     const handleAddAllBulk = async () => {
         setLoading(true);
         try {
+            const count = bulkPlayers.length;
             for (let idx = 0; idx < bulkPlayers.length; idx++) {
                 const p = bulkPlayers[idx];
                 const player: Player = {
@@ -226,7 +228,11 @@ const PlayerSubmission: React.FC<PlayerSubmissionProps> = ({ onClose, onAddPlaye
                 await onAddPlayer(player);
                 await new Promise(resolve => setTimeout(resolve, 100));
             }
-            onClose();
+            if (onBulkImportComplete) {
+                onBulkImportComplete(count);
+            } else {
+                onClose();
+            }
         } catch (error) {
             console.error('Error adding bulk players:', error);
             alert('Error adding some players. Please try again.');

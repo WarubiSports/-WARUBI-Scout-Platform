@@ -355,7 +355,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             <main className={`flex-1 min-h-0 ${isOutreachTab ? 'overflow-hidden p-4' : 'overflow-auto p-4 md:p-10 pb-28 md:pb-10 custom-scrollbar'}`}>
                 <Outlet context={outletContext} />
 
-                {isSubmissionOpen && <PlayerSubmission onClose={handleCloseSubmission} onAddPlayer={onAddPlayer} onUpdatePlayer={onUpdatePlayer} existingPlayers={players} editingPlayer={editingPlayer} initialMode={submissionInitialMode} />}
+                {isSubmissionOpen && <PlayerSubmission onClose={handleCloseSubmission} onAddPlayer={onAddPlayer} onUpdatePlayer={onUpdatePlayer} existingPlayers={players} editingPlayer={editingPlayer} initialMode={submissionInitialMode} onBulkImportComplete={(count) => { setIsSubmissionOpen(false); setEditingPlayer(null); setIsNetworkModalOpen(true); }} />}
                 {isBulkOutreachOpen && <BulkOutreachFlow scoutId={user.scoutId} scoutName={user.name} scoutBio={user.bio} onClose={() => setIsBulkOutreachOpen(false)} />}
                 {isBugReportOpen && <ReportBugModal onClose={() => setIsBugReportOpen(false)} />}
                 {isShareToolkitOpen && user.scoutId && <ShareToolkit scoutId={user.scoutId} scoutName={user.name} variant="modal" onClose={() => setIsShareToolkitOpen(false)} onEmailBlast={() => { setIsShareToolkitOpen(false); setIsNetworkModalOpen(true); }} />}
