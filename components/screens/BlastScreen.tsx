@@ -18,9 +18,14 @@ const BlastScreen: React.FC = () => {
   const blastMessage = `Hey! I'm ${user.name}, a scout with Warubi Sports. We help players get recruited to play college soccer in the USA — many with scholarships. Check out your options here: ${eeLink}`;
 
   const handleBlastEmail = () => {
+    const emails = uncontacted.filter(p => p.email).map(p => p.email);
+    const bcc = emails.join(',');
     const subject = encodeURIComponent('College Soccer Opportunity — Free Assessment');
     const body = encodeURIComponent(blastMessage);
-    window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+    window.open(`mailto:?bcc=${bcc}&subject=${subject}&body=${body}`, '_blank');
+    uncontacted.filter(p => p.email).forEach(p => {
+      onMessageSent?.(p.id, { method: 'Email', templateName: 'Blast' });
+    });
   };
 
   return (
@@ -46,7 +51,7 @@ const BlastScreen: React.FC = () => {
 
       {/* Blast uncontacted CTA */}
       {uncontacted.length > 0 && (
-        <div className="mt-4 bg-gradient-to-r from-scout-accent/10 to-emerald-500/5 border-2 border-scout-accent/30 rounded-2xl p-5">
+        <div className="mt-4 bg-scout-800/50 border border-scout-700 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="text-sm font-black text-white">Blast {uncontacted.length} uncontacted players</h3>
