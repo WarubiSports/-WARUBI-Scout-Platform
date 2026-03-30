@@ -621,7 +621,7 @@ const DetailView = ({ event, events, isMobile, onClose, onUpdateEvent, initiateA
     if (!isMobile) {
         const hasKit = (isMine || isAttending) && (event.marketingCopy || (event.agenda && event.agenda.length > 0) || (event.checklist && event.checklist.length > 0));
         return (
-          <div className="h-full flex flex-col animate-fade-in">
+          <div className="flex flex-col animate-fade-in">
               <div className="flex items-center gap-2 mb-4">
                   <button onClick={onClose} className="text-gray-400 hover:text-white flex items-center gap-1 text-sm">
                       <ArrowRight size={16} className="rotate-180" /> Back to Schedule
@@ -1475,7 +1475,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
   };
 
   return (
-    <div className="h-full relative">
+    <div className="relative">
         {showGuide && <HostGuideModal onClose={() => setShowGuide(false)} />}
         {networkOutreachEvent && (
           <EventNetworkOutreach
@@ -1524,7 +1524,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
                 onNetworkOutreach={(e: ScoutingEvent) => setNetworkOutreachEvent(e)}
             />
         ) : (
-            <div className="h-full flex flex-col animate-fade-in">
+            <div className="flex flex-col animate-fade-in">
                 {/* Simplified Desktop Header */}
                 {!isMobile && (
                     <div className="flex justify-between items-end mb-6">

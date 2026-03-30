@@ -24,6 +24,17 @@ const scoutIcon = new L.DivIcon({
   popupAnchor: [0, -34],
 });
 
+// Past event icon (gray/muted)
+const pastIcon = new L.DivIcon({
+  className: '',
+  html: `<div style="width:28px;height:28px;background:#52525b;border:3px solid #3f3f46;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;opacity:0.7;">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a1a1aa" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+  </div>`,
+  iconSize: [28, 28],
+  iconAnchor: [14, 28],
+  popupAnchor: [0, -30],
+});
+
 // Simple geocoding cache (persists in sessionStorage)
 const CACHE_KEY = 'scout_geocode_cache';
 const getCache = (): Record<string, [number, number]> => {
@@ -155,7 +166,7 @@ export const EventMap: React.FC<EventMapProps> = ({ events, onEventClick, classN
           <Marker
             key={geo.event.id}
             position={geo.coords}
-            icon={scoutIcon}
+            icon={new Date(geo.event.date) < new Date() ? pastIcon : scoutIcon}
             eventHandlers={{ click: () => onEventClick(geo.event) }}
           >
             <Popup>
