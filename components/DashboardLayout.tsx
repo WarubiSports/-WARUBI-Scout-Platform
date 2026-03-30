@@ -319,7 +319,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                         <Upload size={20} /> Upload
                         {activePlayers.length > 0 && <span className="ml-auto text-[10px] bg-scout-900 border border-scout-700 px-2 py-0.5 rounded-full text-gray-400">{activePlayers.length}</span>}
                     </button>
-                    <button onClick={() => navigate('/dashboard/blast')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'blast' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><Send size={20} /> Blast</button>
+                    <button onClick={() => navigate('/dashboard/outreach')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'outreach' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><Send size={20} /> Outreach</button>
                     <button onClick={() => navigate('/dashboard/evaluate')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'evaluate' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><ClipboardCheck size={20} /> Evaluate</button>
                     <button onClick={() => navigate('/dashboard/events')} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-sm font-black transition-all ${activeTab === 'events' ? 'bg-scout-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}><CalendarDays size={20} /> Events</button>
                 </nav>
@@ -434,9 +434,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                         <Upload size={20} />
                         <span className="text-[8px] font-black uppercase">Upload</span>
                     </button>
-                    <button onClick={() => { haptic.light(); navigate('/dashboard/blast'); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === 'blast' ? 'text-scout-accent' : 'text-gray-600'}`}>
+                    <button onClick={() => { haptic.light(); navigate('/dashboard/outreach'); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === 'outreach' ? 'text-scout-accent' : 'text-gray-600'}`}>
                         <Send size={20} />
-                        <span className="text-[8px] font-black uppercase">Blast</span>
+                        <span className="text-[8px] font-black uppercase">Outreach</span>
                     </button>
                     <button onClick={() => { haptic.light(); navigate('/dashboard/evaluate'); }} className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all active:scale-95 ${activeTab === 'evaluate' ? 'text-scout-accent' : 'text-gray-600'}`}>
                         <ClipboardCheck size={20} />

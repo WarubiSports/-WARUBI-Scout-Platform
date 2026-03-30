@@ -399,7 +399,7 @@ const App: React.FC = () => {
           <Route path="/dashboard" element={<DashboardLayout {...dashboardProps} />}>
             <Route index element={<Navigate to="upload" replace />} />
             <Route path="upload" element={<UploadScreen />} />
-            <Route path="blast" element={<BlastScreen />} />
+            <Route path="outreach" element={<BlastScreen />} />
             <Route path="evaluate" element={<EvaluateScreen />} />
             <Route path="events" element={<EventsRoute />} />
             {/* Legacy routes — kept for admin/deep links */}
