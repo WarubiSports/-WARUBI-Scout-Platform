@@ -12,7 +12,7 @@ import {
   HelpCircle, Check, QrCode, ChevronRight, Navigation, History, CalendarPlus, Ticket, Clock, Camera, Edit3, Timer, ExternalLink, StickyNote, Megaphone, Upload, Send, Mail,
   Map, LayoutList
 } from 'lucide-react';
-// EventMap removed — list-only view
+import { EventMap } from './EventMap';
 
 import type { Player } from '../types';
 
