@@ -1550,8 +1550,42 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
                     </div>
                 )}
 
+                {/* Mobile List/Map Toggle */}
+                {isMobile && (
+                    <div className="flex bg-scout-900 border border-scout-700 rounded-lg overflow-hidden mb-4 w-fit">
+                      <button
+                        onClick={() => setListMode('list')}
+                        className={`px-3 py-2 flex items-center gap-1.5 text-xs font-bold transition-colors ${listMode === 'list' ? 'bg-scout-accent/20 text-scout-accent' : 'text-gray-400'}`}
+                      >
+                        <LayoutList size={14} /> List
+                      </button>
+                      <button
+                        onClick={() => setListMode('map')}
+                        className={`px-3 py-2 flex items-center gap-1.5 text-xs font-bold transition-colors ${listMode === 'map' ? 'bg-scout-accent/20 text-scout-accent' : 'text-gray-400'}`}
+                      >
+                        <Map size={14} /> Map
+                      </button>
+                    </div>
+                )}
 
-                {(
+                {/* Desktop: map above event list */}
+                {!isMobile && [...thisWeekEvents, ...futureEvents].length > 0 && (
+                    <div className="mb-6">
+                        <EventMap
+                            events={[...thisWeekEvents, ...futureEvents]}
+                            onEventClick={(e) => { setSelectedEvent(e); setView('detail'); }}
+                        />
+                    </div>
+                )}
+
+                {/* Mobile map view */}
+                {isMobile && listMode === 'map' ? (
+                    <EventMap
+                        events={[...thisWeekEvents, ...futureEvents]}
+                        onEventClick={(e) => { setSelectedEvent(e); setView('detail'); }}
+                    />
+                ) : (
+
                 <>
                 {/* Next Event Countdown Banner */}
                 {(() => {
