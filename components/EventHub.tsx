@@ -1569,10 +1569,10 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
                 )}
 
                 {/* Desktop: map above event list */}
-                {!isMobile && [...thisWeekEvents, ...futureEvents].length > 0 && (
+                {!isMobile && sortedEvents.length > 0 && (
                     <div className="mb-6">
                         <EventMap
-                            events={[...thisWeekEvents, ...futureEvents]}
+                            events={sortedEvents}
                             onEventClick={(e) => { setSelectedEvent(e); setView('detail'); }}
                         />
                     </div>
@@ -1581,7 +1581,7 @@ const EventHub: React.FC<EventHubProps> = ({ events, user, players = [], onAddEv
                 {/* Mobile map view */}
                 {isMobile && listMode === 'map' ? (
                     <EventMap
-                        events={[...thisWeekEvents, ...futureEvents]}
+                        events={sortedEvents}
                         onEventClick={(e) => { setSelectedEvent(e); setView('detail'); }}
                     />
                 ) : (
