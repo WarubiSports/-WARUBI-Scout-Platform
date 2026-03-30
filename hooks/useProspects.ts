@@ -350,6 +350,7 @@ export function useProspects(scoutId: string | undefined) {
       if (updates.programDuration !== undefined) dbUpdates.program_duration = updates.programDuration || null
       if (updates.enrollmentConfirmed !== undefined) dbUpdates.enrollment_confirmed = updates.enrollmentConfirmed
       if (updates.enrollmentConfirmedAt !== undefined) dbUpdates.enrollment_confirmed_at = updates.enrollmentConfirmedAt || null
+      if (updates.trialProspectId !== undefined) dbUpdates.trial_prospect_id = updates.trialProspectId
 
       const { error } = await supabaseRest.update('scout_prospects', `id=eq.${playerId}`, dbUpdates)
 

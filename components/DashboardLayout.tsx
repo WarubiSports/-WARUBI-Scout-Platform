@@ -265,8 +265,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         earnings,
     };
 
-    const isOutreachTab = activeTab === 'outreach';
-
     return (
         <div className="flex h-screen bg-[#05080f] text-white overflow-hidden relative">
             <ConnectionStatus />
@@ -352,7 +350,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 </div>
             </aside>
 
-            <main className={`flex-1 min-h-0 ${isOutreachTab ? 'overflow-hidden p-4' : 'overflow-auto p-4 md:p-10 pb-28 md:pb-10 custom-scrollbar'}`}>
+            <main className="flex-1 min-h-0 overflow-auto p-4 md:p-10 pb-28 md:pb-10 custom-scrollbar">
                 <Outlet context={outletContext} />
 
                 {isSubmissionOpen && <PlayerSubmission onClose={handleCloseSubmission} onAddPlayer={onAddPlayer} onUpdatePlayer={onUpdatePlayer} existingPlayers={players} editingPlayer={editingPlayer} initialMode={submissionInitialMode} onBulkImportComplete={(count) => { setIsSubmissionOpen(false); setEditingPlayer(null); setIsNetworkModalOpen(true); }} />}

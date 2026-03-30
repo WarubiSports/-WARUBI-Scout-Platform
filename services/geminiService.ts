@@ -1,5 +1,5 @@
 
-import { PlayerEvaluation, ScoutingEvent, UserProfile, Player, StrategyTask } from '../types';
+import { PlayerEvaluation, ScoutingEvent, UserProfile, Player, PlayerStatus, StrategyTask } from '../types';
 import { canPerformOperation, recordOperation, AIOperationType } from './aiUsageService';
 import { toast } from 'sonner';
 
@@ -86,7 +86,7 @@ const callGeminiProxy = async (operation: string, payload: Record<string, any>):
 export const generateDailyStrategy = (players: Player[], events: ScoutingEvent[]): StrategyTask[] => {
     const tasks: StrategyTask[] = [];
     const topLead = players
-        .filter(p => p.status === 'Lead' || p.status === 'Interested')
+        .filter(p => p.status === PlayerStatus.LEAD || p.status === PlayerStatus.CONTACT_REQUESTED || p.status === PlayerStatus.REQUEST_TRIAL)
         .sort((a, b) => (b.evaluation?.score || 0) - (a.evaluation?.score || 0))[0];
 
     if (topLead) {

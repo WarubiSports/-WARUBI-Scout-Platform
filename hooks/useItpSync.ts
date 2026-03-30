@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { toast } from 'sonner';
 import { Player, PlayerStatus, AppNotification } from '../types';
-import { sendProspectToTrial, markContractRequested } from '../services/trialService';
+import { sendProspectToTrial } from '../services/trialService';
 import type { TrialDates } from '../components/TrialRequestModal';
 
 interface UseItpSyncOptions {

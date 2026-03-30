@@ -123,14 +123,7 @@ export function useEvents(scoutId: string | undefined) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Load events on mount or when scoutId changes
-  useEffect(() => {
-    if (scoutId) {
-      loadEvents()
-    }
-  }, [scoutId])
-
-  const loadEvents = async () => {
+  const loadEvents = useCallback(async () => {
     if (!scoutId || !isSupabaseConfigured) {
       setLoading(false)
       return
@@ -156,7 +149,14 @@ export function useEvents(scoutId: string | undefined) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [scoutId])
+
+  // Load events on mount or when scoutId changes
+  useEffect(() => {
+    if (scoutId) {
+      loadEvents()
+    }
+  }, [scoutId, loadEvents])
 
   const addEvent = useCallback(
     async (event: ScoutingEvent): Promise<ScoutingEvent | null> => {
