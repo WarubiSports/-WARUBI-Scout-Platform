@@ -30,6 +30,7 @@ function getSupabaseClient(): SupabaseClient<Database> {
         }
       },
       auth: {
+        storageKey: 'scout-buddy-auth',
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
@@ -61,7 +62,7 @@ export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey)
 function getAccessToken(): string | null {
   if (typeof window === 'undefined') return null
   try {
-    const storageKey = `sb-${supabaseUrl?.split('//')[1]?.split('.')[0]}-auth-token`
+    const storageKey = 'scout-buddy-auth'
     const storedSession = localStorage.getItem(storageKey)
     if (storedSession) {
       const parsed = JSON.parse(storedSession)
