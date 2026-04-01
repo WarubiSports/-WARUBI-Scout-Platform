@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Upload, Calendar, FileUp, Plus, Loader2, Users } from 'lucide-react';
+import { Calendar, FileUp, Plus, Loader2, Users, AlertTriangle } from 'lucide-react';
 import { useDashboardContext } from '../DashboardLayout';
 import { Player, PlayerStatus } from '../../types';
 import { POSITIONS } from '../submission/FormComponents';
@@ -9,6 +9,7 @@ const UploadScreen: React.FC = () => {
   const [quickName, setQuickName] = useState('');
   const [quickPos, setQuickPos] = useState('CM');
   const [adding, setAdding] = useState(false);
+  const [dupeWarning, setDupeWarning] = useState<string | null>(null);
 
   const recentPlayers = useMemo(() =>
     [...players]
@@ -17,9 +18,24 @@ const UploadScreen: React.FC = () => {
     [players]
   );
 
+  // Check for duplicate names (case-insensitive)
+  const findDuplicate = (name: string): Player | undefined => {
+    const normalized = name.trim().toLowerCase();
+    return players.find(p => p.name.toLowerCase() === normalized);
+  };
+
   const handleQuickAdd = async () => {
     if (!quickName.trim() || adding) return;
+
+    // Duplicate check
+    const existing = findDuplicate(quickName);
+    if (existing && !dupeWarning) {
+      setDupeWarning(`"${existing.name}" already exists (${existing.position}). Tap + again to add anyway.`);
+      return;
+    }
+
     setAdding(true);
+    setDupeWarning(null);
     const player: Player = {
       id: `player-${Date.now()}`,
       name: quickName.trim(),
@@ -72,7 +88,7 @@ const UploadScreen: React.FC = () => {
             type="text"
             placeholder="Player name"
             value={quickName}
-            onChange={(e) => setQuickName(e.target.value)}
+            onChange={(e) => { setQuickName(e.target.value); setDupeWarning(null); }}
             onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
             className="flex-[2] bg-scout-900 border border-scout-700 rounded-xl px-4 py-3 text-white font-bold placeholder-gray-600 focus:outline-none focus:border-scout-accent"
           />
@@ -91,6 +107,12 @@ const UploadScreen: React.FC = () => {
             {adding ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} />}
           </button>
         </div>
+        {dupeWarning && (
+          <div className="flex items-center gap-2 mt-3 px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+            <AlertTriangle size={14} className="text-amber-400 shrink-0" />
+            <span className="text-xs text-amber-400">{dupeWarning}</span>
+          </div>
+        )}
       </div>
 
       {/* Two big entry cards */}
@@ -128,18 +150,26 @@ const UploadScreen: React.FC = () => {
             <Users size={14} className="text-gray-500" />
             <h3 className="text-xs font-black text-gray-500 uppercase tracking-wider">Recent ({recentPlayers.length})</h3>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {recentPlayers.map((p) => {
               const contacted = p.lastContactedAt || p.outreachLogs?.length > 0;
+              const statusColor = contacted
+                ? 'bg-scout-accent/10 border-scout-accent/30 text-scout-accent'
+                : 'bg-scout-900 border-scout-700 text-gray-600';
               return (
-                <div key={p.id} className="flex items-center gap-3 px-4 py-3 bg-scout-800/50 border border-scout-700/50 rounded-xl">
-                  <span className="text-sm font-bold text-white flex-1 truncate">{p.name}</span>
-                  <span className="text-[10px] text-gray-500">{p.position}</span>
-                  {contacted ? (
-                    <span className="text-[9px] font-bold text-scout-accent bg-scout-accent/10 px-2 py-0.5 rounded-full">SENT</span>
-                  ) : (
-                    <span className="text-[9px] font-bold text-gray-600 bg-scout-900 px-2 py-0.5 rounded-full">NEW</span>
-                  )}
+                <div key={p.id} className="flex items-center gap-3 px-4 py-3 bg-scout-800 border border-scout-700/50 rounded-xl">
+                  <div className="w-8 h-8 rounded-lg bg-scout-700/50 border border-scout-600/30 flex items-center justify-center text-xs font-black text-gray-400 shrink-0">
+                    {p.name.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-bold text-white truncate block">{p.name}</span>
+                    <span className="text-[10px] text-gray-500">
+                      {p.position}{p.club ? ` · ${p.club}` : ''}
+                    </span>
+                  </div>
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${statusColor}`}>
+                    {contacted ? 'SENT' : 'NEW'}
+                  </span>
                 </div>
               );
             })}

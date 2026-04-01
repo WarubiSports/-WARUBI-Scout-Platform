@@ -126,7 +126,7 @@ const EvaluateScreen: React.FC = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <span className="text-sm font-bold text-white truncate block">{p.name}</span>
-                      <span className="text-[10px] text-gray-500">{p.position} · {p.club || 'No club'}</span>
+                      <span className="text-[10px] text-gray-500">{p.position}{p.club ? ` · ${p.club}` : ''}</span>
                     </div>
                     <ClipboardCheck size={16} className="text-gray-600" />
                   </button>
@@ -150,7 +150,7 @@ const EvaluateScreen: React.FC = () => {
                     </div>
                     <div className="flex-1 min-w-0">
                       <span className="text-sm font-bold text-white truncate block">{p.name}</span>
-                      <span className="text-[10px] text-gray-500">{p.position} · {p.club || 'No club'}</span>
+                      <span className="text-[10px] text-gray-500">{p.position}{p.club ? ` · ${p.club}` : ''}</span>
                     </div>
                     <Check size={16} className="text-scout-accent" />
                   </button>
