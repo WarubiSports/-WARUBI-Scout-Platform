@@ -142,7 +142,7 @@ export const EventMap: React.FC<EventMapProps> = ({ events, onEventClick, classN
   };
 
   return (
-    <div className={`relative rounded-2xl overflow-hidden border border-scout-700 ${className || "h-[250px] md:h-[300px]"}`}>
+    <div className={`relative z-0 rounded-2xl overflow-hidden border border-scout-700 ${className || "h-[250px] md:h-[300px]"}`}>
       {loading && (
         <div className="absolute inset-0 z-[10] bg-scout-900/80 flex items-center justify-center">
           <div className="flex items-center gap-3 text-gray-400">

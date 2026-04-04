@@ -4,6 +4,7 @@ import { useDashboardContext } from '../DashboardLayout';
 import { Player } from '../../types';
 import { EVAL_SECTIONS, calculateEvalBonus } from '../../lib/eval-constants';
 import { supabaseRest } from '../../lib/supabase';
+import { lookupCaliberScore } from '../../lib/caliber-lookup';
 
 interface ChipGroupProps {
   options: string[]
@@ -80,17 +81,22 @@ const EvaluateScreen: React.FC = () => {
     if (!selectedPlayer) return;
     setSaving(true);
     try {
+      // Look up base caliber score from caliber_players table
+      const baseScore = await lookupCaliberScore(selectedPlayer.name);
+      // Final score = base score (or 50 neutral) + scout adjustment
+      const finalScore = (baseScore ?? 50) + evalBonus;
+
       // Update in Supabase
-      await supabaseRest.update('scout_prospects', selectedPlayer.id, {
+      await supabaseRest.update('scout_prospects', `id=eq.${selectedPlayer.id}`, {
         scout_eval: chips,
-        caliber_score: evalBonus,
+        caliber_score: finalScore,
         notes: notes || selectedPlayer.notes,
       });
       // Update local state
       onUpdatePlayer({
         ...selectedPlayer,
         scout_eval: chips,
-        caliber_score: evalBonus,
+        caliber_score: finalScore,
         notes: notes || selectedPlayer.notes,
       } as any);
       setSaved(true);
