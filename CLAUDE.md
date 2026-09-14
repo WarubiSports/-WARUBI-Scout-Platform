@@ -5,6 +5,7 @@
 ```bash
 npm run dev      # Start dev server (localhost:3000)
 npm run build    # Production build
+npm test         # Vitest (single run; test:watch for watch mode)
 vercel --prod    # Deploy to Vercel
 ```
 
@@ -14,7 +15,7 @@ vercel --prod    # Deploy to Vercel
 ---
 
 ## Project Overview
-Scouting CRM for Warubi Sports. Scouts manage player pipelines, send outreach, track events, and earn XP.
+Scouting CRM for Warubi Sports. Scouts manage player pipelines, send outreach, and track events.
 
 ## Tech Stack
 - **Frontend:** Vite + React + TypeScript
@@ -24,32 +25,25 @@ Scouting CRM for Warubi Sports. Scouts manage player pipelines, send outreach, t
 - **Live URL:** https://scout-buddy.vercel.app
 
 ## Key Directories
-- `/components` - React components (Dashboard, OutreachTab, ProfileTab, etc.)
+- `/components` - React components (AdminDashboard, OutreachTab, EventHub, plus `admin/`, `screens/`, `routes/` subdirs)
 - `/hooks` - Custom hooks (useProspects, useEvents, useOutreach)
 - `/services` - API services (geminiService, trialService, supabase)
 - `/contexts` - AuthContext, ScoutContext
 - `/lib` - Supabase client, database types
 
 ## Player Pipeline Stages
-Lead → Request Trial → Send Contract → Offered → Placed
+Lead → Contacted → Request Trial → Offered → Placed (+ Archived)
 
-**Two paths:**
-- Trial path: Lead → Request Trial (date picker + ITP sync) → Send Contract → Offered → Placed
-- Direct sign: Lead → Send Contract (auto ITP sync as direct sign) → Offered → Placed
+Send Contract stage and the direct-sign sync path were removed 2026-03-22 (commit `c8d8401`, replaced by Contact Requested). DB keeps legacy status values (`send_contract`, `contacted`, etc.) mapped in `statusFromDb()`.
 
 ## Important Logic
-- **ITP Trial Sync:** Moving to REQUEST_TRIAL triggers `sendProspectToTrial()` with trial dates. Moving from Lead to SEND_CONTRACT (no trial) triggers direct sign sync. Logic exists in TWO code paths in `App.tsx`: `handleUpdatePlayer` (detail form) AND the `onStatusChange` callback (board dropdown). Both must be kept in sync.
+- **ITP Trial Sync:** Moving to REQUEST_TRIAL triggers `sendProspectToTrial()` with trial dates. All status-transition side effects (placement celebration, trial request) live in ONE place: `handleStatusTransition()` in `hooks/useItpSync.ts`, called from both App.tsx paths (`handleUpdatePlayer` detail form + `onStatusChange` board dropdown). New transition side effects go in that hook, never inline in App.tsx — the logic used to be duplicated across both paths and they drifted.
 - **TrialRequestModal:** Replaces old `PathwaySelectionModal`. Shows date picker when moving to Request Trial. Located at `components/TrialRequestModal.tsx`.
-- **XP System:** Points awarded for player adds, placements, events (see `constants.ts:SCOUT_POINTS`)
 - **AI Features:** Gemini-powered evaluation, outreach generation, bulk import
 
 ## Related Projects
 - **ITP Staff App:** `~/projects/ITP-Staff-App` - Staff management for ITP trials
 - **ITP Player App:** `~/projects/ITP-Player-App` - Player-facing trial app
-- **ExposureEngine V2:** `~/projects/ExposureEngineV2` - Public recruiting visibility tool
-
-## Test Credentials
-- Admin: max.bisinger@warubi-sports.com / ITP2024
 
 ## Architecture Gotchas
 
@@ -78,5 +72,5 @@ Frontend uses `PlayerStatus.LEAD` ("Lead"), database uses lowercase `'lead'`. Ma
 ## Database Notes
 - Table: `scout_prospects` - main player data
 - Table: `scout_outreach_logs` - message history
-- Table: `scouts` - scout profiles and XP
+- Table: `scouts` - scout profiles
 - RLS enabled - scouts only see their own data
