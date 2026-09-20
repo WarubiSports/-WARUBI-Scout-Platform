@@ -56,6 +56,11 @@ export function useItpSync({
 
       if (result.success && result.trialProspectId) {
         trialProspectId = result.trialProspectId;
+        if (result.reusedExisting) {
+          addNotification({ type: 'INFO', title: 'Existing Trial Retained', message: `${player.name} is already linked to a trial. Staff dates and status are unchanged.` });
+          toast.success('Existing trial retained — no new request submitted', { duration: 5000 });
+          return trialProspectId;
+        }
         addNotification({
           type: 'SUCCESS',
           title: 'Trial Request Submitted',

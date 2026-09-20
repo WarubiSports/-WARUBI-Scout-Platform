@@ -42,13 +42,9 @@ export async function createTrialFromProspect(
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
 
-    // Calculate date of birth from age if not provided
-    let dateOfBirth = prospect.dateOfBirth;
-    if (!dateOfBirth && prospect.age) {
-      const today = new Date();
-      const birthYear = today.getFullYear() - prospect.age;
-      dateOfBirth = `${birthYear}-01-01`; // Default to Jan 1 of calculated year
-    }
+    // Preliminary prospects permit an unknown exact DOB. A reported age
+    // cannot establish a date of birth or whether a player is an adult.
+    const dateOfBirth = prospect.dateOfBirth || null;
 
     // Validate required fields before inserting
     if (!prospect.nationality) {
@@ -56,11 +52,11 @@ export async function createTrialFromProspect(
     }
 
     // Build trial prospect data from scout prospect
-    // Required fields: first_name, last_name, date_of_birth, position, nationality
+    // Required fields: first_name, last_name, position, nationality
     const trialData = {
       first_name: firstName || 'Unknown',
       last_name: lastName || 'Prospect',
-      date_of_birth: dateOfBirth || '2000-01-01', // Fallback date
+      date_of_birth: dateOfBirth,
       position: prospect.position || 'Unknown',
       nationality: prospect.nationality,
       current_club: prospect.club || null,
@@ -143,7 +139,7 @@ export async function linkProspectToTrial(
 }
 
 /**
- * Full workflow: Create trial prospect and link it to scout prospect
+ * Reuse this scout player's exact trial link, or create and link its first trial.
  */
 export async function sendProspectToTrial(
   prospect: Player,
@@ -151,7 +147,29 @@ export async function sendProspectToTrial(
   scoutName: string,
   directSign: boolean = false,
   trialDates?: TrialDates
-): Promise<{ success: boolean; trialProspectId: string | null; error: string | null }> {
+): Promise<{ success: boolean; trialProspectId: string | null; error: string | null; reusedExisting?: boolean }> {
+  if (isSupabaseConfigured) {
+    try {
+      // Read the persisted relation rather than trusting an older board/detail
+      // snapshot. Re-entering Request Trial must not replace staff's trial.
+      const { data, error } = await supabaseRest.select<{ id: string; trial_prospect_id: string | null }>(
+        'scout_prospects',
+        `id=eq.${encodeURIComponent(prospect.id)}&select=id,trial_prospect_id`,
+      );
+      if (error || data?.length !== 1 || data[0].id !== prospect.id) {
+        return { success: false, trialProspectId: null, error: 'Could not verify the existing trial link. Reload the player and try again.' };
+      }
+      if (data[0].trial_prospect_id) {
+        return { success: true, trialProspectId: data[0].trial_prospect_id, error: null, reusedExisting: true };
+      }
+      if (prospect.trialProspectId) {
+        return { success: false, trialProspectId: null, error: 'The player’s trial link has changed. Reload before submitting another request.' };
+      }
+    } catch {
+      return { success: false, trialProspectId: null, error: 'Could not verify the existing trial link. Reload the player and try again.' };
+    }
+  }
+
   // Step 1: Create trial prospect
   const { trialProspectId, error: createError } = await createTrialFromProspect(
     prospect,
@@ -228,6 +246,10 @@ function buildScoutingNotes(prospect: Player): string {
 
   if (prospect.notes) {
     notes.push(`Scout Notes: ${prospect.notes}`);
+  }
+
+  if (!prospect.dateOfBirth && Number.isInteger(prospect.age) && prospect.age > 0) {
+    notes.push(`Source-reported age: ${prospect.age} (unverified; exact date of birth unknown).`);
   }
 
   return notes.join('\n\n') || 'No additional notes from scout.';
