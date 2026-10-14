@@ -509,13 +509,13 @@ Deno.serve(async (req: Request) => {
       { status: 200, headers: responseHeaders }
     );
 
-  } catch (error) {
-    console.error('Gemini proxy error:', error);
+  } catch {
+    console.error('Gemini proxy operation failed');
 
     // Return error response
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : 'Internal server error',
+        error: 'AI temporarily unavailable',
         success: false
       }),
       { status: 500, headers: responseHeaders }

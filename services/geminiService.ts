@@ -27,7 +27,7 @@ const checkAndRecordUsage = (operationType: AIOperationType): void => {
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // Proxy helper - calls the Supabase Edge Function with retry and graceful error handling
-const callGeminiProxy = async (operation: string, payload: Record<string, any>): Promise<any> => {
+const callGeminiProxy = async (operation: string, payload: Record<string, any>, stopOnAccessError = false): Promise<any> => {
   const proxyUrl = import.meta.env.VITE_GEMINI_PROXY_URL;
   if (!proxyUrl) {
     console.warn('VITE_GEMINI_PROXY_URL is not configured');
@@ -78,6 +78,7 @@ const callGeminiProxy = async (operation: string, payload: Record<string, any>):
   } catch (firstError) {
     if (firstError instanceof AIProxyAccessError) {
       toast.error(firstError.message);
+      if (stopOnAccessError) throw firstError;
       return null;
     }
     console.warn(`Gemini API first attempt failed for ${operation}:`, firstError);
@@ -90,6 +91,7 @@ const callGeminiProxy = async (operation: string, payload: Record<string, any>):
     } catch (secondError) {
       if (secondError instanceof AIProxyAccessError) {
         toast.error(secondError.message);
+        if (stopOnAccessError) throw secondError;
         return null;
       }
       // Both attempts failed - show toast and return null
@@ -398,15 +400,20 @@ export const bulkGenerateOutreach = async (
   const results: BulkOutreachResult[] = []
   for (const chunk of chunks) {
     checkAndRecordUsage('bulk_outreach')
-    const chunkResult = await callGeminiProxy('bulkGenerateOutreach', {
-      scoutName,
-      scoutBio: options?.scoutBio,
-      language: options?.language || 'en',
-      players: chunk,
-      templateType,
-    })
-    if (Array.isArray(chunkResult)) {
-      results.push(...chunkResult)
+    try {
+      const chunkResult = await callGeminiProxy('bulkGenerateOutreach', {
+        scoutName,
+        scoutBio: options?.scoutBio,
+        language: options?.language || 'en',
+        players: chunk,
+        templateType,
+      }, true)
+      if (Array.isArray(chunkResult)) {
+        results.push(...chunkResult)
+      }
+    } catch (error) {
+      if (error instanceof AIProxyAccessError) break
+      throw error
     }
   }
   return results

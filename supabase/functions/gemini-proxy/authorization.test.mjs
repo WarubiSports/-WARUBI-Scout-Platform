@@ -10,7 +10,7 @@ const tests = [];
 const identity = { id: 'closed-fixture-user', email: 'approved@example.invalid', email_confirmed_at: '2026-01-01', app_metadata: {}, is_anonymous: false };
 
 function runtime(source, options = {}) {
-  let handler, models = 0; const requests = [];
+  let handler, models = 0; const requests = []; const logs=[];
   const fakeFetch = async (input, init) => {
     requests.push({ url: String(input), ...init });
     if (options.throwFetch) throw new Error('fixture-secret-token approved@example.invalid');
@@ -27,10 +27,13 @@ function runtime(source, options = {}) {
   };
   class GoogleGenerativeAI {
     constructor() { models++; }
-    getGenerativeModel() { return { generateContent: async () => ({ response: { text: () => '{"firstName":"Closed fixture"}' } }) }; }
+    getGenerativeModel() { return { generateContent: async () => {
+      if (options.throwModel) throw new Error('fixture-secret-token approved@example.invalid');
+      return { response: { text: () => '{"firstName":"Closed fixture"}' } };
+    } }; }
   }
   const env = { SUPABASE_URL: 'https://closed-fixture.invalid', SUPABASE_ANON_KEY: 'public-fixture-key', GEMINI_API_KEY: 'unused-fake-key', ...(options.env ?? {}) };
-  const context = vm.createContext({ Request, Response, URLSearchParams, AbortSignal, console: { error() {}, warn() {} }, fetch: fakeFetch, GoogleGenerativeAI,
+  const context = vm.createContext({ Request, Response, URLSearchParams, AbortSignal, console: { error(...args) {logs.push(args.map(String).join(' '));}, warn() {} }, fetch: fakeFetch, GoogleGenerativeAI,
     Deno: { env: { get: name => env[name] }, serve: fn => { handler = fn; } } });
   const withoutImports = source.replace(/^import .*;\s*$/gm, '');
   const code = (source === fixed ? authorization.replace('export async function', 'async function') + '\n' : '') + withoutImports;
@@ -39,7 +42,7 @@ function runtime(source, options = {}) {
     const headers = token === null ? {} : { authorization: `Bearer ${token}` };
     const request = new Request('https://closed-fixture.invalid/functions/v1/gemini-proxy', { method, headers, ...(method === 'POST' ? { body: JSON.stringify({ operation, payload }) } : {}) });
     const response = await handler(request); const body = await response.text();
-    return { status: response.status, body, models, requests };
+    return { status: response.status, body, models, requests, logs };
   } };
 }
 async function probe(name, options, request, status, modelCount = 0) {
@@ -47,6 +50,7 @@ async function probe(name, options, request, status, modelCount = 0) {
   assert.equal(result.status, status, name + ': ' + result.body);
   assert.equal(result.models, modelCount, name);
   assert.ok(!result.body.includes('fixture-secret-token') && !result.body.includes('approved@example.invalid'), name + ': no credential or email leak');
+  assert.ok(!result.logs.join(' ').includes('fixture-secret-token') && !result.logs.join(' ').includes('approved@example.invalid'), name + ': safe logs');
   tests.push({ name, passed: true }); return result;
 }
 await probe('Missing token stops before all external work', {}, { token: null }, 401);
@@ -79,6 +83,8 @@ await probe('Unsupported operation never invokes a model', { staff: [{ id: 'appr
 await probe('Object prototype operation is denied', { staff: [{ id: 'approval-fixture' }] }, { operation: 'constructor' }, 400);
 await probe('CORS preflight remains usable without authentication', {}, { method: 'OPTIONS', token: null }, 200);
 await probe('Other methods remain rejected', {}, { method: 'GET', token: null }, 405);
+const failedModel=await probe('Model errors expose only a generic response and safe log', {staff:[{id:'approval-fixture'}],throwModel:true}, {},500,1);
+assert.equal(JSON.parse(failedModel.body).error,'AI temporarily unavailable');
 const result = { checked_at_utc: new Date().toISOString(), engine: 'Node built-in TypeScript stripping + VM, full function handler', test_count: tests.length, passed: tests.length, tests,
  limits: 'Closed HTTP/Auth/approval/model fixtures only. No production write, SMTP send, or paid model call. Does not prove live caller compatibility or spending limits.' };
 console.log(JSON.stringify(result, null, 2));
