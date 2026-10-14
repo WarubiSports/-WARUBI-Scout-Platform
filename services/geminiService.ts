@@ -1,7 +1,10 @@
+import { supabase } from '../lib/supabase';
 
 import { PlayerEvaluation, ScoutingEvent, UserProfile, Player, PlayerStatus, StrategyTask } from '../types';
 import { canPerformOperation, recordOperation, AIOperationType } from './aiUsageService';
 import { toast } from 'sonner';
+
+class AIProxyAccessError extends Error {}
 
 // Custom error for AI usage limits
 export class AIUsageLimitError extends Error {
@@ -36,16 +39,25 @@ const callGeminiProxy = async (operation: string, payload: Record<string, any>):
   }
 
   const attemptRequest = async (): Promise<any> => {
+    const { data, error } = await supabase.auth.getSession();
+    const token = data?.session?.access_token;
+    if (error) throw new Error('Session temporarily unavailable');
+    if (!token) throw new AIProxyAccessError('Sign in to use AI tools');
     const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     const response = await fetch(proxyUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'apikey': anonKey,
-        'Authorization': `Bearer ${anonKey}`,
+        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify({ operation, payload }),
     });
+
+    if (response.status === 401 || response.status === 403) {
+      throw new AIProxyAccessError(response.status === 401
+        ? 'Sign in to use AI tools' : 'Your account is not approved for AI tools');
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Request failed' }));
@@ -64,6 +76,10 @@ const callGeminiProxy = async (operation: string, payload: Record<string, any>):
   try {
     return await attemptRequest();
   } catch (firstError) {
+    if (firstError instanceof AIProxyAccessError) {
+      toast.error(firstError.message);
+      return null;
+    }
     console.warn(`Gemini API first attempt failed for ${operation}:`, firstError);
 
     // Retry after 2s delay
@@ -72,6 +88,10 @@ const callGeminiProxy = async (operation: string, payload: Record<string, any>):
     try {
       return await attemptRequest();
     } catch (secondError) {
+      if (secondError instanceof AIProxyAccessError) {
+        toast.error(secondError.message);
+        return null;
+      }
       // Both attempts failed - show toast and return null
       console.error(`Gemini API failed after retry for ${operation}:`, secondError);
       toast.error('AI temporarily unavailable', {
